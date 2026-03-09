@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from szimplacoffee.main import _price_per_oz_label, _weight_label
 from szimplacoffee.services.discovery import _decode_bing_result_url
-from szimplacoffee.services.recommendations import RecommendationRequest, _espresso_fit, _quantity_score
+from szimplacoffee.models import MerchantPromo, OfferSnapshot
+from szimplacoffee.services.recommendations import (
+    RecommendationRequest,
+    _build_pros,
+    _discounted_price_cents,
+    _espresso_fit,
+    _quantity_score,
+)
 from szimplacoffee.services.crawlers import (
     _extract_code,
     _is_coffee_product,
@@ -85,3 +92,37 @@ def test_recommended_crawl_tier_prefers_machine_readable_platforms() -> None:
 
 def test_normalize_product_name_replaces_html_breaks() -> None:
     assert _normalize_product_name("Colombia <BR>La Despensa") == "Colombia • La Despensa"
+
+
+def test_discounted_price_cents_applies_percent_promo() -> None:
+    offer = OfferSnapshot(price_cents=4000, compare_at_price_cents=None, subscription_price_cents=None, is_on_sale=False, is_available=True, source_url="https://example.com")
+    promo = MerchantPromo(
+        promo_key="save10",
+        promo_type="percent_off",
+        title="Save 10%",
+        details="",
+        code="SAVE10",
+        estimated_value_cents=1000,
+        source_urls="https://example.com",
+        confidence=0.9,
+        is_active=True,
+    )
+    discounted, label = _discounted_price_cents(4800, offer, promo)
+    assert discounted == 4320
+    assert label == "10% off"
+
+
+def test_build_pros_emits_buyer_facing_summary() -> None:
+    pros = _build_pros(
+        merchant_score=0.85,
+        quantity_score=1.0,
+        deal_score=0.82,
+        espresso_reasons=["merchant signals espresso suitability"],
+        deal_reasons=["qualifies for free shipping"],
+        history_reasons=["matches a merchant with strong purchase history"],
+        promo_label="10% off",
+    )
+    assert "Trusted merchant with a strong quality signal" in pros
+    assert "Bag size matches your current buying window" in pros
+    assert "Strong delivered value for the amount of coffee" in pros
+    assert len(pros) == 4

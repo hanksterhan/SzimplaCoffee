@@ -31,8 +31,10 @@ class RecommendationCandidate:
     weight_grams: int | None
     landed_price_cents: int
     landed_price_per_oz_cents: int | None
+    best_promo_label: str | None
+    discounted_landed_price_cents: int | None
     score: float
-    rationale: list[str]
+    pros: list[str]
 
 
 def _latest_offer(session: Session, variant_id: int) -> OfferSnapshot | None:
@@ -210,6 +212,44 @@ def _promo_bonus(session: Session, merchant_id: int) -> tuple[float, list[str]]:
     return bonus, reasons
 
 
+def _discounted_price_cents(landed_price_cents: int, offer: OfferSnapshot, promo: MerchantPromo) -> tuple[int | None, str | None]:
+    if promo.promo_type in {"percent_off", "subscription_discount"} and promo.estimated_value_cents:
+        percent = promo.estimated_value_cents / 100
+        discounted = int(round(landed_price_cents * (1 - (percent / 100))))
+        label = f"{percent:.0f}% off" if promo.promo_type == "percent_off" else f"{percent:.0f}% off with subscription"
+        return max(discounted, 0), label
+    if promo.promo_type == "dollar_off" and promo.estimated_value_cents:
+        discounted = max(landed_price_cents - promo.estimated_value_cents, 0)
+        return discounted, promo.title
+    if promo.promo_type in {"free_shipping", "free_shipping_variant"} and landed_price_cents > offer.price_cents:
+        label = "Free shipping"
+        if promo.promo_type == "free_shipping":
+            label = "Free shipping on qualifying order"
+        return offer.price_cents, label
+    return None, None
+
+
+def _best_active_promo(session: Session, merchant_id: int, landed_price_cents: int, offer: OfferSnapshot) -> tuple[str | None, int | None]:
+    promos = session.scalars(
+        select(MerchantPromo)
+        .where(MerchantPromo.merchant_id == merchant_id, MerchantPromo.is_active.is_(True))
+        .order_by(MerchantPromo.estimated_value_cents.desc().nullslast(), MerchantPromo.last_seen_at.desc())
+    ).all()
+    best_label: str | None = None
+    best_price: int | None = None
+    best_savings = 0
+    for promo in promos:
+        discounted, label = _discounted_price_cents(landed_price_cents, offer, promo)
+        if discounted is None or label is None:
+            continue
+        savings = landed_price_cents - discounted
+        if savings > best_savings:
+            best_savings = savings
+            best_label = label
+            best_price = discounted
+    return best_label, best_price
+
+
 def _landed_price_cents(offer: OfferSnapshot, shipping_policy: ShippingPolicy | None) -> int:
     if shipping_policy and shipping_policy.free_shipping_threshold_cents and offer.price_cents >= shipping_policy.free_shipping_threshold_cents:
         return offer.price_cents
@@ -244,6 +284,48 @@ def _price_per_oz_cents(price_cents: int, weight_grams: int | None) -> int | Non
     return int(round(price_cents / ounces))
 
 
+def _build_pros(
+    merchant_score: float,
+    quantity_score: float,
+    deal_score: float,
+    espresso_reasons: list[str],
+    deal_reasons: list[str],
+    history_reasons: list[str],
+    promo_label: str | None,
+) -> list[str]:
+    pros: list[str] = []
+    if merchant_score >= 0.8:
+        pros.append("Trusted merchant with a strong quality signal")
+    if quantity_score >= 0.95:
+        pros.append("Bag size matches your current buying window")
+    if espresso_reasons:
+        pros.append(espresso_reasons[0][:1].upper() + espresso_reasons[0][1:])
+    if deal_score >= 0.8:
+        pros.append("Strong delivered value for the amount of coffee")
+    elif deal_reasons:
+        pros.append(deal_reasons[0][:1].upper() + deal_reasons[0][1:])
+    if promo_label:
+        pros.append(f"Merchant offer available: {promo_label.lower()}")
+    if history_reasons:
+        first = history_reasons[0]
+        if "merchant" in first or "history" in first:
+            pros.append("Matches merchants and coffees you have liked before")
+        else:
+            pros.append(first[:1].upper() + first[1:])
+
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for pro in pros:
+        key = pro.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(pro)
+        if len(deduped) >= 4:
+            break
+    return deduped
+
+
 def build_recommendations(session: Session, request: RecommendationRequest) -> list[RecommendationCandidate]:
     candidates: list[RecommendationCandidate] = []
     prefs = _preference_profile(session)
@@ -270,6 +352,7 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
             quantity_score = _quantity_score(variant.weight_grams, request.quantity_mode, request.bulk_allowed)
             espresso_score, espresso_reasons = _espresso_fit(product, request.shot_style)
             deal_score, landed, deal_reasons = _deal_score(offer, variant, shipping_policy)
+            best_promo_label, discounted_landed_price_cents = _best_active_promo(session, merchant.id, landed, offer)
             freshness_score = merchant.quality_profile.freshness_transparency_score if merchant.quality_profile else 0.5
 
             total = (
@@ -282,16 +365,15 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
                 + promo_bonus
             )
 
-            rationale = [
-                f"merchant trust score {merchant_score:.2f}",
-                f"quantity fit score {quantity_score:.2f}",
-                f"deal score {deal_score:.2f}",
-                f"history fit score {history_score:.2f}",
-            ]
-            rationale.extend(espresso_reasons[:2])
-            rationale.extend(deal_reasons[:2])
-            rationale.extend(history_reasons[:2])
-            rationale.extend(promo_reasons[:1])
+            pros = _build_pros(
+                merchant_score,
+                quantity_score,
+                deal_score,
+                espresso_reasons,
+                deal_reasons,
+                history_reasons,
+                best_promo_label,
+            )
 
             candidates.append(
                 RecommendationCandidate(
@@ -303,8 +385,10 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
                     weight_grams=variant.weight_grams,
                     landed_price_cents=landed,
                     landed_price_per_oz_cents=_price_per_oz_cents(landed, variant.weight_grams),
+                    best_promo_label=best_promo_label,
+                    discounted_landed_price_cents=discounted_landed_price_cents,
                     score=round(total, 4),
-                    rationale=rationale,
+                    pros=pros,
                 )
             )
 

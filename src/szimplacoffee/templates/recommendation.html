@@ -50,18 +50,30 @@
           </div>
         </div>
       </div>
-      <p>
-        {{ candidate.variant_label }} ·
-        {% if candidate.weight_grams %}{{ weight_label(candidate.weight_grams) }} · {% endif %}
-        landed {{ money(candidate.landed_price_cents) }} ·
-        {{ price_per_oz_label(candidate.landed_price_cents, candidate.weight_grams) }} ·
-        score {{ "%.3f"|format(candidate.score) }}
+      <div class="recommendation-meta">
+        <span>{{ candidate.variant_label }}</span>
+        {% if candidate.weight_grams %}<span>{{ weight_label(candidate.weight_grams) }}</span>{% endif %}
+        <span>landed {{ money(candidate.landed_price_cents) }}</span>
+        <span>{{ price_per_oz_label(candidate.landed_price_cents, candidate.weight_grams) }}</span>
+        <span>score {{ "%.3f"|format(candidate.score) }}</span>
+      </div>
+      {% if candidate.best_promo_label and candidate.discounted_landed_price_cents is not none %}
+      <p class="promo-summary">
+        <strong>Active merchant offer</strong>
+        <span>{{ candidate.best_promo_label }}</span>
+        <span>potential final {{ money(candidate.discounted_landed_price_cents) }}</span>
       </p>
-      <ul>
-        {% for reason in candidate.rationale %}
-        <li>{{ reason }}</li>
-        {% endfor %}
-      </ul>
+      {% endif %}
+      {% if candidate.pros %}
+      <div class="pros-block">
+        <p class="pros-label">Why buy this</p>
+        <ul class="pros-list">
+          {% for pro in candidate.pros %}
+          <li>{{ pro }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
       <p><a href="{{ candidate.product_url }}" target="_blank" rel="noopener noreferrer">Open product</a></p>
     </li>
     {% endfor %}

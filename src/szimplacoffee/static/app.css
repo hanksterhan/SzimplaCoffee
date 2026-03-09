@@ -208,6 +208,55 @@ td {
   padding: 1rem;
 }
 
+.recommendation-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.6rem;
+}
+
+.recommendation-meta span,
+.pros-list li,
+.promo-summary {
+  border: 1px solid rgba(125, 77, 42, 0.18);
+  background: rgba(255, 253, 248, 0.72);
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+}
+
+.promo-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  margin: 0 0 0.85rem;
+}
+
+.pros-block {
+  margin-bottom: 0.9rem;
+}
+
+.pros-label {
+  margin: 0 0 0.45rem;
+  font-size: 0.92rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pros-list {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  padding: 0;
+  margin: 0;
+}
+
+.pros-list li {
+  color: var(--ink);
+}
+
 @media (max-width: 720px) {
   .shell-header,
   .panel-header,
