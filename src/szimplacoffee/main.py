@@ -6,14 +6,15 @@ from fastapi import Depends, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import desc, func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .bootstrap import bootstrap_if_empty, init_db
 from .config import STATIC_DIR, TEMPLATES_DIR
 from .db import get_session, session_scope
-from .models import Merchant, OfferSnapshot, Product, ProductVariant
+from .models import Merchant, MerchantCandidate, OfferSnapshot, Product, ProductVariant
 from .services.crawlers import crawl_merchant
+from .services.discovery import promote_candidate, run_discovery
 from .services.platforms import detect_platform
 from .services.recommendations import RecommendationRequest, build_recommendations, persist_recommendation_run
 
@@ -53,6 +54,7 @@ def dashboard(request: Request, session: Session = Depends(get_session)) -> HTML
         {
             "metrics": _dashboard_metrics(session),
             "merchants": merchants,
+            "pending_candidates": len(session.scalars(select(MerchantCandidate.id).where(MerchantCandidate.status == "pending")).all()),
         },
     )
 
@@ -118,18 +120,53 @@ def crawl_merchant_route(merchant_id: int, session: Session = Depends(get_sessio
     return RedirectResponse(url=f"/merchants/{merchant_id}", status_code=303)
 
 
+@app.get("/discovery", response_class=HTMLResponse)
+def discovery_page(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
+    candidates = session.scalars(
+        select(MerchantCandidate)
+        .where(MerchantCandidate.status == "pending")
+        .order_by(MerchantCandidate.confidence.desc(), MerchantCandidate.discovered_at.desc())
+    ).all()
+    return templates.TemplateResponse(request, "discovery.html", {"candidates": candidates})
+
+
+@app.post("/discovery/run")
+def discovery_run(session: Session = Depends(get_session)):
+    run_discovery(session)
+    session.commit()
+    return RedirectResponse(url="/discovery", status_code=303)
+
+
+@app.post("/discovery/{candidate_id}/promote")
+def discovery_promote(candidate_id: int, session: Session = Depends(get_session)):
+    candidate = session.get(MerchantCandidate, candidate_id)
+    merchant = promote_candidate(session, candidate)
+    session.flush()
+    crawl_merchant(session, merchant)
+    session.commit()
+    return RedirectResponse(url=f"/merchants/{merchant.id}", status_code=303)
+
+
+@app.post("/discovery/{candidate_id}/reject")
+def discovery_reject(candidate_id: int, session: Session = Depends(get_session)):
+    candidate = session.get(MerchantCandidate, candidate_id)
+    candidate.status = "rejected"
+    session.commit()
+    return RedirectResponse(url="/discovery", status_code=303)
+
+
 @app.get("/recommend", response_class=HTMLResponse)
 def recommend_page(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     candidates = build_recommendations(
         session,
-        RecommendationRequest(shot_style="modern_58mm", quantity_mode="12-18 oz", bulk_allowed=False),
+        RecommendationRequest(shot_style="modern_58mm", quantity_mode="12-18 oz", bulk_allowed=False, allow_decaf=False),
     )
     return templates.TemplateResponse(
         request,
         "recommendation.html",
         {
             "candidates": candidates,
-            "selected": {"shot_style": "modern_58mm", "quantity_mode": "12-18 oz", "bulk_allowed": False},
+            "selected": {"shot_style": "modern_58mm", "quantity_mode": "12-18 oz", "bulk_allowed": False, "allow_decaf": False},
         },
     )
 
@@ -140,12 +177,14 @@ def recommend_action(
     shot_style: str = Form("modern_58mm"),
     quantity_mode: str = Form("12-18 oz"),
     bulk_allowed: bool = Form(False),
+    allow_decaf: bool = Form(False),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     payload = RecommendationRequest(
         shot_style=shot_style,  # type: ignore[arg-type]
         quantity_mode=quantity_mode,  # type: ignore[arg-type]
         bulk_allowed=bulk_allowed,
+        allow_decaf=allow_decaf,
     )
     candidates = build_recommendations(session, payload)
     persist_recommendation_run(session, payload, candidates)
@@ -158,4 +197,3 @@ def recommend_action(
             "selected": payload.__dict__,
         },
     )
-

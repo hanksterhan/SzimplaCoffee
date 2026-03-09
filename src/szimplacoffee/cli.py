@@ -6,6 +6,7 @@ from .bootstrap import bootstrap_if_empty, init_db
 from .db import session_scope
 from .models import Merchant
 from .services.crawlers import crawl_merchant
+from .services.discovery import run_discovery
 from .services.platforms import detect_platform
 from .services.recommendations import RecommendationRequest, build_recommendations
 
@@ -21,6 +22,7 @@ def main() -> None:
     add_parser.add_argument("--crawl-now", action="store_true")
 
     subparsers.add_parser("crawl-all")
+    subparsers.add_parser("discover")
     subparsers.add_parser("recommend")
 
     args = parser.parse_args()
@@ -53,6 +55,11 @@ def main() -> None:
                 print(f"Crawled {merchant.name}")
             return
 
+        if args.command == "discover":
+            result = run_discovery(session)
+            print(f"Discovery complete. Created={result.created_count} skipped={result.skipped_count}")
+            return
+
         if args.command == "recommend":
             candidates = build_recommendations(
                 session,
@@ -60,6 +67,7 @@ def main() -> None:
                     shot_style="modern_58mm",
                     quantity_mode="12-18 oz",
                     bulk_allowed=False,
+                    allow_decaf=False,
                 ),
             )
             for candidate in candidates:
@@ -68,4 +76,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

@@ -37,6 +37,22 @@ class Merchant(Base):
     crawl_runs: Mapped[list["CrawlRun"]] = relationship(back_populates="merchant", cascade="all, delete-orphan")
 
 
+class MerchantCandidate(Base):
+    __tablename__ = "merchant_candidates"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    canonical_domain: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    merchant_name: Mapped[str] = mapped_column(String(255))
+    homepage_url: Mapped[str] = mapped_column(String(500))
+    source_query: Mapped[str] = mapped_column(String(255), default="")
+    platform_type: Mapped[str] = mapped_column(String(50), default="unknown")
+    confidence: Mapped[float] = mapped_column(Float, default=0.3)
+    status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class MerchantSource(Base):
     __tablename__ = "merchant_sources"
 
@@ -230,4 +246,3 @@ class RecommendationRun(Base):
     alternatives_json: Mapped[str] = mapped_column(Text, default="")
     wait_recommendation: Mapped[bool] = mapped_column(Boolean, default=False)
     model_version: Mapped[str] = mapped_column(String(32), default="v1")
-

@@ -25,6 +25,10 @@
       <input type="checkbox" name="bulk_allowed" value="true" {% if selected.bulk_allowed %}checked{% endif %}>
       Allow bulk if it wins
     </label>
+    <label class="checkbox">
+      <input type="checkbox" name="allow_decaf" value="true" {% if selected.allow_decaf %}checked{% endif %}>
+      Allow decaf in ranking
+    </label>
     <button class="button" type="submit">Score current catalog</button>
   </form>
 </section>
@@ -59,4 +63,3 @@
   {% endif %}
 </section>
 {% endblock %}
-

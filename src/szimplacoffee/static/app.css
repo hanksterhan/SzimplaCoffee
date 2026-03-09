@@ -92,6 +92,12 @@ nav {
   gap: 1rem;
 }
 
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
 .button {
   display: inline-block;
   border: none;
@@ -101,6 +107,12 @@ nav {
   padding: 0.7rem 1rem;
   cursor: pointer;
   font: inherit;
+}
+
+.button.secondary {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
 }
 
 form.stack {
@@ -172,4 +184,3 @@ td {
     align-items: start;
   }
 }
-

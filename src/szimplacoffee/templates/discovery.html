@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="panel">
+  <div class="panel-header">
+    <div>
+      <h2>Merchant discovery</h2>
+      <p>Candidate merchants discovered from search queries and awaiting review.</p>
+    </div>
+    <form method="post" action="/discovery/run">
+      <button class="button" type="submit">Run discovery</button>
+    </form>
+  </div>
+</section>
+
+<section class="panel">
+  <h3>Pending candidates</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Domain</th>
+        <th>Platform</th>
+        <th>Confidence</th>
+        <th>Source</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for candidate in candidates %}
+      <tr>
+        <td>{{ candidate.merchant_name }}</td>
+        <td><a href="{{ candidate.homepage_url }}" target="_blank" rel="noreferrer">{{ candidate.canonical_domain }}</a></td>
+        <td>{{ candidate.platform_type }}</td>
+        <td>{{ "%.2f"|format(candidate.confidence) }}</td>
+        <td>{{ candidate.source_query }}</td>
+        <td>
+          <div class="actions">
+            <form method="post" action="/discovery/{{ candidate.id }}/promote">
+              <button class="button" type="submit">Promote</button>
+            </form>
+            <form method="post" action="/discovery/{{ candidate.id }}/reject">
+              <button class="button secondary" type="submit">Reject</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6">No pending candidates yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
