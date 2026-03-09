@@ -37,6 +37,12 @@ class PromoCandidate:
     confidence: float
 
 
+@dataclass
+class WooPageContext:
+    variation_rows: list[dict]
+    summary_text: str
+
+
 def _utcnow() -> datetime:
     return datetime.now(UTC)
 
@@ -47,7 +53,7 @@ def _clean_text(html: str) -> str:
 
 
 def _extract_field(text: str, label: str) -> str:
-    pattern = re.compile(rf"{re.escape(label)}\s*:?\s*(.+)", re.IGNORECASE)
+    pattern = re.compile(rf"^\s*{re.escape(label)}\s*:?\s*(.+)$", re.IGNORECASE)
     for line in text.splitlines():
         match = pattern.search(line)
         if match:
@@ -107,6 +113,16 @@ def _parse_price_to_cents(value: str | int | None) -> int | None:
 
 def _parse_weight_grams(label: str) -> int | None:
     lowered = label.lower()
+    pack_match = re.search(
+        r"(?:(\d+|one|two|three|four|five|six)\s*x\s*(\d+(?:\.\d+)?)\s*oz)|(?:(\d+|one|two|three|four|five|six)\s+(\d+(?:\.\d+)?)\s*oz\s+bags?)",
+        lowered,
+    )
+    if pack_match:
+        count_token = pack_match.group(1) or pack_match.group(3)
+        amount_token = pack_match.group(2) or pack_match.group(4)
+        count_map = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
+        count = count_map.get(count_token, int(count_token) if count_token.isdigit() else 1)
+        return int(round(count * float(amount_token) * 28.3495))
     oz_match = re.search(r"(\d+(?:\.\d+)?)\s*oz", lowered)
     if oz_match:
         return int(round(float(oz_match.group(1)) * 28.3495))
@@ -131,7 +147,73 @@ def _extract_tasting_notes(text: str) -> str:
         value = _extract_field(text, label)
         if value:
             return value
+    prose_match = re.search(r"(?:notes of|flavors? of)\s+([^.;]+)", text, re.IGNORECASE)
+    if prose_match:
+        return prose_match.group(1).strip()
     return ""
+
+
+def _infer_origin_from_text(name: str, text: str) -> str:
+    known_origins = [
+        "Ethiopia",
+        "Kenya",
+        "Colombia",
+        "El Salvador",
+        "Guatemala",
+        "Peru",
+        "Brazil",
+        "Burundi",
+        "Rwanda",
+        "Costa Rica",
+        "Honduras",
+        "Panama",
+        "Mexico",
+        "Ecuador",
+    ]
+    haystack = f"{name}\n{text}"
+    for origin in known_origins:
+        if origin.lower() in haystack.lower():
+            return origin
+    return ""
+
+
+def _extract_intro_tokens(text: str) -> list[str]:
+    for line in text.splitlines():
+        if line.count("|") >= 2:
+            return [token.strip() for token in line.split("|") if token.strip()]
+    return []
+
+
+def _extract_process_from_text(name: str, text: str) -> str:
+    for candidate in _extract_intro_tokens(text) + [name]:
+        match = re.search(r"(washed|natural|honey|anaerobic(?: natural| washed)?|wet hulled)", candidate, re.IGNORECASE)
+        if match:
+            return match.group(1).title()
+    return ""
+
+
+def _extract_variety_from_text(name: str, text: str) -> str:
+    for token in _extract_intro_tokens(text):
+        lowered = token.lower()
+        if "masl" in lowered:
+            continue
+        if re.search(r"(washed|natural|honey|anaerobic|wet hulled)", lowered):
+            continue
+        if any(char.isdigit() for char in token) or "%" in token or any(term in lowered for term in ["geisha", "bourbon", "caturra", "castillo", "bernardina", "sl-", "ruiru", "typica"]):
+            return token
+    return ""
+
+
+def _merge_origin_and_site(origin: str, site_token: str) -> str:
+    if not site_token:
+        return origin
+    if not origin:
+        return site_token
+    if site_token.lower() == origin.lower():
+        return origin
+    if site_token.lower() in origin.lower():
+        return origin
+    return f"{origin} · {site_token}"
 
 
 def _is_coffee_product(name: str, product_type: str = "", tags: Iterable[str] | None = None, categories: Iterable[str] | None = None) -> bool:
@@ -673,30 +755,38 @@ def _variation_name_map(attributes: list[dict]) -> dict[str, str]:
     return mapping
 
 
+def _summary_context_text(soup: BeautifulSoup) -> str:
+    summary = soup.select_one(".product .summary")
+    if not summary:
+        return ""
+    return summary.get_text("\n", strip=True)
+
+
 def _normalize_woo_variation_label(value: str, name_map: dict[str, str]) -> str:
     normalized = value.lower().strip()
     return name_map.get(normalized) or name_map.get(normalized.replace(" ", "")) or value
 
 
-def _fetch_woocommerce_variation_rows(client: httpx.Client, product_url: str) -> list[dict]:
+def _fetch_woocommerce_page_context(client: httpx.Client, product_url: str) -> WooPageContext:
     try:
         response = client.get(product_url)
     except httpx.HTTPError:
-        return []
+        return WooPageContext([], "")
     if response.status_code >= 400:
-        return []
+        return WooPageContext([], "")
     soup = BeautifulSoup(response.text, "lxml")
+    summary_text = _summary_context_text(soup)
     form = soup.select_one("form.variations_form")
     if not form:
-        return []
+        return WooPageContext([], summary_text)
     raw = form.get("data-product_variations")
     if not raw:
-        return []
+        return WooPageContext([], summary_text)
     try:
         decoded = json.loads(html.unescape(raw))
     except json.JSONDecodeError:
-        return []
-    return decoded if isinstance(decoded, list) else []
+        return WooPageContext([], summary_text)
+    return WooPageContext(decoded if isinstance(decoded, list) else [], summary_text)
 
 
 def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
@@ -728,7 +818,14 @@ def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
                 min_price = _parse_price_to_cents(price_range.get("min_amount") or price_info.get("price"))
                 max_price = _parse_price_to_cents(price_range.get("max_amount") or price_info.get("price"))
                 product_url = raw.get("permalink", merchant.homepage_url)
-                variation_rows = _fetch_woocommerce_variation_rows(client, product_url) if raw.get("has_options") else []
+                page_context = _fetch_woocommerce_page_context(client, product_url)
+                variation_rows = page_context.variation_rows if raw.get("has_options") else []
+                combined_context = "\n".join(part for part in [page_context.summary_text, description] if part)
+                intro_tokens = _extract_intro_tokens(combined_context)
+                inferred_origin = _infer_origin_from_text(raw.get("name", ""), combined_context)
+                first_intro_token = intro_tokens[0] if intro_tokens else ""
+                if first_intro_token and "masl" in first_intro_token.lower():
+                    first_intro_token = ""
 
                 product = _upsert_product(
                     session,
@@ -738,13 +835,13 @@ def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
                         "name": raw.get("name", "Unnamed Coffee"),
                         "product_url": product_url,
                         "image_url": ((raw.get("images") or [{}])[0].get("src") or ""),
-                        "origin_text": _extract_field(description, "Origin"),
-                        "process_text": _extract_field(description, "Process"),
-                        "variety_text": _extract_field(description, "Variety"),
-                        "roast_cues": "light" if "light" in description.lower() else "",
-                        "tasting_notes_text": _extract_tasting_notes(description),
-                        "is_single_origin": _normalize_single_origin_flag(raw.get("name", ""), [], description, categories),
-                        "is_espresso_recommended": "espresso" in description.lower(),
+                        "origin_text": _extract_field(description, "Origin") or _merge_origin_and_site(inferred_origin, first_intro_token),
+                        "process_text": _extract_field(description, "Process") or _extract_process_from_text(raw.get("name", ""), combined_context),
+                        "variety_text": _extract_field(description, "Variety") or _extract_variety_from_text(raw.get("name", ""), combined_context),
+                        "roast_cues": "light" if "light" in combined_context.lower() else "",
+                        "tasting_notes_text": _extract_tasting_notes(combined_context),
+                        "is_single_origin": _normalize_single_origin_flag(raw.get("name", ""), [], combined_context, categories),
+                        "is_espresso_recommended": "espresso" in combined_context.lower(),
                     },
                 )
                 session.flush()
@@ -764,18 +861,25 @@ def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
                 exact_rows = []
                 for row in variation_rows:
                     attributes = row.get("attributes", {}) or {}
-                    size_value = attributes.get("attribute_pa_bag-size") or attributes.get("attribute_size")
-                    grind_value = attributes.get("attribute_pa_whole-bean-or-ground") or attributes.get("attribute_grind")
+                    size_value = None
+                    grind_value = None
+                    for key, value in attributes.items():
+                        lowered_key = key.lower()
+                        if "whole-bean-or-ground" in lowered_key or "grind" in lowered_key:
+                            grind_value = value
+                        elif value:
+                            size_value = value
                     if size_value is None:
                         continue
                     if grind_value and "whole-bean" not in grind_value.lower():
                         continue
                     variation_id = row.get("variation_id")
+                    weight_hint = str(row.get("weight_html") or row.get("weight") or size_value)
                     exact_rows.append(
                         {
                             "external_variant_id": str(variation_id or f"{raw['id']}::{size_value}"),
                             "label": _normalize_woo_variation_label(str(size_value), name_map),
-                            "weight_grams": _parse_weight_grams(str(size_value)),
+                            "weight_grams": _parse_weight_grams(weight_hint),
                             "is_available": bool(row.get("is_in_stock", raw.get("is_in_stock", True))),
                             "price_cents": int(round(float(row.get("display_price", 0)) * 100)),
                             "compare_at_price_cents": int(round(float(row.get("display_regular_price", 0)) * 100)) if row.get("display_regular_price") else None,

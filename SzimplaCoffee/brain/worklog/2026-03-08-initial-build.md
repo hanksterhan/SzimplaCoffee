@@ -19,6 +19,7 @@
 - Upgraded discovery precision for custom merchants by recognizing Squarespace coffee-commerce sites
 - Replaced raw promo pileups with canonical merchant-level promos while preserving promo snapshots
 - Replaced WooCommerce size-price interpolation with exact whole-bean variation prices when public product pages expose them
+- Tightened WooCommerce parsing after a live Camber validation failure so Bernardina and bundle products use exact prices, exact weights, and page-context fields
 - Added product image URLs to the catalog and surfaced them in recommendation and merchant-detail views
 - Added weight formatting and price-per-ounce display in the UI, including pounds when appropriate
 - Added outbound site and product links that open in a new tab
