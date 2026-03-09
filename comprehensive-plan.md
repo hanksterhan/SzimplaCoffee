@@ -1,518 +1,546 @@
-# SzimplaCoffee Comprehensive Build Plan
-
-This document turns the north star into an actionable build plan for a solo developer using agentic engineering.
-
-## Consensus Packet
-
-### Problem statement
-
-Build a local-first web application that helps us decide where to buy coffee right now, based on espresso intent, quality bar, merchant trust, bag size, delivery timing, promotions, and total landed cost.
-
-The product must support:
-
-- broad merchant coverage across U.S. coffee roasters and online coffee shops
-- a strong quality bar
-- espresso-specific recommendation logic
-- personalized learning from our own buying history
-- bulk-buy decisions such as 12 to 18 oz versus 2 lb or 5 lb
-- automation for merchant discovery, offer refreshes, and promo tracking
-
-### Domain and risk tier
-
-- Domain: software
-- Risk tier: medium
-
-### Team composition used for synthesis
-
-- Framer: product-owner-task-planner
-- Analysts: technical-analyst, server-expert, coffee-brewing-expert
-- Architects: software-architect, server-expert, ux-expert
-- Critic: verifier
-- Synthesizer: product-owner-task-planner
-
-### Summary of votes and disagreements
-
-- Strong agreement that this should be a local-first web application, not a CLI-only tool.
-- Strong agreement that SQLite should be the initial source of truth, not CSV or Notion.
-- Strong agreement that crawling should be adapter-first, not browser-first.
-- Mild disagreement on frontend complexity:
-  - Option A: React / SPA for richer interactivity
-  - Option B: server-rendered UI with HTMX for faster solo-dev velocity
-  - Resolution: choose server-rendered UI with HTMX for v1
-- Mild disagreement on worker system:
-  - Option A: simple in-process scheduling
-  - Option B: full external queue system
-  - Resolution: use APScheduler plus CLI job execution in v1, reserve external queue for later
-
-### Recommendation
-
-Build SzimplaCoffee as a Python local-first web app with:
-
-- FastAPI
-- server-rendered Jinja templates
-- HTMX for progressive interactivity
-- SQLite in WAL mode with FTS5 and JSON support
-- SQLAlchemy 2 plus Alembic
-- Crawlee for Python as the crawler framework
-- adapter-first merchant extraction, with full browser automation only as fallback
-- APScheduler for recurring jobs
-- direct LLM usage with structured outputs for low-confidence extraction and note normalization
-- a repo-local markdown-based second brain that the agent and developer can both use
-
-### Risks
-
-- Merchant discovery can grow faster than review capacity.
-- Browser-first crawling would become slow, brittle, and expensive.
-- Promo data can be inconsistent or partially personalized.
-- Too much frontend complexity would slow a solo developer.
-- Too much documentation entropy would hurt continuity across agent sessions.
-
-### Confidence
-
-- Confidence: high
-
-### Confidence rationale
-
-- The crawler choice is grounded in current official docs for Crawlee, Playwright, SQLite, FastAPI, APScheduler, and Notion limits.
-- The product and data constraints are clear from the north star and the existing Bean Database patterns.
-- The recommended stack minimizes moving parts while preserving a clean growth path.
-- The rejected alternatives are valid, but they add complexity too early for this stage.
-
-### Assumptions
-
-- This remains a single-user or single-household tool in its first phase.
-- The app runs locally on one machine for daily use and scheduled crawls.
-- Most high-value merchants will expose parseable HTML, Shopify endpoints, WooCommerce Store API endpoints, or other structured data.
-- We can manually review low-confidence merchants rather than demand perfect autonomous coverage.
-
-### Unknowns
-
-- How much of promo value comes from public sale signals versus personalized wallet signals.
-- How quickly merchant count will grow after discovery is automated.
-- Whether we eventually want multi-device sync or remote hosting.
-
-## Initial Recommendation
-
-There is a clear initial answer.
-
-Build:
-
-- a local-first web application
-- with a companion CLI
-- using SQLite as the operational store
-- using adapter-first crawlers
-- with a markdown-based second brain inside the repo
-
-Do not build:
-
-- a CLI-only tool
-- a React-heavy SPA in v1
-- a CSV-backed catalog
-- a Notion-first operational system
-- a browser-first crawler architecture
-
-## Why this stack wins
-
-### Why a local-first web app
-
-The product is not just a recommendation API. It is also an operator console.
-
-We need to:
-
-- browse merchants
-- inspect product and price snapshots
-- review crawl health
-- edit trust tiers
-- override bad parses
-- inspect why a recommendation was made
-
-That is web-UI work, not CLI-only work.
-
-### Why not a React-first SPA in v1
-
-For a solo developer, a full SPA adds complexity in:
-
-- state management
-- API boundaries
-- frontend build tooling
-- testing surface area
-- agent maintenance burden
-
-A server-rendered interface with HTMX gives enough interactivity for admin-style workflows while keeping complexity low.
-
-HTMX’s current documentation states that it expects HTML fragment responses and allows modern browser interactions directly from HTML, which is aligned with a low-complexity local admin app. [Source](https://htmx.org/docs/)
-
-### Why SQLite
-
-SQLite is the right first database because it is optimized for application-local storage and low-to-medium traffic workloads.
-
-SQLite explicitly documents:
-
-- it is commonly used as an application file format
-- it works well for most low to medium traffic websites
-- WAL mode allows readers and writers to proceed concurrently
-- there can still only be one writer at a time
-
-Those are good tradeoffs for a single-user local app with queued writes. [Sources](https://www.sqlite.org/whentouse.html) [WAL](https://www.sqlite.org/wal.html) [FTS5](https://www.sqlite.org/fts5.html)
-
-### Why not Notion as the primary database
-
-Notion is useful as an input source and report surface, but not as the operational store for crawling, snapshots, and recommendation data.
-
-Notion’s official docs state that the average rate limit is three requests per second per integration, with 429 handling required. That is the wrong foundation for crawler-heavy data operations. [Source](https://developers.notion.com/reference/request-limits)
-
-### Why Crawlee for Python plus Playwright
-
-The crawler system needs:
-
-- request queues
-- retries
-- deep crawl support
-- HTTP crawlers for simple sites
-- browser crawlers for dynamic sites
-- a path to adaptive crawling
-
-Crawlee for Python provides:
-
-- `BeautifulSoupCrawler`
-- `PlaywrightCrawler`
-- `AdaptivePlaywrightCrawler`
-- `RequestQueue`
-
-Its docs specifically describe `AdaptivePlaywrightCrawler` as a combination of Playwright and an HTTP-based crawler, falling back to browser automation only when needed. That is exactly the efficiency pattern we want. [Sources](https://crawlee.dev/python/docs/quick-start) [Adaptive Playwright](https://crawlee.dev/python/docs/guides/adaptive-playwright-crawler) [RequestQueue](https://crawlee.dev/python/api/class/RequestQueue)
-
-### Why FastAPI
-
-FastAPI is a good local-first application server for APIs, templates, background-triggered endpoints, and CLI coordination.
-
-Its background task docs are useful, but they also explicitly note that heavier background computation may benefit from bigger tools such as Celery. That reinforces the decision to keep heavy crawling outside request handlers and execute scheduled crawl jobs via CLI or worker entrypoints. [Source](https://fastapi.tiangolo.com/tutorial/background-tasks/)
-
-### Why APScheduler for v1
-
-We need recurring jobs, but we do not need a distributed worker fleet yet.
-
-APScheduler gives:
-
-- triggers
-- job stores
-- executors
-- schedulers
-
-That is enough for local recurring refreshes and periodic crawl orchestration. [Source](https://apscheduler.readthedocs.io/en/stable/userguide.html)
-
-## Chosen Tech Stack
-
-### Runtime and packaging
+# SzimplaCoffee Execution Plan
+
+## Goal
+
+Build a local-first web application that answers:
+
+**What coffee should I order right now, from which merchant, in what size, and why?**
+
+The system must optimize for:
+
+- espresso fit
+- merchant trust
+- freshness confidence
+- delivered cost
+- bag-size fit
+- promo and bulk value
+
+## Product Cut
+
+### In scope for v1
+
+- local web app for operating the system
+- merchant registry with trust tiers
+- manual merchant add
+- Shopify and WooCommerce crawling
+- product, variant, offer, and promo snapshots
+- shipping threshold tracking
+- Notion import for purchase history
+- recommendation flow for espresso-oriented buying
+- support for `12-18 oz`, `2 lb`, and `5 lb` decisions
+
+### Out of scope for v1
+
+- multi-user auth
+- cloud hosting
+- browser-first crawling
+- generic marketplace features
+- social or review features
+- full automation of personalized wallet credits
+
+## Core Decisions
+
+| Decision | Choice | Rationale |
+| --- | --- | --- |
+| App shape | Local-first web app plus CLI | We need an operator console, not just commands |
+| Backend | Python 3.12 + FastAPI | Fast to build, good typing, easy CLI and web integration |
+| UI | Jinja templates + HTMX | Lower complexity than a SPA, enough interactivity for admin workflows |
+| DB | SQLite + WAL + FTS5 | Best fit for single-user local app with search and history |
+| ORM | SQLAlchemy 2 + Alembic | Stable schema management and migrations |
+| Crawler framework | Crawlee for Python | Gives queues, retries, HTTP crawlers, and browser fallback |
+| Browser automation | Playwright fallback only | Browser crawling is slow and brittle; use only when needed |
+| Scheduler | APScheduler | Enough for local recurring jobs without a queue platform |
+| LLM use | Direct structured calls only | Use only for enrichment and low-confidence extraction, not orchestration magic |
+| Second brain | Repo-local markdown system | Durable, diffable, easy for both human and agent to use |
+
+## Architecture
+
+### Runtime components
+
+1. Web app
+2. CLI
+3. Scheduler
+4. Crawl workers
+5. Recommendation engine
+6. Importers
+7. Second brain
+
+### Request and job boundaries
+
+- Web requests should read data, trigger jobs, and render results.
+- Heavy crawling should run outside request handlers.
+- Scheduled jobs should execute via CLI entrypoints or worker functions.
+- All crawler and recommendation runs should write structured run records.
+
+### High-level flow
+
+1. Add or discover merchant
+2. Detect platform
+3. Select crawler adapter
+4. Extract products, offers, promos, and policies
+5. Store time-series snapshots
+6. Import personal purchase history
+7. Score candidate coffees against current buying intent
+8. Return recommendation with explanation
+
+## Tech Stack
+
+### Application
 
 - Python 3.12+
-- `uv` for environment and package management
-- `ruff` for linting and formatting
-- `pytest` for tests
-
-### Web application
-
 - FastAPI
-- Jinja2 templates
-- HTMX 2.x
-- small amounts of plain JavaScript only where HTMX is not enough
-- simple CSS system first, no frontend framework build pipeline in v1
+- Jinja2
+- HTMX
+- small plain JavaScript only where needed
 
-### Data layer
+### Data
 
 - SQLite
-- WAL mode enabled
-- FTS5 for search over merchants, tasting notes, products, and notes
-- JSON columns for flexible merchant metadata where needed
 - SQLAlchemy 2
-- Alembic for migrations
+- Alembic
 
-### Crawling and extraction
+### Crawling
 
 - Crawlee for Python
-- BeautifulSoupCrawler for static HTTP extraction
-- AdaptivePlaywrightCrawler for mixed sites
-- PlaywrightCrawler only when JavaScript is truly required
-- Playwright browsers installed locally
+- BeautifulSoupCrawler
+- AdaptivePlaywrightCrawler
+- PlaywrightCrawler only for true fallback cases
 
-### Scheduling and jobs
+### Tooling
 
-- APScheduler
-- CLI job entrypoints executed on schedules
-- app-triggered jobs recorded in database as runs, but not executed inline in request handlers
+- `uv`
+- `ruff`
+- `pytest`
 
-### LLM and agent layer
+## Crawler Architecture
 
-- direct SDK usage with structured outputs
-- no LangChain, no heavy graph orchestration in v1
-- use LLMs only for:
-  - normalization of tasting notes and merchant metadata
-  - fallback extraction for messy unstructured content
-  - merchant classification
-  - recommendation explanation generation
+### Design rule
 
-### Testing
+Do not default to a browser.
 
-- unit tests for scoring and normalization
-- adapter tests using captured merchant fixtures
-- Playwright UI tests only for critical flows
+Use the cheapest reliable extractor in this order:
 
-## Architecture Overview
+1. direct platform API
+2. static HTML parse
+3. adaptive browser crawl
+4. full browser crawl
 
-### Primary app surfaces
+### Adapter registry
 
-The web application should have six initial pages:
+The crawler layer should be adapter-driven.
 
-1. Dashboard
-2. Merchants
-3. Products and offers
-4. Recommendation console
-5. Jobs and crawl health
-6. Notes and feedback
+Each adapter should expose:
 
-### CLI surfaces
+- `detect(url) -> confidence`
+- `discover_entrypoints(merchant)`
+- `crawl_catalog(merchant)`
+- `crawl_promos(merchant)`
+- `crawl_shipping(merchant)`
+- `normalize(payload) -> records + confidence`
 
-The CLI should support:
+### Initial adapters
 
-- `szimpla merchant add <url>`
-- `szimpla merchant discover`
-- `szimpla crawl merchant <merchant_id>`
-- `szimpla crawl promos`
-- `szimpla recommend`
-- `szimpla sync notion`
-- `szimpla brain capture`
+#### Shopify adapter
 
-## Data Model
+Primary paths:
 
-Start with explicit relational tables.
-
-### Core tables
-
-- `merchants`
-- `merchant_sources`
-- `merchant_quality_profiles`
-- `merchant_personal_profiles`
-- `merchant_promo_profiles`
-- `products`
-- `product_variants`
-- `offer_snapshots`
-- `shipping_policies`
-- `job_runs`
-- `crawl_events`
-- `user_preferences`
-- `recommendation_runs`
-- `purchase_history`
-- `brew_feedback`
-
-### Search tables
-
-- `merchant_search_fts`
-- `product_search_fts`
-- `notes_search_fts`
-
-### Important design rule
-
-Keep historical snapshots.
-
-Do not overwrite the current truth without preserving:
-
-- observed prices
-- availability
-- promotions
-- shipping thresholds
-- recommendation inputs and outputs
-
-This tool becomes more valuable as it learns time-series behavior.
-
-## Crawler Strategy
-
-This is the most important engineering decision in the plan.
-
-### Principle
-
-Do not crawl every site with a browser.
-
-Start with the cheapest reliable extraction path and only escalate when needed.
-
-### Merchant pipeline
-
-1. Merchant intake
-2. Platform detection
-3. Adapter selection
-4. Catalog extraction
-5. Offer extraction
-6. Shipping and promo extraction
-7. Confidence scoring
-8. Human review if needed
-
-### Adapter order
-
-#### 1. Shopify adapter
-
-Check for:
-
-- `products.json`
+- `/products.json`
 - product `.js` endpoints
-- structured theme metadata
+- HTML fallback for banners, shipping pages, and promo pages
 
-Use direct HTTP when available.
+Why first:
 
-#### 2. WooCommerce adapter
+- many specialty roasters use Shopify
+- product and variant data is often publicly structured
 
-Check for:
+#### WooCommerce adapter
 
-- `wp-json/wc/store/v1/products`
-- category and product endpoints
-- structured schema in HTML
+Primary paths:
 
-Use direct HTTP when available.
+- `/wp-json/wc/store/v1/products`
+- category endpoints
+- HTML fallback for policies and promos
 
-#### 3. Static HTML adapter
+Why first:
 
-Use Crawlee HTTP crawlers to parse:
+- Camber-like stores are already relevant to the target user
+- store API is structured enough for v1
 
-- merchant pages
-- product pages
-- FAQ and shipping pages
-- sale banners
-- subscription pages
+#### Static HTML adapter
 
-#### 4. Adaptive browser adapter
+Use when:
 
-Use `AdaptivePlaywrightCrawler` when:
+- no useful platform API is available
+- pages still expose parseable product and policy content
 
-- some pages are static and others are dynamic
-- we need selector-based detection with uncertain rendering needs
-- site behavior varies across merchant pages
+#### Browser fallback adapter
 
-#### 5. Full browser adapter
+Use only when:
 
-Use `PlaywrightCrawler` only when:
+- client-side rendering blocks extraction
+- promo data appears only after execution
+- selectors cannot be resolved from static HTML
 
-- content requires client-side rendering
-- promo data exists only after page execution
-- the site blocks or obscures direct extraction
+### Merchant discovery
 
-### Why this is efficient
-
-Most coffee merchants will fall into one of these buckets:
-
-- Shopify with public endpoints
-- WooCommerce with Store API
-- static-ish HTML with parseable content
-- true dynamic edge cases
-
-That means the browser should be the exception, not the default.
-
-### Discovery strategy
-
-Use three discovery paths:
+Support three ingestion paths:
 
 1. Manual add by URL
-2. Seeded imports from curated roaster lists
-3. Web discovery crawler
+2. Seed imports from curated roaster lists
+3. Discovery crawl for U.S. coffee roasters
 
-The discovery crawler should:
+Discovery output should go into a candidate queue, not directly into trusted merchants.
 
-- search for U.S. coffee roasters and coffee subscriptions
-- extract domains
-- detect commerce capability
-- queue merchant candidates
-- classify whether the merchant is worth tracking
+### Crawl tiers
 
-### Merchant crawl tiers
+| Tier | Meaning | Frequency |
+| --- | --- | --- |
+| A | Trusted or high-value merchants | Every 4 to 6 hours |
+| B | Good candidates with strong fit | Daily |
+| C | Long tail merchants | Weekly |
+| D | Excluded or low-value merchants | Rare or on-demand |
 
-- Tier A: trusted and high-value merchants, refresh every 4 to 6 hours
-- Tier B: strong candidates, refresh daily
-- Tier C: long-tail merchants, refresh weekly
-- Tier D: excluded or very low-trust merchants, refresh rarely or on demand
+### Crawl run outputs
 
-This keeps coverage broad without paying the same attention to every merchant.
+Each crawl run should persist:
 
-### Promo and shipping extraction strategy
+- adapter used
+- started_at
+- finished_at
+- status
+- confidence
+- pages touched
+- records written
+- errors
 
-Store promo and shipping data separately from product data.
+## Data Shape
 
-Track:
+The database should be explicit and historical. Do not overwrite current state without retaining snapshots.
 
-- announcement bars
-- compare-at prices
-- coupon codes
-- free shipping thresholds
-- subscription discounts
-- “ships free” size variants
-- sale timing patterns
+### `merchants`
 
-### Personalized wallet value
+Purpose:
 
-Public crawlers cannot be trusted to know personal wallet credits consistently.
+- canonical merchant record
 
-Treat Shop Cash and similar value as a separate ingestion stream:
+Core fields:
 
-- email parsing later
-- manual entry initially
-- possible authenticated integration later
+- `id`
+- `name`
+- `canonical_domain`
+- `homepage_url`
+- `platform_type`
+- `country_code`
+- `is_active`
+- `crawl_tier`
+- `trust_tier`
+- `created_at`
+- `updated_at`
+
+Indexes:
+
+- unique `canonical_domain`
+- index on `crawl_tier`
+- index on `trust_tier`
+
+### `merchant_sources`
+
+Purpose:
+
+- record how a merchant entered the system
+
+Core fields:
+
+- `id`
+- `merchant_id`
+- `source_type` (`manual`, `seed`, `discovery`)
+- `source_value`
+- `discovered_at`
+- `confidence`
+
+### `merchant_quality_profiles`
+
+Purpose:
+
+- objective merchant quality signals
+
+Core fields:
+
+- `merchant_id`
+- `freshness_transparency_score`
+- `shipping_clarity_score`
+- `metadata_quality_score`
+- `espresso_relevance_score`
+- `service_confidence_score`
+- `overall_quality_score`
+- `last_reviewed_at`
+
+### `merchant_personal_profiles`
+
+Purpose:
+
+- user-specific trust and experience
+
+Core fields:
+
+- `merchant_id`
+- `has_order_history`
+- `would_reorder`
+- `personal_trust_score`
+- `average_rating`
+- `notes`
+- `last_ordered_at`
+
+### `shipping_policies`
+
+Purpose:
+
+- normalized shipping policy state
+
+Core fields:
+
+- `id`
+- `merchant_id`
+- `free_shipping_threshold_cents`
+- `shipping_notes`
+- `estimated_roast_to_ship_days`
+- `estimated_delivery_days`
+- `source_url`
+- `observed_at`
+- `confidence`
+
+### `products`
+
+Purpose:
+
+- canonical coffee product record
+
+Core fields:
+
+- `id`
+- `merchant_id`
+- `external_product_id`
+- `name`
+- `product_url`
+- `origin_text`
+- `process_text`
+- `variety_text`
+- `roast_cues`
+- `tasting_notes_text`
+- `is_single_origin`
+- `is_espresso_recommended`
+- `is_active`
+- `first_seen_at`
+- `last_seen_at`
+
+Indexes:
+
+- unique `(merchant_id, external_product_id)`
+- full-text search on `name`, `origin_text`, `process_text`, `tasting_notes_text`
+
+### `product_variants`
+
+Purpose:
+
+- size-level and option-level purchasable variants
+
+Core fields:
+
+- `id`
+- `product_id`
+- `external_variant_id`
+- `label`
+- `weight_grams`
+- `is_whole_bean`
+- `is_available`
+- `first_seen_at`
+- `last_seen_at`
+
+Indexes:
+
+- unique `(product_id, external_variant_id)`
+- index on `weight_grams`
+
+### `offer_snapshots`
+
+Purpose:
+
+- time-series price and availability tracking
+
+Core fields:
+
+- `id`
+- `variant_id`
+- `observed_at`
+- `price_cents`
+- `compare_at_price_cents`
+- `is_on_sale`
+- `subscription_price_cents`
+- `is_available`
+- `source_url`
+
+Indexes:
+
+- index on `(variant_id, observed_at desc)`
+
+### `promo_snapshots`
+
+Purpose:
+
+- merchant-level promo capture
+
+Core fields:
+
+- `id`
+- `merchant_id`
+- `observed_at`
+- `promo_type`
+- `title`
+- `details`
+- `code`
+- `estimated_value_cents`
+- `source_url`
+- `confidence`
+
+### `purchase_history`
+
+Purpose:
+
+- imported and native purchase record
+
+Core fields:
+
+- `id`
+- `merchant_id`
+- `product_name`
+- `origin_text`
+- `process_text`
+- `price_cents`
+- `weight_grams`
+- `purchased_at`
+- `source_system`
+- `source_ref`
+
+### `brew_feedback`
+
+Purpose:
+
+- connect coffee outcomes to actual espresso use
+
+Core fields:
+
+- `id`
+- `purchase_id`
+- `shot_style`
+- `grinder`
+- `basket`
+- `rating`
+- `would_rebuy`
+- `difficulty_score`
+- `notes`
+
+### `recommendation_runs`
+
+Purpose:
+
+- reproducibility and learning
+
+Core fields:
+
+- `id`
+- `run_at`
+- `request_json`
+- `top_result_json`
+- `alternatives_json`
+- `wait_recommendation`
+- `model_version`
+
+### `crawl_runs`
+
+Purpose:
+
+- crawl observability
+
+Core fields:
+
+- `id`
+- `merchant_id`
+- `run_type`
+- `adapter_name`
+- `started_at`
+- `finished_at`
+- `status`
+- `confidence`
+- `records_written`
+- `error_summary`
 
 ## Recommendation Engine
 
-### Inputs
+### Input contract
 
-- shot style
-- quantity goal
-- delivery deadline
-- bulk allowed or not
-- ferment tolerance
-- roaster trust
-- merchant trust
-- delivery estimate
-- landed price
-- current promos
-- personal wallet credits
+The recommendation request should accept:
 
-### Initial scoring dimensions
+- `shot_style`
+- `quantity_mode`
+- `max_inventory_grams`
+- `delivery_by`
+- `bulk_allowed`
+- `ferment_tolerance`
+- `preferred_roasters`
+- `avoid_roasters`
+
+### First scoring model
+
+Use weighted scoring with explicit subscores:
 
 - `merchant_trust_score`
+- `personal_history_score`
 - `coffee_fit_score`
 - `espresso_style_fit_score`
 - `freshness_confidence_score`
 - `delivery_confidence_score`
 - `deal_score`
 - `inventory_fit_score`
-- `personal_history_score`
 
-### Important scoring rules
+### Decision rules
 
-- A cheaper coffee from a low-trust merchant should not beat a better coffee from a trusted merchant unless the value difference is meaningful.
-- Bulk sizes should only rank highly when the user allows them.
-- The system should be allowed to return “wait”.
-- Recommendation output must be explainable.
+- Low-trust merchants should not win on price alone.
+- Bulk variants should only rank highly when the user allows bulk.
+- The engine should be able to return `wait`.
+- Every output should include a short rationale tied to the subscores.
 
-### Recommendation output contract
+## Web Application Shape
 
-Every recommendation should include:
+### Initial pages
 
-- top choice
-- two alternatives
-- wait recommendation if appropriate
-- why each option ranked where it did
-- confidence
+1. Dashboard
+2. Merchant list
+3. Merchant detail
+4. Product and offer explorer
+5. Recommendation console
+6. Job and crawl health
+
+### UI rule
+
+This is an operator tool first. Prefer fast, inspectable screens over polished consumer UX.
+
+## CLI Shape
+
+Initial commands:
+
+- `szimpla merchant add <url>`
+- `szimpla merchant discover`
+- `szimpla crawl merchant <merchant_id>`
+- `szimpla crawl promos <merchant_id>`
+- `szimpla recommend`
+- `szimpla sync notion`
+- `szimpla brain capture`
 
 ## Second Brain System
 
-This project must have a second brain from day one because it is a solo dev, agentic engineering effort.
+The second brain should support continuity, not narrative.
 
-The second brain should live inside the repo so both the human and the agent can use it directly.
-
-### Goals of the second brain
-
-- preserve decisions across sessions
-- reduce repeated analysis
-- keep merchant intelligence reusable
-- capture assumptions and invalidations
-- provide continuity for future implementation agents
-
-### Recommended structure
-
-Create and maintain:
+### Required structure
 
 - `SzimplaCoffee/north-star.md`
 - `SzimplaCoffee/comprehensive-plan.md`
@@ -520,227 +548,131 @@ Create and maintain:
 - `SzimplaCoffee/brain/decisions/`
 - `SzimplaCoffee/brain/research/`
 - `SzimplaCoffee/brain/merchant-intel/`
-- `SzimplaCoffee/brain/experiments/`
 - `SzimplaCoffee/brain/worklog/`
 - `SzimplaCoffee/brain/backlog/`
 
-### Document types
+### Rules
 
-#### Decisions
+- Architecture changes require a short decision record.
+- High-value merchants get one merchant-intel file.
+- Each work session updates the worklog and backlog.
+- Long analysis should be converted into durable decisions or deleted.
 
-Use ADR-style records for:
+## Execution Phases
 
-- stack decisions
-- crawler decisions
-- scoring decisions
-- schema changes
-
-#### Merchant intel
-
-One file per high-value merchant with:
-
-- trust notes
-- crawl strategy
-- promo habits
-- shipping quirks
-- extraction approach
-
-#### Experiments
-
-Track:
-
-- scoring experiments
-- espresso profile tuning
-- merchant ranking changes
-- crawl heuristics
-
-#### Worklog
-
-Session-based notes:
-
-- what changed
-- why it changed
-- blockers
-- follow-up work
-
-#### Backlog
-
-A prioritized backlog of:
-
-- current slice
-- next slice
-- later slice
-
-### Second-brain operating rules
-
-- update decisions when architecture changes
-- write merchant intel only for merchants that matter
-- keep notes short and durable
-- prefer markdown over external tools
-- keep Notion as an optional mirror, not the working memory
-
-## Build Phases
-
-### Phase 0: foundation
+### Phase 0: Repo and foundation
 
 Build:
 
-- project skeleton
-- FastAPI app
-- SQLite schema
-- migrations
-- basic templates
+- app skeleton
+- SQLite setup
+- Alembic migrations
+- FastAPI app shell
+- Jinja layout
 - CLI shell
-- second-brain folders
+- second brain folders
 
-Done when:
+Acceptance:
 
-- app starts locally
-- database migrations run
-- homepage and merchant list page render
-- CLI can run a stub command
+- app boots
+- migration runs
+- base page renders
+- CLI command executes
 
-### Phase 1: merchant registry
+### Phase 1: Merchant registry
 
 Build:
 
-- manual merchant add flow
+- merchant schema
+- manual add form
 - platform detection
-- merchant list and merchant detail views
+- merchant list and detail pages
 - trust-tier editing
 
-Done when:
+Acceptance:
 
-- we can add merchants by URL
-- the system can classify Shopify, WooCommerce, or unknown
-- merchants can be reviewed in the UI
+- can add merchant by URL
+- can classify Shopify, WooCommerce, or unknown
+- can inspect merchant status in UI
 
-### Phase 2: crawler adapters
+### Phase 2: Structured crawlers
 
 Build:
 
 - Shopify adapter
 - WooCommerce adapter
-- static HTML adapter
-- browser fallback adapter
+- crawl run persistence
+- product and variant persistence
+- offer snapshot persistence
 
-Done when:
+Acceptance:
 
-- we can crawl Olympia-like and Camber-like sites reliably
-- products, variants, and offers are stored
+- Olympia-like and Camber-like merchants crawl successfully
+- price and size snapshots persist
 - crawl confidence is visible
 
-### Phase 3: shipping and promo intelligence
+### Phase 3: Policies and promos
 
 Build:
 
-- shipping threshold extraction
+- shipping policy extraction
 - promo extraction
-- offer snapshot history
-- tiered crawl scheduling
+- compare-at and subscription handling
+- tiered scheduling
 
-Done when:
+Acceptance:
 
-- the system can show true landed price better than a manual spreadsheet
+- landed price is visible
+- free-shipping thresholds are tracked
+- promos are visible per merchant
 
-### Phase 4: personalized recommendation loop
-
-Build:
-
-- Notion import for Bean Database
-- user preferences
-- espresso-mode selection
-- recommendation engine
-- recommendation UI and CLI output
-
-Done when:
-
-- we can ask “what should I buy right now?” and get a useful, explainable answer
-
-### Phase 5: second-brain maturity
+### Phase 4: Personalization and recommendations
 
 Build:
 
-- ADR cadence
-- merchant-intel notes
-- experiment tracking
-- session worklog habits
+- Notion import
+- purchase history model
+- brew feedback model
+- recommendation scoring
+- recommendation page and CLI output
 
-Done when:
+Acceptance:
 
-- future sessions no longer require re-deriving major decisions
+- can issue a recommendation request
+- output includes top pick, alternatives, and rationale
 
-### Phase 6: automation and refinement
+### Phase 5: Discovery and maintenance
 
 Build:
 
-- recurring merchant refreshes
-- recurring promo crawls
-- discovery runs
-- recommendation notification workflow if desired
+- candidate merchant discovery
+- candidate review workflow
+- long-tail tiering
+- second-brain discipline
 
-Done when:
+Acceptance:
 
-- the system stays current without constant manual maintenance
+- new merchants can be discovered, reviewed, and promoted into active crawl tiers
 
-## Risks and Mitigations
+## What we are intentionally not doing yet
 
-### Risk: long-tail crawl bloat
+- Postgres
+- Celery or distributed workers
+- React SPA
+- cloud deployment
+- automated wallet-credit ingestion
+- universal browser crawling
 
-Mitigation:
+These are valid future upgrades, but they are not the best use of time for v1.
 
-- keep the tier system strict
-- only elevate merchants that show quality and extractability
+## Immediate Next Step
 
-### Risk: bad promo data
+Start implementation with:
 
-Mitigation:
+1. app skeleton
+2. migration setup
+3. merchant schema
+4. manual merchant add flow
+5. platform detection
 
-- separate public promos from personal wallet credits
-- store confidence on every extracted promo
-
-### Risk: too much browser usage
-
-Mitigation:
-
-- default to adapters and HTTP crawling
-- measure browser crawl rate explicitly
-- treat browser fallback as a failure signal to improve adapters
-
-### Risk: overbuilding the UI
-
-Mitigation:
-
-- admin-tool aesthetics, not consumer-app aesthetics
-- HTMX and templates first
-
-### Risk: agent memory loss across sessions
-
-Mitigation:
-
-- keep the second brain inside the repo
-- make updating it part of the normal workflow
-
-## Immediate next actions
-
-1. Create the app skeleton and second-brain folder structure.
-2. Define the initial SQLite schema and migrations.
-3. Implement merchant intake plus platform detection.
-4. Build Shopify and WooCommerce adapters before any browser fallback work.
-5. Add the merchant registry and merchant detail pages.
-6. Import the existing Bean Database as the first personalization source.
-
-## Final recommendation
-
-The most effective and efficient way to build SzimplaCoffee is:
-
-- Python local-first web app
-- FastAPI plus Jinja plus HTMX
-- SQLite plus SQLAlchemy
-- Crawlee for Python with adapter-first crawling
-- Playwright only as fallback
-- APScheduler for local recurring jobs
-- direct structured LLM calls for selective enrichment
-- repo-local markdown second brain as a first-class system
-
-This gives us the best balance of speed, clarity, and extensibility for a solo developer project.
+That sequence unlocks the crawler work without forcing premature UI or infra complexity.
