@@ -7,6 +7,7 @@ import json
 import math
 import re
 from typing import Iterable
+from urllib.parse import urljoin, urlparse, urlunparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -57,6 +58,45 @@ def _normalize_product_name(name: str) -> str:
     normalized = html.unescape(normalized)
     normalized = re.sub(r"\s+", " ", normalized).strip()
     return normalized
+
+
+def _strip_query_fragment(url: str) -> str:
+    parsed = urlparse(url)
+    return urlunparse((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", "", ""))
+
+
+def _site_root(url: str) -> str:
+    parsed = urlparse(url)
+    return urlunparse((parsed.scheme, parsed.netloc, "", "", "", ""))
+
+
+def _normalize_asset_url(url: str) -> str:
+    if not url:
+        return ""
+    if url.startswith("//"):
+        return f"https:{url}"
+    return url
+
+
+def _shopify_catalog_urls(homepage_url: str) -> list[str]:
+    root_url = _site_root(homepage_url)
+    landing_url = _strip_query_fragment(homepage_url)
+    path = urlparse(landing_url).path.rstrip("/")
+    candidates: list[str] = []
+    if path.startswith("/collections/"):
+        candidates.append(f"{root_url}{path}/products.json?limit=250")
+    elif path:
+        candidates.append(f"{landing_url}/products.json?limit=250")
+    candidates.append(f"{root_url}/products.json?limit=250")
+
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        deduped.append(candidate)
+    return deduped
 
 
 def _extract_field(text: str, label: str) -> str:
@@ -237,6 +277,7 @@ def _is_coffee_product(name: str, product_type: str = "", tags: Iterable[str] | 
         "cup",
         "kettle",
         "grinder",
+        "mill",
         "dripper",
         "brew guide",
         "sticker",
@@ -457,12 +498,13 @@ def _flush_promos(session: Session, merchant: Merchant, promo_buffer: dict[str, 
 
 
 def _candidate_policy_urls(homepage_url: str, html: str) -> list[str]:
+    root_url = _site_root(homepage_url)
     candidates = {
-        f"{homepage_url}/pages/faq",
-        f"{homepage_url}/pages/shipping",
-        f"{homepage_url}/pages/subscriptions",
-        f"{homepage_url}/policies/shipping-policy",
-        f"{homepage_url}/policies/refund-policy",
+        f"{root_url}/pages/faq",
+        f"{root_url}/pages/shipping",
+        f"{root_url}/pages/subscriptions",
+        f"{root_url}/policies/shipping-policy",
+        f"{root_url}/policies/refund-policy",
     }
     soup = BeautifulSoup(html, "lxml")
     for link in soup.select("a[href]"):
@@ -494,9 +536,9 @@ def _candidate_policy_urls(homepage_url: str, html: str) -> list[str]:
         if any(term in href_lower for term in [".jpg", ".jpeg", ".png", ".svg", ".pdf"]):
             continue
         if href.startswith("http://") or href.startswith("https://"):
-            candidates.add(href.rstrip("/"))
+            candidates.add(_strip_query_fragment(href))
         elif href.startswith("/"):
-            candidates.add(f"{homepage_url}{href}".rstrip("/"))
+            candidates.add(_strip_query_fragment(urljoin(root_url, href)))
     return sorted(candidates)
 
 
@@ -644,6 +686,7 @@ def crawl_merchant(session: Session, merchant: Merchant, run: CrawlRun | None = 
 
         run.finished_at = _utcnow()
         run.status = "completed"
+        run.adapter_name = summary.adapter_name
         run.confidence = summary.confidence
         run.records_written = summary.records_written
         return summary
@@ -658,18 +701,50 @@ def _crawl_shopify(session: Session, merchant: Merchant) -> CrawlSummary:
     headers = {"User-Agent": USER_AGENT}
     records_written = 0
     promo_buffer: dict[str, PromoCandidate] = {}
+    landing_url = _strip_query_fragment(merchant.homepage_url)
+    root_url = _site_root(merchant.homepage_url)
+    prefers_collection_feed = urlparse(landing_url).path.rstrip("/").startswith("/collections/")
     with httpx.Client(follow_redirects=True, timeout=20.0, headers=headers) as client:
-        homepage = client.get(merchant.homepage_url)
-        _record_shipping_policy(session, merchant, merchant.homepage_url, homepage.text, 0.9)
-        _record_promos(promo_buffer, merchant.homepage_url, homepage.text, 0.9)
+        homepage = client.get(landing_url)
+        _record_shipping_policy(session, merchant, landing_url, homepage.text, 0.9)
+        _record_promos(promo_buffer, landing_url, homepage.text, 0.9)
         _crawl_policy_pages(session, merchant, client, homepage.text, 0.9, promo_buffer)
-        resp = client.get(f"{merchant.homepage_url}/products.json?limit=250")
-        try:
-            payload = resp.json()
-        except ValueError:
+        products: list[dict] = []
+        adapter_name = "shopify"
+        for catalog_url in _shopify_catalog_urls(merchant.homepage_url):
+            try:
+                resp = client.get(catalog_url)
+                payload = resp.json()
+            except (ValueError, httpx.HTTPError):
+                continue
+            current_products = payload.get("products", [])
+            filtered_products: list[dict] = []
+            for raw in current_products:
+                tags = raw.get("tags", [])
+                if isinstance(tags, str):
+                    tags = [tag.strip() for tag in tags.split(",") if tag.strip()]
+                if _is_coffee_product(raw.get("title", ""), raw.get("product_type", ""), tags=tags):
+                    filtered_products.append(raw)
+            if prefers_collection_feed and "/collections/" in catalog_url and filtered_products:
+                products = filtered_products
+                adapter_name = "shopify_collection"
+                break
+            if len(filtered_products) > len(products):
+                products = filtered_products
+                adapter_name = "shopify_collection" if "/collections/" in catalog_url else "shopify"
+
+        if not products:
+            agentic_summary = _crawl_agentic_catalog(
+                session,
+                merchant,
+                client,
+                landing_url=landing_url,
+                landing_html=homepage.text,
+                confidence=0.72,
+            )
             _flush_promos(session, merchant, promo_buffer)
-            return CrawlSummary(adapter_name="shopify", records_written=0, confidence=0.35)
-        products = payload.get("products", [])
+            return agentic_summary if agentic_summary.records_written else CrawlSummary(adapter_name="shopify", records_written=0, confidence=0.35)
+
         _mark_existing_products_inactive(session, merchant)
 
         for raw in products:
@@ -686,8 +761,8 @@ def _crawl_shopify(session: Session, merchant: Merchant) -> CrawlSummary:
                 str(raw["id"]),
                 {
                     "name": _normalize_product_name(raw.get("title", "Unnamed Coffee")),
-                    "product_url": f"{merchant.homepage_url}/products/{raw.get('handle', '')}",
-                    "image_url": ((raw.get("image") or {}).get("src") or ((raw.get("images") or [{}])[0].get("src") or "")),
+                    "product_url": f"{root_url}/products/{raw.get('handle', '')}",
+                    "image_url": _normalize_asset_url((raw.get("image") or {}).get("src") or ((raw.get("images") or [{}])[0].get("src") or "")),
                     "origin_text": _extract_field(text, "Origin"),
                     "process_text": _extract_field(text, "Process"),
                     "variety_text": _extract_field(text, "Variety"),
@@ -729,7 +804,7 @@ def _crawl_shopify(session: Session, merchant: Merchant) -> CrawlSummary:
                 records_written += 1
 
     _flush_promos(session, merchant, promo_buffer)
-    return CrawlSummary(adapter_name="shopify", records_written=records_written, confidence=0.95)
+    return CrawlSummary(adapter_name=adapter_name, records_written=records_written, confidence=0.95)
 
 
 def _price_range_to_variant_prices(labels: list[str], min_cents: int | None, max_cents: int | None) -> list[int]:
@@ -797,6 +872,226 @@ def _fetch_woocommerce_page_context(client: httpx.Client, product_url: str) -> W
     except json.JSONDecodeError:
         return WooPageContext([], summary_text)
     return WooPageContext(decoded if isinstance(decoded, list) else [], summary_text)
+
+
+def _extract_product_links(base_url: str, html_text: str) -> list[str]:
+    soup = BeautifulSoup(html_text, "lxml")
+    links: list[str] = []
+    seen: set[str] = set()
+    for node in soup.select('a[href*="/products/"]'):
+        href = (node.get("href") or "").strip()
+        if "/products/" not in href:
+            continue
+        normalized = _strip_query_fragment(urljoin(base_url, href))
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        links.append(normalized)
+    return links
+
+
+def _flatten_json_nodes(payload: object) -> list[dict]:
+    nodes: list[dict] = []
+    if isinstance(payload, dict):
+        nodes.append(payload)
+        for value in payload.values():
+            nodes.extend(_flatten_json_nodes(value))
+    elif isinstance(payload, list):
+        for item in payload:
+            nodes.extend(_flatten_json_nodes(item))
+    return nodes
+
+
+def _extract_ld_product(soup: BeautifulSoup) -> dict:
+    for node in soup.select('script[type="application/ld+json"]'):
+        raw = node.get_text(strip=True)
+        if not raw:
+            continue
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        for candidate in _flatten_json_nodes(payload):
+            type_name = str(candidate.get("@type", "")).lower()
+            if type_name == "product":
+                return candidate
+    return {}
+
+
+def _extract_shopify_variant_payloads(soup: BeautifulSoup) -> list[dict]:
+    for node in soup.select('script[type="application/json"]'):
+        raw = node.get_text(strip=True)
+        if not raw:
+            continue
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if (
+            isinstance(payload, list)
+            and payload
+            and all(isinstance(item, dict) for item in payload)
+            and all("id" in item and ("price" in item or "available" in item) for item in payload)
+        ):
+            return payload
+    return []
+
+
+def _page_context_text(soup: BeautifulSoup) -> str:
+    parts: list[str] = []
+    for selector in [
+        ".product__description",
+        ".product__accordion",
+        ".product__info-wrapper",
+        ".product__info-container",
+        ".product__info",
+        "main",
+    ]:
+        for node in soup.select(selector):
+            text = node.get_text("\n", strip=True)
+            if not text:
+                continue
+            parts.append(text)
+        if parts:
+            break
+    return "\n".join(parts)
+
+
+def _agentic_variant_rows(ld_product: dict, variants: list[dict]) -> list[dict]:
+    rows: list[dict] = []
+    if variants:
+        for variant in variants:
+            label = variant.get("public_title") or variant.get("title") or "Default"
+            rows.append(
+                {
+                    "external_variant_id": str(variant.get("id") or label),
+                    "label": label,
+                    "weight_grams": variant.get("weight") or _parse_weight_grams(label),
+                    "is_available": bool(variant.get("available", True)),
+                    "price_cents": _parse_price_to_cents(variant.get("price")) or 0,
+                    "compare_at_price_cents": _parse_price_to_cents(variant.get("compare_at_price")),
+                    "image_url": _normalize_asset_url((((variant.get("featured_image") or {}).get("src")) or "")),
+                }
+            )
+        return rows
+
+    offers = ld_product.get("offers") or {}
+    if isinstance(offers, list):
+        offer = offers[0] if offers else {}
+    else:
+        offer = offers if isinstance(offers, dict) else {}
+    price_cents = _parse_price_to_cents(offer.get("price"))
+    if price_cents is None:
+        return []
+    return [
+        {
+            "external_variant_id": str(ld_product.get("sku") or ld_product.get("productID") or ld_product.get("url") or "default"),
+            "label": "Default",
+            "weight_grams": _parse_weight_grams(ld_product.get("name", "")),
+            "is_available": "instock" in str(offer.get("availability", "")).lower(),
+            "price_cents": price_cents,
+            "compare_at_price_cents": None,
+            "image_url": "",
+        }
+    ]
+
+
+def _crawl_agentic_catalog(
+    session: Session,
+    merchant: Merchant,
+    client: httpx.Client,
+    *,
+    landing_url: str,
+    landing_html: str,
+    confidence: float,
+) -> CrawlSummary:
+    root_url = _site_root(merchant.homepage_url)
+    product_links = _extract_product_links(landing_url, landing_html)
+    if not product_links:
+        return CrawlSummary(adapter_name="agentic_catalog", records_written=0, confidence=confidence * 0.75)
+
+    records_written = 0
+    _mark_existing_products_inactive(session, merchant)
+    for product_url in product_links:
+        try:
+            response = client.get(product_url)
+        except httpx.HTTPError:
+            continue
+        if response.status_code >= 400 or not response.text:
+            continue
+
+        soup = BeautifulSoup(response.text, "lxml")
+        ld_product = _extract_ld_product(soup)
+        variants = _extract_shopify_variant_payloads(soup)
+        page_text = _page_context_text(soup) or _clean_text(response.text)
+        description = html.unescape(str(ld_product.get("description") or ""))
+        combined_context = "\n".join(part for part in [_clean_text(description), page_text] if part)
+
+        product_name = _normalize_product_name(
+            str(ld_product.get("name") or (soup.find("h1").get_text(strip=True) if soup.find("h1") else "") or product_url.rsplit("/", 1)[-1])
+        )
+        image_candidates = ld_product.get("image") or []
+        if isinstance(image_candidates, str):
+            image_url = _normalize_asset_url(image_candidates)
+        elif isinstance(image_candidates, list):
+            image_url = _normalize_asset_url(str(image_candidates[0])) if image_candidates else ""
+        else:
+            image_url = ""
+
+        external_product_id = str(ld_product.get("productID") or urlparse(product_url).path.rstrip("/"))
+        product = _upsert_product(
+            session,
+            merchant,
+            external_product_id,
+            {
+                "name": product_name,
+                "product_url": product_url,
+                "image_url": image_url,
+                "origin_text": _extract_field(combined_context, "Origin") or _infer_origin_from_text(product_name, combined_context),
+                "process_text": _extract_field(combined_context, "Process") or _extract_process_from_text(product_name, combined_context),
+                "variety_text": _extract_field(combined_context, "Variety") or _extract_variety_from_text(product_name, combined_context),
+                "roast_cues": "light" if "light" in combined_context.lower() else "",
+                "tasting_notes_text": _extract_tasting_notes(combined_context),
+                "is_single_origin": _normalize_single_origin_flag(product_name, [], combined_context),
+                "is_espresso_recommended": "espresso" in combined_context.lower(),
+            },
+        )
+        session.flush()
+        records_written += 1
+        _mark_existing_variants_unavailable(product)
+
+        for variant_row in _agentic_variant_rows(ld_product, variants):
+            variant = _upsert_variant(
+                session,
+                product,
+                variant_row["external_variant_id"],
+                {
+                    "label": variant_row["label"],
+                    "weight_grams": variant_row["weight_grams"],
+                    "is_available": variant_row["is_available"],
+                    "is_whole_bean": "ground" not in f"{product_name} {variant_row['label']}".lower(),
+                },
+            )
+            if variant_row["image_url"] and not product.image_url:
+                product.image_url = variant_row["image_url"]
+            session.flush()
+            _record_offer(
+                session,
+                variant,
+                {
+                    "price_cents": variant_row["price_cents"],
+                    "compare_at_price_cents": variant_row["compare_at_price_cents"],
+                    "subscription_price_cents": None,
+                    "is_on_sale": bool(
+                        variant_row["compare_at_price_cents"] and variant_row["compare_at_price_cents"] > variant_row["price_cents"]
+                    ),
+                    "is_available": variant_row["is_available"],
+                    "source_url": product_url,
+                },
+            )
+            records_written += 1
+
+    return CrawlSummary(adapter_name="agentic_catalog", records_written=records_written, confidence=confidence)
 
 
 def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
@@ -954,10 +1249,21 @@ def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
 def _crawl_generic(session: Session, merchant: Merchant) -> CrawlSummary:
     headers = {"User-Agent": USER_AGENT}
     promo_buffer: dict[str, PromoCandidate] = {}
+    landing_url = _strip_query_fragment(merchant.homepage_url)
     with httpx.Client(follow_redirects=True, timeout=20.0, headers=headers) as client:
-        homepage = client.get(merchant.homepage_url)
-        _record_shipping_policy(session, merchant, merchant.homepage_url, homepage.text, 0.4)
-        _record_promos(promo_buffer, merchant.homepage_url, homepage.text, 0.4)
+        homepage = client.get(landing_url)
+        _record_shipping_policy(session, merchant, landing_url, homepage.text, 0.4)
+        _record_promos(promo_buffer, landing_url, homepage.text, 0.4)
         _crawl_policy_pages(session, merchant, client, homepage.text, 0.4, promo_buffer)
+        summary = _crawl_agentic_catalog(
+            session,
+            merchant,
+            client,
+            landing_url=landing_url,
+            landing_html=homepage.text,
+            confidence=0.55,
+        )
     _flush_promos(session, merchant, promo_buffer)
+    if summary.records_written:
+        return summary
     return CrawlSummary(adapter_name="generic", records_written=0, confidence=0.4)

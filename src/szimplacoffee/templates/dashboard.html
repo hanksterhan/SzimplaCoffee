@@ -33,16 +33,25 @@
         <th>Merchant</th>
         <th>Site</th>
         <th>Platform</th>
+        <th>Catalog source</th>
         <th>Crawl tier</th>
         <th>Trust tier</th>
       </tr>
     </thead>
     <tbody>
-      {% for merchant in merchants %}
+      {% for row in merchant_rows %}
+      {% set merchant = row.merchant %}
+      {% set catalog_run = row.catalog_run %}
       <tr>
         <td><a href="/merchants/{{ merchant.id }}">{{ merchant.name }}</a></td>
         <td><a href="{{ merchant.homepage_url }}" target="_blank" rel="noopener noreferrer">Open site</a></td>
         <td>{{ merchant.platform_type }}</td>
+        <td>
+          {{ crawl_adapter_label(catalog_run.adapter_name if catalog_run else None) }}
+          {% if catalog_run and is_agentic_adapter(catalog_run.adapter_name) %}
+          <div class="note">Agentic refresh</div>
+          {% endif %}
+        </td>
         <td>{{ merchant.crawl_tier }}</td>
         <td>{{ merchant.trust_tier }}</td>
       </tr>

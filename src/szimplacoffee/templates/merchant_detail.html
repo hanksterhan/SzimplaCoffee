@@ -8,6 +8,14 @@
         <a href="{{ merchant.homepage_url }}" target="_blank" rel="noopener noreferrer">{{ merchant.homepage_url }}</a>
         · {{ merchant.platform_type }} · tier {{ merchant.crawl_tier }} · {{ merchant.trust_tier }}
       </p>
+      {% if catalog_run %}
+      <p class="note">
+        Catalog source: <strong>{{ crawl_adapter_label(catalog_run.adapter_name) }}</strong>
+        {% if is_agentic_adapter(catalog_run.adapter_name) %}
+        · refresh uses agentic page extraction
+        {% endif %}
+      </p>
+      {% endif %}
     </div>
     <form method="post" action="/merchants/{{ merchant.id }}/crawl">
       <button class="button" type="submit">Refresh crawl</button>

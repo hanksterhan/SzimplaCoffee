@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -34,7 +34,8 @@ def normalize_url(raw_url: str) -> str:
     candidate = raw_url.strip()
     if not candidate.startswith(("http://", "https://")):
         candidate = f"https://{candidate}"
-    return candidate.rstrip("/")
+    parsed = urlparse(candidate)
+    return urlunparse((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", "", ""))
 
 
 def extract_domain(url: str) -> str:

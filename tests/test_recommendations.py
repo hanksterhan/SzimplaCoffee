@@ -16,8 +16,9 @@ from szimplacoffee.services.crawlers import (
     _normalize_product_name,
     _normalize_promo_key,
     _normalize_single_origin_flag,
+    _shopify_catalog_urls,
 )
-from szimplacoffee.services.platforms import recommended_crawl_tier
+from szimplacoffee.services.platforms import normalize_url, recommended_crawl_tier
 
 
 def test_quantity_score_prefers_small_bags_for_small_mode() -> None:
@@ -92,6 +93,16 @@ def test_recommended_crawl_tier_prefers_machine_readable_platforms() -> None:
 
 def test_normalize_product_name_replaces_html_breaks() -> None:
     assert _normalize_product_name("Colombia <BR>La Despensa") == "Colombia • La Despensa"
+
+
+def test_normalize_url_strips_query_and_fragment() -> None:
+    assert normalize_url("https://us.lacabra.com/collections/coffee?showBanner=false#top") == "https://us.lacabra.com/collections/coffee"
+
+
+def test_shopify_catalog_urls_prefer_collection_endpoint() -> None:
+    urls = _shopify_catalog_urls("https://us.lacabra.com/collections/coffee?showBanner=false")
+    assert urls[0] == "https://us.lacabra.com/collections/coffee/products.json?limit=250"
+    assert urls[1] == "https://us.lacabra.com/products.json?limit=250"
 
 
 def test_discounted_price_cents_applies_percent_promo() -> None:

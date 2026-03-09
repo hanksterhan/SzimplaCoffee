@@ -68,15 +68,6 @@ def _visible_variants(product: Product) -> list[ProductVariant]:
     return available or list(product.variants)
 
 
-templates.env.globals.update(
-    money=_money,
-    weight_label=_weight_label,
-    price_per_oz_label=_price_per_oz_label,
-    latest_offer_for_variant=_latest_offer_for_variant,
-    visible_variants=_visible_variants,
-)
-
-
 def _dashboard_metrics(session: Session) -> dict:
     merchant_count = len(session.scalars(select(Merchant.id)).all())
     product_count = len(session.scalars(select(Product.id)).all())
@@ -97,6 +88,42 @@ def _latest_crawl_run(session: Session, merchant_id: int) -> CrawlRun | None:
         .order_by(CrawlRun.started_at.desc())
         .limit(1)
     )
+
+
+def _latest_successful_crawl_run(session: Session, merchant_id: int) -> CrawlRun | None:
+    return session.scalar(
+        select(CrawlRun)
+        .where(CrawlRun.merchant_id == merchant_id, CrawlRun.status == "completed")
+        .order_by(CrawlRun.finished_at.desc(), CrawlRun.started_at.desc())
+        .limit(1)
+    )
+
+
+def _crawl_adapter_label(adapter_name: str | None) -> str:
+    labels = {
+        "shopify": "Structured Shopify feed",
+        "shopify_collection": "Shopify collection feed",
+        "woocommerce": "WooCommerce Store API",
+        "agentic_catalog": "Agentic HTML extraction",
+        "generic": "Promo-only scan",
+        None: "Unknown",
+    }
+    return labels.get(adapter_name, adapter_name.replace("_", " ").title() if adapter_name else "Unknown")
+
+
+def _is_agentic_adapter(adapter_name: str | None) -> bool:
+    return adapter_name == "agentic_catalog"
+
+
+templates.env.globals.update(
+    money=_money,
+    weight_label=_weight_label,
+    price_per_oz_label=_price_per_oz_label,
+    latest_offer_for_variant=_latest_offer_for_variant,
+    visible_variants=_visible_variants,
+    crawl_adapter_label=_crawl_adapter_label,
+    is_agentic_adapter=_is_agentic_adapter,
+)
 
 
 def _enqueue_crawl(session: Session, merchant: Merchant) -> tuple[CrawlRun, bool]:
@@ -131,12 +158,19 @@ def _background_crawl(merchant_id: int, run_id: int) -> None:
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     merchants = session.scalars(select(Merchant).order_by(Merchant.trust_tier.asc(), Merchant.name.asc())).all()
+    merchant_rows = [
+        {
+            "merchant": merchant,
+            "catalog_run": _latest_successful_crawl_run(session, merchant.id) or _latest_crawl_run(session, merchant.id),
+        }
+        for merchant in merchants
+    ]
     return templates.TemplateResponse(
         request,
         "dashboard.html",
         {
             "metrics": _dashboard_metrics(session),
-            "merchants": merchants,
+            "merchant_rows": merchant_rows,
             "pending_candidates": len(session.scalars(select(MerchantCandidate.id).where(MerchantCandidate.status == "pending")).all()),
         },
     )
@@ -196,6 +230,7 @@ def merchant_detail(merchant_id: int, request: Request, session: Session = Depen
         .limit(1)
     )
     latest_crawl_run = _latest_crawl_run(session, merchant_id)
+    catalog_run = _latest_successful_crawl_run(session, merchant_id) or latest_crawl_run
     return templates.TemplateResponse(
         request,
         "merchant_detail.html",
@@ -205,6 +240,7 @@ def merchant_detail(merchant_id: int, request: Request, session: Session = Depen
             "promos": promos,
             "shipping_policy": shipping_policy,
             "latest_crawl_run": latest_crawl_run,
+            "catalog_run": catalog_run,
         },
     )
 

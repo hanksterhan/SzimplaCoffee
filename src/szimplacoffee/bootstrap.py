@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from .db import Base, engine
 from .models import BrewFeedback, Merchant, MerchantPersonalProfile, MerchantQualityProfile, MerchantSource, PurchaseHistory
 from .services.crawlers import crawl_merchant
-from .services.platforms import detect_platform
+from .services.platforms import detect_platform, normalize_url
 
 
 def init_db() -> None:
@@ -22,6 +22,12 @@ def _apply_lightweight_migrations() -> None:
     with engine.begin() as connection:
         if "image_url" not in product_columns:
             connection.execute(text("ALTER TABLE products ADD COLUMN image_url VARCHAR(1000) NOT NULL DEFAULT ''"))
+    with Session(engine) as session:
+        for merchant in session.scalars(select(Merchant)).all():
+            normalized = normalize_url(merchant.homepage_url)
+            if normalized != merchant.homepage_url:
+                merchant.homepage_url = normalized
+        session.commit()
 
 
 def bootstrap_if_empty(session: Session) -> None:
