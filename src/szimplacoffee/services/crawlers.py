@@ -48,8 +48,10 @@ def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
-def _clean_text(html: str) -> str:
-    text = BeautifulSoup(html, "lxml").get_text("\n", strip=True)
+def _clean_text(markup: str | None) -> str:
+    if not markup:
+        return ""
+    text = BeautifulSoup(markup, "lxml").get_text("\n", strip=True)
     return "\n".join(line.strip() for line in text.splitlines() if line.strip())
 
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 
+from sqlalchemy import select
+
 from .bootstrap import bootstrap_if_empty, init_db
 from .db import session_scope
 from .models import Merchant
@@ -36,18 +38,27 @@ def main() -> None:
 
         if args.command == "add-merchant":
             detection = detect_platform(args.url)
-            merchant = Merchant(
-                name=detection.merchant_name,
-                canonical_domain=detection.domain,
-                homepage_url=detection.normalized_url,
-                platform_type=detection.platform_type,
-                crawl_tier=recommended_crawl_tier(detection.platform_type, detection.confidence),
-            )
-            session.add(merchant)
-            session.flush()
+            merchant = session.scalar(select(Merchant).where(Merchant.canonical_domain == detection.domain))
+            if merchant is None:
+                merchant = Merchant(
+                    name=detection.merchant_name,
+                    canonical_domain=detection.domain,
+                    homepage_url=detection.normalized_url,
+                    platform_type=detection.platform_type,
+                    crawl_tier=recommended_crawl_tier(detection.platform_type, detection.confidence),
+                )
+                session.add(merchant)
+                session.flush()
+                action = "Added"
+            else:
+                merchant.name = detection.merchant_name
+                merchant.homepage_url = detection.normalized_url
+                merchant.platform_type = detection.platform_type
+                merchant.crawl_tier = recommended_crawl_tier(detection.platform_type, detection.confidence)
+                action = "Updated"
             if args.crawl_now:
                 crawl_merchant(session, merchant)
-            print(f"Added merchant {merchant.name} ({merchant.platform_type})")
+            print(f"{action} merchant {merchant.name} ({merchant.platform_type})")
             return
 
         if args.command == "crawl-all":
