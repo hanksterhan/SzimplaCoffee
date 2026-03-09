@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from .bootstrap import bootstrap_if_empty, init_db
 from .config import STATIC_DIR, TEMPLATES_DIR
 from .db import get_session, session_scope
-from .models import Merchant, MerchantCandidate, OfferSnapshot, Product, ProductVariant
+from .models import Merchant, MerchantCandidate, MerchantPromo, OfferSnapshot, Product, ProductVariant, ShippingPolicy
 from .services.crawlers import crawl_merchant
 from .services.discovery import promote_candidate, run_discovery
 from .services.platforms import detect_platform
@@ -30,6 +30,51 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="SzimplaCoffee", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+
+def _money(cents: int | None) -> str:
+    if cents is None:
+        return "n/a"
+    return f"${cents / 100:.2f}"
+
+
+def _weight_label(weight_grams: int | None) -> str:
+    if not weight_grams:
+        return "?"
+    ounces = weight_grams / 28.3495
+    pounds = ounces / 16
+    if abs(pounds - round(pounds)) <= 0.06 and pounds >= 1.75:
+        return f"{round(pounds):.0f} lb ({weight_grams} g)"
+    return f"{weight_grams} g / {ounces:.1f} oz"
+
+
+def _price_per_oz_label(price_cents: int | None, weight_grams: int | None) -> str:
+    if price_cents is None or not weight_grams:
+        return "n/a"
+    ounces = weight_grams / 28.3495
+    if ounces <= 0:
+        return "n/a"
+    return f"${price_cents / 100 / ounces:.2f}/oz"
+
+
+def _latest_offer_for_variant(variant: ProductVariant) -> OfferSnapshot | None:
+    if not variant.offers:
+        return None
+    return max(variant.offers, key=lambda offer: offer.observed_at)
+
+
+def _visible_variants(product: Product) -> list[ProductVariant]:
+    available = [variant for variant in product.variants if variant.is_available]
+    return available or list(product.variants)
+
+
+templates.env.globals.update(
+    money=_money,
+    weight_label=_weight_label,
+    price_per_oz_label=_price_per_oz_label,
+    latest_offer_for_variant=_latest_offer_for_variant,
+    visible_variants=_visible_variants,
+)
 
 
 def _dashboard_metrics(session: Session) -> dict:
@@ -102,12 +147,25 @@ def create_merchant(
 def merchant_detail(merchant_id: int, request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     merchant = session.get(Merchant, merchant_id)
     products = session.scalars(select(Product).where(Product.merchant_id == merchant_id).order_by(Product.name.asc())).all()
+    promos = session.scalars(
+        select(MerchantPromo)
+        .where(MerchantPromo.merchant_id == merchant_id, MerchantPromo.is_active.is_(True))
+        .order_by(MerchantPromo.estimated_value_cents.desc().nullslast(), MerchantPromo.last_seen_at.desc())
+    ).all()
+    shipping_policy = session.scalar(
+        select(ShippingPolicy)
+        .where(ShippingPolicy.merchant_id == merchant_id)
+        .order_by(ShippingPolicy.observed_at.desc())
+        .limit(1)
+    )
     return templates.TemplateResponse(
         request,
         "merchant_detail.html",
         {
             "merchant": merchant,
             "products": products,
+            "promos": promos,
+            "shipping_policy": shipping_policy,
         },
     )
 

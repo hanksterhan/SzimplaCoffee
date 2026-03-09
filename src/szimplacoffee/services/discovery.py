@@ -192,6 +192,8 @@ def _candidate_record_exists(session: Session, domain: str) -> bool:
 def _promotable_detection(detection: PlatformDetection) -> bool:
     if detection.platform_type in {"shopify", "woocommerce"}:
         return True
+    if detection.platform_type in {"squarespace", "custom"}:
+        return detection.confidence >= 0.72
     return detection.confidence >= 0.7 and "coffee" in detection.merchant_name.lower()
 
 
@@ -219,7 +221,13 @@ def _obvious_coffee_brand(detection: PlatformDetection) -> bool:
 
 
 def _strong_platform_coffee_merchant(detection: PlatformDetection) -> bool:
-    return detection.platform_type in {"shopify", "woocommerce"} and detection.confidence >= 0.95
+    if detection.platform_type in {"shopify", "woocommerce"}:
+        return detection.confidence >= 0.95
+    if detection.platform_type == "squarespace":
+        return detection.confidence >= 0.8
+    if detection.platform_type == "custom":
+        return detection.confidence >= 0.72
+    return False
 
 
 def _safe_obvious_brand(detection: PlatformDetection) -> bool:
@@ -329,7 +337,7 @@ def promote_candidate(session: Session, candidate: MerchantCandidate, crawl_tier
             merchant_id=merchant.id,
             freshness_transparency_score=0.55,
             shipping_clarity_score=0.5,
-            metadata_quality_score=0.6 if candidate.platform_type in {"shopify", "woocommerce"} else 0.45,
+            metadata_quality_score=0.6 if candidate.platform_type in {"shopify", "woocommerce"} else 0.5,
             espresso_relevance_score=0.55,
             service_confidence_score=0.5,
             overall_quality_score=0.55,

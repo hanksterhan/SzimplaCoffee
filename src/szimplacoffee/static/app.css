@@ -92,6 +92,39 @@ nav {
   gap: 1rem;
 }
 
+.product-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+}
+
+.product-title h4 {
+  margin: 0 0 0.2rem;
+}
+
+.product-image {
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.thumb-image {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.stacked-links {
+  display: grid;
+  gap: 0.35rem;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -182,5 +215,9 @@ td {
   .product-head {
     flex-direction: column;
     align-items: start;
+  }
+
+  .product-title {
+    align-items: flex-start;
   }
 }

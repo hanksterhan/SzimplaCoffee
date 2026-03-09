@@ -40,13 +40,21 @@
     {% for candidate in candidates %}
     <li>
       <div class="recommendation-head">
-        <strong>{{ candidate.merchant_name }}</strong>
-        <span>{{ candidate.product_name }}</span>
+        <div class="product-title">
+          {% if candidate.image_url %}
+          <img class="product-image" src="{{ candidate.image_url }}" alt="{{ candidate.product_name }}">
+          {% endif %}
+          <div>
+            <strong>{{ candidate.merchant_name }}</strong>
+            <div>{{ candidate.product_name }}</div>
+          </div>
+        </div>
       </div>
       <p>
         {{ candidate.variant_label }} ·
-        {% if candidate.weight_grams %}{{ candidate.weight_grams }} g · {% endif %}
-        landed ${{ "%.2f"|format(candidate.landed_price_cents / 100) }} ·
+        {% if candidate.weight_grams %}{{ weight_label(candidate.weight_grams) }} · {% endif %}
+        landed {{ money(candidate.landed_price_cents) }} ·
+        {{ price_per_oz_label(candidate.landed_price_cents, candidate.weight_grams) }} ·
         score {{ "%.3f"|format(candidate.score) }}
       </p>
       <ul>
@@ -54,7 +62,7 @@
         <li>{{ reason }}</li>
         {% endfor %}
       </ul>
-      <p><a href="{{ candidate.product_url }}" target="_blank" rel="noreferrer">Open product</a></p>
+      <p><a href="{{ candidate.product_url }}" target="_blank" rel="noopener noreferrer">Open product</a></p>
     </li>
     {% endfor %}
   </ol>

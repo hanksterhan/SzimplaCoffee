@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
 
 from .db import Base, engine
@@ -13,6 +13,15 @@ from .services.platforms import detect_platform
 
 def init_db() -> None:
     Base.metadata.create_all(engine)
+    _apply_lightweight_migrations()
+
+
+def _apply_lightweight_migrations() -> None:
+    inspector = inspect(engine)
+    product_columns = {column["name"] for column in inspector.get_columns("products")}
+    with engine.begin() as connection:
+        if "image_url" not in product_columns:
+            connection.execute(text("ALTER TABLE products ADD COLUMN image_url VARCHAR(1000) NOT NULL DEFAULT ''"))
 
 
 def bootstrap_if_empty(session: Session) -> None:

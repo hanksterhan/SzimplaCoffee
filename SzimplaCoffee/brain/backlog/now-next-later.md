@@ -2,16 +2,16 @@
 
 ## Now
 
-- Improve discovery precision for custom merchants without losing obvious roaster domains
-- Canonicalize promo snapshots so repeated free-shipping mentions collapse into merchant-level promo state
-- Add richer merchant detail pages for shipping rules, promos, and recent crawl status
+- Add crawl-health and merchant-error visibility in the UI
+- Reduce remaining promo false positives and add stronger promo confidence heuristics
+- Decide whether custom platforms like Squarespace need a first-pass product crawler or should stay discovery-only
 
 ## Next
 
-- Improve WooCommerce variant pricing extraction
 - Add richer product-note parsing
 - Add crawl health, crawl error, and stale-data visibility
 - Import real purchase history from Notion instead of relying on seed data
+- Add richer merchant filtering and sorting in the dashboard and discovery queue
 
 ## Later
 

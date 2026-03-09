@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from szimplacoffee.main import _price_per_oz_label, _weight_label
 from szimplacoffee.services.discovery import _decode_bing_result_url
 from szimplacoffee.services.recommendations import RecommendationRequest, _espresso_fit, _quantity_score
-from szimplacoffee.services.crawlers import _is_coffee_product, _normalize_single_origin_flag
+from szimplacoffee.services.crawlers import _extract_code, _is_coffee_product, _normalize_promo_key, _normalize_single_origin_flag
 
 
 def test_quantity_score_prefers_small_bags_for_small_mode() -> None:
@@ -49,3 +50,20 @@ def test_subscription_downranks_espresso_fit() -> None:
     score, reasons = _espresso_fit(ProductStub(), "modern_58mm")
     assert score < 0.65
     assert any("subscription" in reason for reason in reasons)
+
+
+def test_weight_and_price_per_oz_helpers() -> None:
+    assert _weight_label(340) == "340 g / 12.0 oz"
+    assert _weight_label(907) == "2 lb (907 g)"
+    assert _price_per_oz_label(2400, 340) == "$2.00/oz"
+
+
+def test_extract_code_requires_real_promo_code_shape() -> None:
+    assert _extract_code("Use code SAVE10 for espresso bags") == "SAVE10"
+    assert _extract_code("Read the code that governs use of this website") is None
+
+
+def test_promo_key_dedupes_shipping_variants() -> None:
+    key_one = _normalize_promo_key("free_shipping_variant", 800, None, "2lb [Ships free] includes free shipping")
+    key_two = _normalize_promo_key("free_shipping_variant", 800, None, "5lb [Ships free] includes free shipping")
+    assert key_one == key_two

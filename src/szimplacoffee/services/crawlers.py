@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+import html
+import json
 import math
 import re
 from typing import Iterable
@@ -11,7 +13,7 @@ from bs4 import BeautifulSoup
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import CrawlRun, Merchant, OfferSnapshot, Product, ProductVariant, PromoSnapshot, ShippingPolicy
+from ..models import CrawlRun, Merchant, MerchantPromo, OfferSnapshot, Product, ProductVariant, PromoSnapshot, ShippingPolicy
 
 USER_AGENT = "SzimplaCoffeeBot/0.1 (+local-first research utility)"
 
@@ -20,6 +22,18 @@ USER_AGENT = "SzimplaCoffeeBot/0.1 (+local-first research utility)"
 class CrawlSummary:
     adapter_name: str
     records_written: int
+    confidence: float
+
+
+@dataclass
+class PromoCandidate:
+    promo_key: str
+    promo_type: str
+    title: str
+    details: str
+    source_urls: set[str]
+    code: str | None
+    estimated_value_cents: int | None
     confidence: float
 
 
@@ -49,7 +63,7 @@ def _extract_free_shipping_threshold(text: str) -> int | None:
 
 
 def _extract_code(text: str) -> str | None:
-    match = re.search(r"(?:code|promo code)\s+([A-Z0-9]{4,16})", text, re.IGNORECASE)
+    match = re.search(r"(?i:(?:use\s+code|promo\s+code|code)\s*[:\-]?\s*)([A-Z0-9]{4,16})\b", text)
     if match:
         return match.group(1).upper()
     return None
@@ -203,6 +217,7 @@ def _upsert_product(session: Session, merchant: Merchant, external_product_id: s
 
     product.name = payload["name"]
     product.product_url = payload["product_url"]
+    product.image_url = payload.get("image_url", "")
     product.origin_text = payload.get("origin_text", "")
     product.process_text = payload.get("process_text", "")
     product.variety_text = payload.get("variety_text", "")
@@ -218,6 +233,11 @@ def _upsert_product(session: Session, merchant: Merchant, external_product_id: s
 def _mark_existing_products_inactive(session: Session, merchant: Merchant) -> None:
     for product in session.scalars(select(Product).where(Product.merchant_id == merchant.id)).all():
         product.is_active = False
+
+
+def _mark_existing_variants_unavailable(product: Product) -> None:
+    for variant in product.variants:
+        variant.is_available = False
 
 
 def _upsert_variant(session: Session, product: Product, external_variant_id: str, payload: dict) -> ProductVariant:
@@ -258,6 +278,95 @@ def _record_offer(session: Session, variant: ProductVariant, payload: dict) -> O
     return offer
 
 
+def _normalize_promo_key(promo_type: str, estimated_value_cents: int | None, code: str | None, details: str) -> str:
+    if promo_type in {"free_shipping", "free_shipping_variant"}:
+        return f"free_shipping:{estimated_value_cents or 0}"
+    if promo_type in {"percent_off", "dollar_off", "subscription_discount"}:
+        return f"{promo_type}:{estimated_value_cents or 0}:{(code or '').lower()}"
+    if promo_type == "promo_code":
+        return f"{promo_type}:{(code or '').lower()}"
+    detail_slug = re.sub(r"[^a-z0-9]+", "-", details.lower()).strip("-")[:48]
+    return f"{promo_type}:{detail_slug}"
+
+
+def _collect_promo(
+    promo_buffer: dict[str, PromoCandidate],
+    *,
+    promo_type: str,
+    title: str,
+    details: str,
+    source_url: str,
+    confidence: float,
+    code: str | None = None,
+    estimated_value_cents: int | None = None,
+) -> None:
+    promo_key = _normalize_promo_key(promo_type, estimated_value_cents, code, details or title)
+    existing = promo_buffer.get(promo_key)
+    if existing:
+        existing.source_urls.add(source_url)
+        existing.confidence = max(existing.confidence, confidence)
+        return
+    promo_buffer[promo_key] = PromoCandidate(
+        promo_key=promo_key,
+        promo_type=promo_type,
+        title=title,
+        details=details,
+        source_urls={source_url},
+        code=code,
+        estimated_value_cents=estimated_value_cents,
+        confidence=confidence,
+    )
+
+
+def _flush_promos(session: Session, merchant: Merchant, promo_buffer: dict[str, PromoCandidate]) -> None:
+    now = _utcnow()
+    seen_keys = set(promo_buffer)
+    existing_promos = {
+        promo.promo_key: promo
+        for promo in session.scalars(select(MerchantPromo).where(MerchantPromo.merchant_id == merchant.id)).all()
+    }
+    for promo in existing_promos.values():
+        promo.is_active = False
+
+    for promo_key, promo in promo_buffer.items():
+        source_urls = "\n".join(sorted(promo.source_urls))
+        current = existing_promos.get(promo_key)
+        if current is None:
+            current = MerchantPromo(
+                merchant_id=merchant.id,
+                promo_key=promo_key,
+                first_seen_at=now,
+            )
+            session.add(current)
+        current.promo_type = promo.promo_type
+        current.title = promo.title
+        current.details = promo.details
+        current.code = promo.code
+        current.estimated_value_cents = promo.estimated_value_cents
+        current.source_urls = source_urls
+        current.confidence = promo.confidence
+        current.is_active = True
+        current.last_seen_at = now
+
+        session.add(
+            PromoSnapshot(
+                merchant_id=merchant.id,
+                observed_at=now,
+                promo_type=promo.promo_type,
+                title=promo.title,
+                details=promo.details,
+                code=promo.code,
+                estimated_value_cents=promo.estimated_value_cents,
+                source_url=sorted(promo.source_urls)[0],
+                confidence=promo.confidence,
+            )
+        )
+
+    for promo_key, promo in existing_promos.items():
+        if promo_key not in seen_keys:
+            promo.last_seen_at = now
+
+
 def _candidate_policy_urls(homepage_url: str, html: str) -> list[str]:
     candidates = {
         f"{homepage_url}/pages/faq",
@@ -270,11 +379,35 @@ def _candidate_policy_urls(homepage_url: str, html: str) -> list[str]:
     for link in soup.select("a[href]"):
         href = (link.get("href") or "").strip()
         text = link.get_text(" ", strip=True).lower()
-        if any(term in text for term in ["shipping", "faq", "subscription", "subscribe", "sale", "offer", "office coffee"]):
-            if href.startswith("http://") or href.startswith("https://"):
-                candidates.add(href.rstrip("/"))
-            elif href.startswith("/"):
-                candidates.add(f"{homepage_url}{href}".rstrip("/"))
+        href_lower = href.lower()
+        if not href_lower:
+            continue
+        if not (
+            any(term in text for term in ["shipping", "faq", "subscription", "subscribe", "sale", "offer", "office coffee"])
+            or any(
+                term in href_lower
+                for term in [
+                    "/pages/faq",
+                    "/pages/shipping",
+                    "/pages/subscriptions",
+                    "/policies/shipping-policy",
+                    "/policies/refund-policy",
+                    "/faq",
+                    "/shipping",
+                    "/subscribe",
+                    "/subscriptions",
+                ]
+            )
+        ):
+            continue
+        if any(term in href_lower for term in ["/products/", "/collections/", "/blogs/"]):
+            continue
+        if any(term in href_lower for term in [".jpg", ".jpeg", ".png", ".svg", ".pdf"]):
+            continue
+        if href.startswith("http://") or href.startswith("https://"):
+            candidates.add(href.rstrip("/"))
+        elif href.startswith("/"):
+            candidates.add(f"{homepage_url}{href}".rstrip("/"))
     return sorted(candidates)
 
 
@@ -296,7 +429,7 @@ def _record_shipping_policy(session: Session, merchant: Merchant, homepage_url: 
     session.add(policy)
 
 
-def _record_promos(session: Session, merchant: Merchant, homepage_url: str, html: str, confidence: float) -> None:
+def _record_promos(promo_buffer: dict[str, PromoCandidate], homepage_url: str, html: str, confidence: float) -> None:
     text = _clean_text(html)
     threshold = _extract_free_shipping_threshold(text)
     discount_percent = _extract_discount_percent(text)
@@ -304,76 +437,67 @@ def _record_promos(session: Session, merchant: Merchant, homepage_url: str, html
     subscription_discount = _extract_subscription_discount(text)
     code = _extract_code(text)
     if threshold:
-        session.add(
-            PromoSnapshot(
-                merchant_id=merchant.id,
-                observed_at=_utcnow(),
-                promo_type="free_shipping",
-                title="Free shipping",
-                details=f"Free shipping on orders over ${threshold / 100:.0f}",
-                source_url=homepage_url,
-                estimated_value_cents=800,
-                confidence=confidence,
-            )
+        _collect_promo(
+            promo_buffer,
+            promo_type="free_shipping",
+            title="Free shipping",
+            details=f"Free shipping on orders over ${threshold / 100:.0f}",
+            source_url=homepage_url,
+            estimated_value_cents=800,
+            confidence=confidence,
         )
     if discount_percent:
-        session.add(
-            PromoSnapshot(
-                merchant_id=merchant.id,
-                observed_at=_utcnow(),
-                promo_type="percent_off",
-                title=f"{discount_percent}% off",
-                details=f"{discount_percent}% off detected on homepage",
-                code=code,
-                source_url=homepage_url,
-                estimated_value_cents=discount_percent * 100,
-                confidence=confidence * 0.9,
-            )
+        _collect_promo(
+            promo_buffer,
+            promo_type="percent_off",
+            title=f"{discount_percent}% off",
+            details=f"{discount_percent}% off detected on page",
+            source_url=homepage_url,
+            code=code,
+            estimated_value_cents=discount_percent * 100,
+            confidence=confidence * 0.9,
         )
     if discount_dollars:
-        session.add(
-            PromoSnapshot(
-                merchant_id=merchant.id,
-                observed_at=_utcnow(),
-                promo_type="dollar_off",
-                title=f"Save ${discount_dollars / 100:.0f}",
-                details=f"Saw save amount on homepage",
-                code=code,
-                source_url=homepage_url,
-                estimated_value_cents=discount_dollars,
-                confidence=confidence * 0.9,
-            )
+        _collect_promo(
+            promo_buffer,
+            promo_type="dollar_off",
+            title=f"Save ${discount_dollars / 100:.0f}",
+            details="Detected dollar-off savings on page",
+            source_url=homepage_url,
+            code=code,
+            estimated_value_cents=discount_dollars,
+            confidence=confidence * 0.9,
         )
     if subscription_discount:
-        session.add(
-            PromoSnapshot(
-                merchant_id=merchant.id,
-                observed_at=_utcnow(),
-                promo_type="subscription_discount",
-                title=f"{subscription_discount}% subscription savings",
-                details="Detected subscription savings language",
-                source_url=homepage_url,
-                estimated_value_cents=subscription_discount * 100,
-                confidence=confidence * 0.9,
-            )
+        _collect_promo(
+            promo_buffer,
+            promo_type="subscription_discount",
+            title=f"{subscription_discount}% subscription savings",
+            details="Detected subscription savings language",
+            source_url=homepage_url,
+            estimated_value_cents=subscription_discount * 100,
+            confidence=confidence * 0.9,
         )
     if code and not threshold and not discount_percent and not discount_dollars:
-        session.add(
-            PromoSnapshot(
-                merchant_id=merchant.id,
-                observed_at=_utcnow(),
-                promo_type="promo_code",
-                title=f"Promo code {code}",
-                details="Detected promo code on homepage",
-                code=code,
-                source_url=homepage_url,
-                estimated_value_cents=None,
-                confidence=confidence * 0.8,
-            )
+        _collect_promo(
+            promo_buffer,
+            promo_type="promo_code",
+            title=f"Promo code {code}",
+            details="Detected promo code on page",
+            source_url=homepage_url,
+            code=code,
+            confidence=confidence * 0.8,
         )
 
 
-def _crawl_policy_pages(session: Session, merchant: Merchant, client: httpx.Client, homepage_html: str, confidence: float) -> None:
+def _crawl_policy_pages(
+    session: Session,
+    merchant: Merchant,
+    client: httpx.Client,
+    homepage_html: str,
+    confidence: float,
+    promo_buffer: dict[str, PromoCandidate],
+) -> None:
     for policy_url in _candidate_policy_urls(merchant.homepage_url, homepage_html):
         try:
             response = client.get(policy_url)
@@ -382,29 +506,25 @@ def _crawl_policy_pages(session: Session, merchant: Merchant, client: httpx.Clie
         if response.status_code >= 400 or not response.text:
             continue
         _record_shipping_policy(session, merchant, policy_url, response.text, confidence * 0.9)
-        _record_promos(session, merchant, policy_url, response.text, confidence * 0.9)
+        _record_promos(promo_buffer, policy_url, response.text, confidence * 0.9)
 
 
 def _record_shipping_variant_promo(
-    session: Session,
-    merchant: Merchant,
+    promo_buffer: dict[str, PromoCandidate],
     source_url: str,
     variant_label: str,
     confidence: float,
 ) -> None:
     if "ships free" not in variant_label.lower():
         return
-    session.add(
-        PromoSnapshot(
-            merchant_id=merchant.id,
-            observed_at=_utcnow(),
-            promo_type="free_shipping_variant",
-            title="Free shipping variant",
-            details=f"{variant_label} includes free shipping",
-            source_url=source_url,
-            estimated_value_cents=800,
-            confidence=confidence * 0.85,
-        )
+    _collect_promo(
+        promo_buffer,
+        promo_type="free_shipping_variant",
+        title="Free shipping on bulk size",
+        details=f"{variant_label} includes free shipping",
+        source_url=source_url,
+        estimated_value_cents=800,
+        confidence=confidence * 0.85,
     )
 
 
@@ -425,6 +545,8 @@ def crawl_merchant(session: Session, merchant: Merchant) -> CrawlSummary:
             summary = _crawl_shopify(session, merchant)
         elif merchant.platform_type == "woocommerce":
             summary = _crawl_woocommerce(session, merchant)
+        elif merchant.platform_type in {"squarespace", "custom"}:
+            summary = _crawl_generic(session, merchant)
         else:
             summary = _crawl_generic(session, merchant)
 
@@ -443,15 +565,20 @@ def crawl_merchant(session: Session, merchant: Merchant) -> CrawlSummary:
 def _crawl_shopify(session: Session, merchant: Merchant) -> CrawlSummary:
     headers = {"User-Agent": USER_AGENT}
     records_written = 0
-    _mark_existing_products_inactive(session, merchant)
+    promo_buffer: dict[str, PromoCandidate] = {}
     with httpx.Client(follow_redirects=True, timeout=20.0, headers=headers) as client:
         homepage = client.get(merchant.homepage_url)
         _record_shipping_policy(session, merchant, merchant.homepage_url, homepage.text, 0.9)
-        _record_promos(session, merchant, merchant.homepage_url, homepage.text, 0.9)
-        _crawl_policy_pages(session, merchant, client, homepage.text, 0.9)
+        _record_promos(promo_buffer, merchant.homepage_url, homepage.text, 0.9)
+        _crawl_policy_pages(session, merchant, client, homepage.text, 0.9, promo_buffer)
         resp = client.get(f"{merchant.homepage_url}/products.json?limit=250")
-        payload = resp.json()
+        try:
+            payload = resp.json()
+        except ValueError:
+            _flush_promos(session, merchant, promo_buffer)
+            return CrawlSummary(adapter_name="shopify", records_written=0, confidence=0.35)
         products = payload.get("products", [])
+        _mark_existing_products_inactive(session, merchant)
 
         for raw in products:
             tags = raw.get("tags", [])
@@ -468,6 +595,7 @@ def _crawl_shopify(session: Session, merchant: Merchant) -> CrawlSummary:
                 {
                     "name": raw.get("title", "Unnamed Coffee"),
                     "product_url": f"{merchant.homepage_url}/products/{raw.get('handle', '')}",
+                    "image_url": ((raw.get("image") or {}).get("src") or ((raw.get("images") or [{}])[0].get("src") or "")),
                     "origin_text": _extract_field(text, "Origin"),
                     "process_text": _extract_field(text, "Process"),
                     "variety_text": _extract_field(text, "Variety"),
@@ -479,6 +607,7 @@ def _crawl_shopify(session: Session, merchant: Merchant) -> CrawlSummary:
             )
             session.flush()
             records_written += 1
+            _mark_existing_variants_unavailable(product)
 
             for raw_variant in raw.get("variants", []):
                 variant = _upsert_variant(
@@ -507,6 +636,7 @@ def _crawl_shopify(session: Session, merchant: Merchant) -> CrawlSummary:
                 )
                 records_written += 1
 
+    _flush_promos(session, merchant, promo_buffer)
     return CrawlSummary(adapter_name="shopify", records_written=records_written, confidence=0.95)
 
 
@@ -525,15 +655,60 @@ def _price_range_to_variant_prices(labels: list[str], min_cents: int | None, max
     return [int(round(min_val + step * idx)) for idx in range(len(labels))]
 
 
+def _variation_name_map(attributes: list[dict]) -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    for attribute in attributes:
+        if attribute.get("name", "").lower() != "size":
+            continue
+        for term in attribute.get("terms", []):
+            display = term.get("name", "")
+            slug = term.get("slug", "")
+            if display:
+                mapping[display.lower()] = display
+            if slug:
+                mapping[slug.lower()] = display or slug
+            normalized_display = display.split("[", 1)[0].strip().lower()
+            if normalized_display:
+                mapping[normalized_display] = display
+    return mapping
+
+
+def _normalize_woo_variation_label(value: str, name_map: dict[str, str]) -> str:
+    normalized = value.lower().strip()
+    return name_map.get(normalized) or name_map.get(normalized.replace(" ", "")) or value
+
+
+def _fetch_woocommerce_variation_rows(client: httpx.Client, product_url: str) -> list[dict]:
+    try:
+        response = client.get(product_url)
+    except httpx.HTTPError:
+        return []
+    if response.status_code >= 400:
+        return []
+    soup = BeautifulSoup(response.text, "lxml")
+    form = soup.select_one("form.variations_form")
+    if not form:
+        return []
+    raw = form.get("data-product_variations")
+    if not raw:
+        return []
+    try:
+        decoded = json.loads(html.unescape(raw))
+    except json.JSONDecodeError:
+        return []
+    return decoded if isinstance(decoded, list) else []
+
+
 def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
     headers = {"User-Agent": USER_AGENT}
     records_written = 0
-    _mark_existing_products_inactive(session, merchant)
+    promo_buffer: dict[str, PromoCandidate] = {}
     with httpx.Client(follow_redirects=True, timeout=20.0, headers=headers) as client:
         homepage = client.get(merchant.homepage_url)
         _record_shipping_policy(session, merchant, merchant.homepage_url, homepage.text, 0.7)
-        _record_promos(session, merchant, merchant.homepage_url, homepage.text, 0.7)
-        _crawl_policy_pages(session, merchant, client, homepage.text, 0.7)
+        _record_promos(promo_buffer, merchant.homepage_url, homepage.text, 0.7)
+        _crawl_policy_pages(session, merchant, client, homepage.text, 0.7, promo_buffer)
+        _mark_existing_products_inactive(session, merchant)
 
         page = 1
         while True:
@@ -552,6 +727,8 @@ def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
                 price_range = price_info.get("price_range") or {}
                 min_price = _parse_price_to_cents(price_range.get("min_amount") or price_info.get("price"))
                 max_price = _parse_price_to_cents(price_range.get("max_amount") or price_info.get("price"))
+                product_url = raw.get("permalink", merchant.homepage_url)
+                variation_rows = _fetch_woocommerce_variation_rows(client, product_url) if raw.get("has_options") else []
 
                 product = _upsert_product(
                     session,
@@ -559,7 +736,8 @@ def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
                     str(raw["id"]),
                     {
                         "name": raw.get("name", "Unnamed Coffee"),
-                        "product_url": raw.get("permalink", merchant.homepage_url),
+                        "product_url": product_url,
+                        "image_url": ((raw.get("images") or [{}])[0].get("src") or ""),
                         "origin_text": _extract_field(description, "Origin"),
                         "process_text": _extract_field(description, "Process"),
                         "variety_text": _extract_field(description, "Variety"),
@@ -571,6 +749,7 @@ def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
                 )
                 session.flush()
                 records_written += 1
+                _mark_existing_variants_unavailable(product)
 
                 size_terms: list[str] = []
                 for attribute in raw.get("attributes", []):
@@ -581,17 +760,54 @@ def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
                 if not size_terms:
                     size_terms = [raw.get("name", "Default")]
 
-                variant_prices = _price_range_to_variant_prices(size_terms, min_price, max_price)
-                for idx, size_label in enumerate(size_terms):
-                    _record_shipping_variant_promo(session, merchant, product.product_url, size_label, 0.8)
-                    variant = _upsert_variant(
-                        session,
-                        product,
-                        f"{raw['id']}::{size_label}",
+                name_map = _variation_name_map(raw.get("attributes", []))
+                exact_rows = []
+                for row in variation_rows:
+                    attributes = row.get("attributes", {}) or {}
+                    size_value = attributes.get("attribute_pa_bag-size") or attributes.get("attribute_size")
+                    grind_value = attributes.get("attribute_pa_whole-bean-or-ground") or attributes.get("attribute_grind")
+                    if size_value is None:
+                        continue
+                    if grind_value and "whole-bean" not in grind_value.lower():
+                        continue
+                    variation_id = row.get("variation_id")
+                    exact_rows.append(
                         {
+                            "external_variant_id": str(variation_id or f"{raw['id']}::{size_value}"),
+                            "label": _normalize_woo_variation_label(str(size_value), name_map),
+                            "weight_grams": _parse_weight_grams(str(size_value)),
+                            "is_available": bool(row.get("is_in_stock", raw.get("is_in_stock", True))),
+                            "price_cents": int(round(float(row.get("display_price", 0)) * 100)),
+                            "compare_at_price_cents": int(round(float(row.get("display_regular_price", 0)) * 100)) if row.get("display_regular_price") else None,
+                        }
+                    )
+
+                if exact_rows:
+                    variant_rows = exact_rows
+                else:
+                    variant_prices = _price_range_to_variant_prices(size_terms, min_price, max_price)
+                    variant_rows = [
+                        {
+                            "external_variant_id": f"{raw['id']}::{size_label}",
                             "label": size_label,
                             "weight_grams": _parse_weight_grams(size_label),
                             "is_available": raw.get("is_in_stock", True),
+                            "price_cents": variant_prices[idx],
+                            "compare_at_price_cents": None,
+                        }
+                        for idx, size_label in enumerate(size_terms)
+                    ]
+
+                for variant_row in variant_rows:
+                    _record_shipping_variant_promo(promo_buffer, product.product_url, variant_row["label"], 0.8)
+                    variant = _upsert_variant(
+                        session,
+                        product,
+                        variant_row["external_variant_id"],
+                        {
+                            "label": variant_row["label"],
+                            "weight_grams": variant_row["weight_grams"],
+                            "is_available": variant_row["is_available"],
                             "is_whole_bean": "ground" not in raw.get("name", "").lower(),
                         },
                     )
@@ -600,11 +816,13 @@ def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
                         session,
                         variant,
                         {
-                            "price_cents": variant_prices[idx],
-                            "compare_at_price_cents": None,
+                            "price_cents": variant_row["price_cents"],
+                            "compare_at_price_cents": variant_row["compare_at_price_cents"],
                             "subscription_price_cents": None,
-                            "is_on_sale": bool(raw.get("on_sale")),
-                            "is_available": raw.get("is_in_stock", True),
+                            "is_on_sale": bool(raw.get("on_sale")) or bool(
+                                variant_row["compare_at_price_cents"] and variant_row["compare_at_price_cents"] > variant_row["price_cents"]
+                            ),
+                            "is_available": variant_row["is_available"],
                             "source_url": product.product_url,
                         },
                     )
@@ -615,14 +833,17 @@ def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
                 break
             page += 1
 
+    _flush_promos(session, merchant, promo_buffer)
     return CrawlSummary(adapter_name="woocommerce", records_written=records_written, confidence=0.8)
 
 
 def _crawl_generic(session: Session, merchant: Merchant) -> CrawlSummary:
     headers = {"User-Agent": USER_AGENT}
+    promo_buffer: dict[str, PromoCandidate] = {}
     with httpx.Client(follow_redirects=True, timeout=20.0, headers=headers) as client:
         homepage = client.get(merchant.homepage_url)
         _record_shipping_policy(session, merchant, merchant.homepage_url, homepage.text, 0.4)
-        _record_promos(session, merchant, merchant.homepage_url, homepage.text, 0.4)
-        _crawl_policy_pages(session, merchant, client, homepage.text, 0.4)
+        _record_promos(promo_buffer, merchant.homepage_url, homepage.text, 0.4)
+        _crawl_policy_pages(session, merchant, client, homepage.text, 0.4, promo_buffer)
+    _flush_promos(session, merchant, promo_buffer)
     return CrawlSummary(adapter_name="generic", records_written=0, confidence=0.4)

@@ -33,6 +33,7 @@ class Merchant(Base):
     shipping_policies: Mapped[list["ShippingPolicy"]] = relationship(back_populates="merchant", cascade="all, delete-orphan")
     products: Mapped[list["Product"]] = relationship(back_populates="merchant", cascade="all, delete-orphan")
     promos: Mapped[list["PromoSnapshot"]] = relationship(back_populates="merchant", cascade="all, delete-orphan")
+    current_promos: Mapped[list["MerchantPromo"]] = relationship(back_populates="merchant", cascade="all, delete-orphan")
     purchases: Mapped[list["PurchaseHistory"]] = relationship(back_populates="merchant", cascade="all, delete-orphan")
     crawl_runs: Mapped[list["CrawlRun"]] = relationship(back_populates="merchant", cascade="all, delete-orphan")
 
@@ -119,6 +120,7 @@ class Product(Base):
     external_product_id: Mapped[str] = mapped_column(String(128))
     name: Mapped[str] = mapped_column(String(255), index=True)
     product_url: Mapped[str] = mapped_column(String(500))
+    image_url: Mapped[str] = mapped_column(String(1000), default="")
     origin_text: Mapped[str] = mapped_column(Text, default="")
     process_text: Mapped[str] = mapped_column(Text, default="")
     variety_text: Mapped[str] = mapped_column(Text, default="")
@@ -183,6 +185,27 @@ class PromoSnapshot(Base):
     confidence: Mapped[float] = mapped_column(Float, default=0.5)
 
     merchant: Mapped[Merchant] = relationship(back_populates="promos")
+
+
+class MerchantPromo(Base):
+    __tablename__ = "merchant_promos"
+    __table_args__ = (UniqueConstraint("merchant_id", "promo_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    merchant_id: Mapped[int] = mapped_column(ForeignKey("merchants.id"), index=True)
+    promo_key: Mapped[str] = mapped_column(String(128), index=True)
+    promo_type: Mapped[str] = mapped_column(String(64))
+    title: Mapped[str] = mapped_column(String(255))
+    details: Mapped[str] = mapped_column(Text, default="")
+    code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    estimated_value_cents: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    source_urls: Mapped[str] = mapped_column(Text, default="")
+    confidence: Mapped[float] = mapped_column(Float, default=0.5)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+    merchant: Mapped[Merchant] = relationship(back_populates="current_promos")
 
 
 class PurchaseHistory(Base):

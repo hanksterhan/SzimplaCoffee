@@ -51,8 +51,11 @@ def main() -> None:
 
         if args.command == "crawl-all":
             for merchant in session.query(Merchant).all():
-                crawl_merchant(session, merchant)
-                print(f"Crawled {merchant.name}")
+                try:
+                    crawl_merchant(session, merchant)
+                    print(f"Crawled {merchant.name}")
+                except Exception as exc:
+                    print(f"Failed {merchant.name}: {exc}")
             return
 
         if args.command == "discover":

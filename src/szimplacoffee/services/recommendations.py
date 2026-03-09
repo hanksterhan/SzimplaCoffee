@@ -6,7 +6,7 @@ from typing import Literal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import BrewFeedback, Merchant, OfferSnapshot, Product, ProductVariant, PromoSnapshot, PurchaseHistory, RecommendationRun, ShippingPolicy
+from ..models import Merchant, MerchantPromo, OfferSnapshot, Product, ProductVariant, PurchaseHistory, RecommendationRun, ShippingPolicy
 
 
 QuantityMode = Literal["12-18 oz", "2 lb", "5 lb", "any"]
@@ -27,8 +27,10 @@ class RecommendationCandidate:
     product_name: str
     variant_label: str
     product_url: str
+    image_url: str
     weight_grams: int | None
     landed_price_cents: int
+    landed_price_per_oz_cents: int | None
     score: float
     rationale: list[str]
 
@@ -185,9 +187,9 @@ def _history_fit(product: Product, merchant: Merchant, prefs: dict, allow_decaf:
 
 def _promo_bonus(session: Session, merchant_id: int) -> tuple[float, list[str]]:
     promos = session.scalars(
-        select(PromoSnapshot)
-        .where(PromoSnapshot.merchant_id == merchant_id)
-        .order_by(PromoSnapshot.observed_at.desc())
+        select(MerchantPromo)
+        .where(MerchantPromo.merchant_id == merchant_id, MerchantPromo.is_active.is_(True))
+        .order_by(MerchantPromo.estimated_value_cents.desc().nullslast(), MerchantPromo.last_seen_at.desc())
         .limit(3)
     ).all()
     bonus = 0.0
@@ -233,6 +235,15 @@ def _deal_score(offer: OfferSnapshot, variant: ProductVariant, shipping_policy: 
     return 0.35, landed, reasons
 
 
+def _price_per_oz_cents(price_cents: int, weight_grams: int | None) -> int | None:
+    if not weight_grams:
+        return None
+    ounces = weight_grams / 28.3495
+    if ounces <= 0:
+        return None
+    return int(round(price_cents / ounces))
+
+
 def build_recommendations(session: Session, request: RecommendationRequest) -> list[RecommendationCandidate]:
     candidates: list[RecommendationCandidate] = []
     prefs = _preference_profile(session)
@@ -246,6 +257,8 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
         promo_bonus, promo_reasons = _promo_bonus(session, merchant.id)
         for variant in product.variants:
             if not variant.is_whole_bean:
+                continue
+            if not variant.is_available:
                 continue
             format_haystack = f"{product.name} {variant.label}".lower()
             if any(term in format_haystack for term in ["instant", "pod", "capsule", "packet", "packets"]):
@@ -286,8 +299,10 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
                     product_name=product.name,
                     variant_label=variant.label,
                     product_url=product.product_url,
+                    image_url=product.image_url,
                     weight_grams=variant.weight_grams,
                     landed_price_cents=landed,
+                    landed_price_per_oz_cents=_price_per_oz_cents(landed, variant.weight_grams),
                     score=round(total, 4),
                     rationale=rationale,
                 )
