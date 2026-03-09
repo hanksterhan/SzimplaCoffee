@@ -2,19 +2,11 @@
 {% block content %}
 <section class="panel narrow">
   <h2>Add merchant</h2>
+  <p class="note">Paste a storefront URL. SzimplaCoffee will detect the platform, assign crawl tier automatically, and crawl in the background.</p>
   <form method="post" action="/merchants/new" class="stack">
     <label>
       Homepage URL
       <input type="url" name="url" placeholder="https://www.olympiacoffee.com" required>
-    </label>
-    <label>
-      Crawl tier
-      <select name="crawl_tier">
-        <option value="A">A</option>
-        <option value="B" selected>B</option>
-        <option value="C">C</option>
-        <option value="D">D</option>
-      </select>
     </label>
     <label>
       Trust tier
@@ -24,12 +16,7 @@
         <option value="excluded">excluded</option>
       </select>
     </label>
-    <label class="checkbox">
-      <input type="checkbox" name="crawl_now" value="true" checked>
-      Crawl immediately
-    </label>
-    <button class="button" type="submit">Add merchant</button>
+    <button class="button" type="submit">Add merchant and queue crawl</button>
   </form>
 </section>
 {% endblock %}
-

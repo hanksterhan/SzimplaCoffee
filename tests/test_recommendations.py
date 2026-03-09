@@ -4,6 +4,7 @@ from szimplacoffee.main import _price_per_oz_label, _weight_label
 from szimplacoffee.services.discovery import _decode_bing_result_url
 from szimplacoffee.services.recommendations import RecommendationRequest, _espresso_fit, _quantity_score
 from szimplacoffee.services.crawlers import _extract_code, _is_coffee_product, _normalize_promo_key, _normalize_single_origin_flag
+from szimplacoffee.services.platforms import recommended_crawl_tier
 
 
 def test_quantity_score_prefers_small_bags_for_small_mode() -> None:
@@ -67,3 +68,10 @@ def test_promo_key_dedupes_shipping_variants() -> None:
     key_one = _normalize_promo_key("free_shipping_variant", 800, None, "2lb [Ships free] includes free shipping")
     key_two = _normalize_promo_key("free_shipping_variant", 800, None, "5lb [Ships free] includes free shipping")
     assert key_one == key_two
+
+
+def test_recommended_crawl_tier_prefers_machine_readable_platforms() -> None:
+    assert recommended_crawl_tier("shopify", 0.95) == "A"
+    assert recommended_crawl_tier("squarespace", 0.82) == "B"
+    assert recommended_crawl_tier("custom", 0.72) == "C"
+    assert recommended_crawl_tier("unknown", 0.3) == "D"

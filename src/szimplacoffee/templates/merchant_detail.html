@@ -13,6 +13,18 @@
       <button class="button" type="submit">Refresh crawl</button>
     </form>
   </div>
+  {% if latest_crawl_run %}
+  <p class="note" id="crawl-status"
+     data-merchant-id="{{ merchant.id }}"
+     data-crawl-status="{{ latest_crawl_run.status }}">
+    Crawl status: <strong>{{ latest_crawl_run.status }}</strong>
+    {% if latest_crawl_run.status == "completed" %}
+      · wrote {{ latest_crawl_run.records_written }} records
+    {% elif latest_crawl_run.status == "failed" and latest_crawl_run.error_summary %}
+      · {{ latest_crawl_run.error_summary }}
+    {% endif %}
+  </p>
+  {% endif %}
 
   {% if merchant.quality_profile %}
   <p class="note">
@@ -123,4 +135,31 @@
   <p>No products crawled yet.</p>
   {% endfor %}
 </section>
+{% if latest_crawl_run and latest_crawl_run.status in ["queued", "started"] %}
+<script>
+  (function () {
+    const node = document.getElementById("crawl-status");
+    if (!node) return;
+    const merchantId = node.dataset.merchantId;
+    let lastStatus = node.dataset.crawlStatus;
+    async function poll() {
+      const response = await fetch(`/merchants/${merchantId}/status`, { headers: { "Accept": "application/json" } });
+      if (!response.ok) return;
+      const data = await response.json();
+      node.innerHTML = `Crawl status: <strong>${data.status}</strong>` +
+        (data.status === "completed" ? ` · wrote ${data.records_written} records` : "") +
+        (data.status === "failed" && data.error_summary ? ` · ${data.error_summary}` : "");
+      if (data.status !== lastStatus && (data.status === "completed" || data.status === "failed")) {
+        window.location.reload();
+        return;
+      }
+      lastStatus = data.status;
+      if (data.status === "queued" || data.status === "started") {
+        window.setTimeout(poll, 2500);
+      }
+    }
+    window.setTimeout(poll, 1500);
+  })();
+</script>
+{% endif %}
 {% endblock %}

@@ -7,7 +7,7 @@ from .db import session_scope
 from .models import Merchant
 from .services.crawlers import crawl_merchant
 from .services.discovery import run_discovery
-from .services.platforms import detect_platform
+from .services.platforms import detect_platform, recommended_crawl_tier
 from .services.recommendations import RecommendationRequest, build_recommendations
 
 
@@ -41,6 +41,7 @@ def main() -> None:
                 canonical_domain=detection.domain,
                 homepage_url=detection.normalized_url,
                 platform_type=detection.platform_type,
+                crawl_tier=recommended_crawl_tier(detection.platform_type, detection.confidence),
             )
             session.add(merchant)
             session.flush()

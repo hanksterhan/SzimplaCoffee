@@ -610,19 +610,22 @@ def _record_shipping_variant_promo(
     )
 
 
-def crawl_merchant(session: Session, merchant: Merchant) -> CrawlSummary:
-    run = CrawlRun(
-        merchant_id=merchant.id,
-        run_type="merchant_refresh",
-        adapter_name=merchant.platform_type,
-        status="started",
-        confidence=0.0,
-        records_written=0,
-    )
-    session.add(run)
-    session.flush()
+def crawl_merchant(session: Session, merchant: Merchant, run: CrawlRun | None = None) -> CrawlSummary:
+    if run is None:
+        run = CrawlRun(
+            merchant_id=merchant.id,
+            run_type="merchant_refresh",
+            adapter_name=merchant.platform_type,
+            status="queued",
+            confidence=0.0,
+            records_written=0,
+        )
+        session.add(run)
+        session.flush()
 
     try:
+        run.status = "started"
+        run.adapter_name = merchant.platform_type
         if merchant.platform_type == "shopify":
             summary = _crawl_shopify(session, merchant)
         elif merchant.platform_type == "woocommerce":

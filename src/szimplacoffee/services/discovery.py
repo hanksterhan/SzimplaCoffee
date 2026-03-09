@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models import Merchant, MerchantCandidate, MerchantQualityProfile, MerchantSource
-from .platforms import PlatformDetection, detect_platform, extract_domain
+from .platforms import PlatformDetection, detect_platform, extract_domain, recommended_crawl_tier
 
 
 DISCOVERY_QUERIES = [
@@ -313,13 +313,13 @@ def run_discovery(session: Session, queries: Iterable[str] | None = None) -> Dis
     return DiscoveryResult(created_count=created, skipped_count=skipped)
 
 
-def promote_candidate(session: Session, candidate: MerchantCandidate, crawl_tier: str = "C") -> Merchant:
+def promote_candidate(session: Session, candidate: MerchantCandidate, crawl_tier: str | None = None) -> Merchant:
     merchant = Merchant(
         name=candidate.merchant_name,
         canonical_domain=candidate.canonical_domain,
         homepage_url=candidate.homepage_url,
         platform_type=candidate.platform_type,
-        crawl_tier=crawl_tier,
+        crawl_tier=crawl_tier or recommended_crawl_tier(candidate.platform_type, candidate.confidence),
         trust_tier="candidate",
     )
     session.add(merchant)

@@ -23,6 +23,8 @@
 - Added product image URLs to the catalog and surfaced them in recommendation and merchant-detail views
 - Added weight formatting and price-per-ounce display in the UI, including pounds when appropriate
 - Added outbound site and product links that open in a new tab
+- Switched add-merchant and refresh-crawl flows to queued background crawls with live status polling on the merchant page
+- Removed manual crawl-tier input and now assign crawl tier automatically from platform type and crawlability
 
 ## Open issues
 

@@ -20,6 +20,16 @@ class PlatformDetection:
     confidence: float
 
 
+def recommended_crawl_tier(platform_type: str, confidence: float) -> str:
+    if platform_type in {"shopify", "woocommerce"} and confidence >= 0.9:
+        return "A"
+    if platform_type in {"shopify", "woocommerce", "squarespace"}:
+        return "B"
+    if platform_type == "custom":
+        return "C"
+    return "D"
+
+
 def normalize_url(raw_url: str) -> str:
     candidate = raw_url.strip()
     if not candidate.startswith(("http://", "https://")):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Form, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -12,10 +12,10 @@ from sqlalchemy.orm import Session
 from .bootstrap import bootstrap_if_empty, init_db
 from .config import STATIC_DIR, TEMPLATES_DIR
 from .db import get_session, session_scope
-from .models import Merchant, MerchantCandidate, MerchantPromo, OfferSnapshot, Product, ProductVariant, ShippingPolicy
+from .models import CrawlRun, Merchant, MerchantCandidate, MerchantPromo, OfferSnapshot, Product, ProductVariant, ShippingPolicy
 from .services.crawlers import crawl_merchant
 from .services.discovery import promote_candidate, run_discovery
-from .services.platforms import detect_platform
+from .services.platforms import detect_platform, recommended_crawl_tier
 from .services.recommendations import RecommendationRequest, build_recommendations, persist_recommendation_run
 
 
@@ -90,6 +90,44 @@ def _dashboard_metrics(session: Session) -> dict:
     }
 
 
+def _latest_crawl_run(session: Session, merchant_id: int) -> CrawlRun | None:
+    return session.scalar(
+        select(CrawlRun)
+        .where(CrawlRun.merchant_id == merchant_id)
+        .order_by(CrawlRun.started_at.desc())
+        .limit(1)
+    )
+
+
+def _enqueue_crawl(session: Session, merchant: Merchant) -> tuple[CrawlRun, bool]:
+    latest_run = _latest_crawl_run(session, merchant.id)
+    if latest_run and latest_run.status in {"queued", "started"}:
+        return latest_run, False
+    run = CrawlRun(
+        merchant_id=merchant.id,
+        run_type="merchant_refresh",
+        adapter_name=merchant.platform_type,
+        status="queued",
+        confidence=0.0,
+        records_written=0,
+    )
+    session.add(run)
+    session.flush()
+    return run, True
+
+
+def _background_crawl(merchant_id: int, run_id: int) -> None:
+    try:
+        with session_scope() as session:
+            merchant = session.get(Merchant, merchant_id)
+            run = session.get(CrawlRun, run_id)
+            if merchant is None or run is None:
+                return
+            crawl_merchant(session, merchant, run=run)
+    except Exception:
+        return
+
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     merchants = session.scalars(select(Merchant).order_by(Merchant.trust_tier.asc(), Merchant.name.asc())).all()
@@ -111,18 +149,18 @@ def merchant_form(request: Request) -> HTMLResponse:
 
 @app.post("/merchants/new")
 def create_merchant(
+    background_tasks: BackgroundTasks,
     url: str = Form(...),
-    crawl_tier: str = Form("B"),
     trust_tier: str = Form("candidate"),
-    crawl_now: bool = Form(False),
     session: Session = Depends(get_session),
 ):
     detection = detect_platform(url)
     existing = session.scalar(select(Merchant).where(Merchant.canonical_domain == detection.domain))
     if existing:
-        if crawl_now:
-            crawl_merchant(session, existing)
-            session.commit()
+        run, should_schedule = _enqueue_crawl(session, existing)
+        session.commit()
+        if should_schedule:
+            background_tasks.add_task(_background_crawl, existing.id, run.id)
         return RedirectResponse(url=f"/merchants/{existing.id}", status_code=303)
 
     merchant = Merchant(
@@ -130,16 +168,15 @@ def create_merchant(
         canonical_domain=detection.domain,
         homepage_url=detection.normalized_url,
         platform_type=detection.platform_type,
-        crawl_tier=crawl_tier,
+        crawl_tier=recommended_crawl_tier(detection.platform_type, detection.confidence),
         trust_tier=trust_tier,
     )
     session.add(merchant)
+    session.flush()
+    run, should_schedule = _enqueue_crawl(session, merchant)
     session.commit()
-    session.refresh(merchant)
-
-    if crawl_now:
-        crawl_merchant(session, merchant)
-        session.commit()
+    if should_schedule:
+        background_tasks.add_task(_background_crawl, merchant.id, run.id)
     return RedirectResponse(url=f"/merchants/{merchant.id}", status_code=303)
 
 
@@ -158,6 +195,7 @@ def merchant_detail(merchant_id: int, request: Request, session: Session = Depen
         .order_by(ShippingPolicy.observed_at.desc())
         .limit(1)
     )
+    latest_crawl_run = _latest_crawl_run(session, merchant_id)
     return templates.TemplateResponse(
         request,
         "merchant_detail.html",
@@ -166,16 +204,34 @@ def merchant_detail(merchant_id: int, request: Request, session: Session = Depen
             "products": products,
             "promos": promos,
             "shipping_policy": shipping_policy,
+            "latest_crawl_run": latest_crawl_run,
         },
     )
 
 
 @app.post("/merchants/{merchant_id}/crawl")
-def crawl_merchant_route(merchant_id: int, session: Session = Depends(get_session)):
+def crawl_merchant_route(merchant_id: int, background_tasks: BackgroundTasks, session: Session = Depends(get_session)):
     merchant = session.get(Merchant, merchant_id)
-    crawl_merchant(session, merchant)
+    run, should_schedule = _enqueue_crawl(session, merchant)
     session.commit()
+    if should_schedule:
+        background_tasks.add_task(_background_crawl, merchant.id, run.id)
     return RedirectResponse(url=f"/merchants/{merchant_id}", status_code=303)
+
+
+@app.get("/merchants/{merchant_id}/status")
+def merchant_status(merchant_id: int, session: Session = Depends(get_session)) -> dict:
+    merchant = session.get(Merchant, merchant_id)
+    latest_crawl_run = _latest_crawl_run(session, merchant_id)
+    products_count = len(session.scalars(select(Product.id).where(Product.merchant_id == merchant_id, Product.is_active.is_(True))).all())
+    return {
+        "merchant_id": merchant_id,
+        "merchant_name": merchant.name if merchant else "",
+        "status": latest_crawl_run.status if latest_crawl_run else "idle",
+        "records_written": latest_crawl_run.records_written if latest_crawl_run else 0,
+        "error_summary": latest_crawl_run.error_summary if latest_crawl_run else "",
+        "products_count": products_count,
+    }
 
 
 @app.get("/discovery", response_class=HTMLResponse)
