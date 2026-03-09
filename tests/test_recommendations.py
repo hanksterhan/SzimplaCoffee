@@ -3,7 +3,13 @@ from __future__ import annotations
 from szimplacoffee.main import _price_per_oz_label, _weight_label
 from szimplacoffee.services.discovery import _decode_bing_result_url
 from szimplacoffee.services.recommendations import RecommendationRequest, _espresso_fit, _quantity_score
-from szimplacoffee.services.crawlers import _extract_code, _is_coffee_product, _normalize_promo_key, _normalize_single_origin_flag
+from szimplacoffee.services.crawlers import (
+    _extract_code,
+    _is_coffee_product,
+    _normalize_product_name,
+    _normalize_promo_key,
+    _normalize_single_origin_flag,
+)
 from szimplacoffee.services.platforms import recommended_crawl_tier
 
 
@@ -75,3 +81,7 @@ def test_recommended_crawl_tier_prefers_machine_readable_platforms() -> None:
     assert recommended_crawl_tier("squarespace", 0.82) == "B"
     assert recommended_crawl_tier("custom", 0.72) == "C"
     assert recommended_crawl_tier("unknown", 0.3) == "D"
+
+
+def test_normalize_product_name_replaces_html_breaks() -> None:
+    assert _normalize_product_name("Colombia <BR>La Despensa") == "Colombia • La Despensa"

@@ -52,6 +52,13 @@ def _clean_text(html: str) -> str:
     return "\n".join(line.strip() for line in text.splitlines() if line.strip())
 
 
+def _normalize_product_name(name: str) -> str:
+    normalized = re.sub(r"(?i)<br\s*/?>", " • ", name)
+    normalized = html.unescape(normalized)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return normalized
+
+
 def _extract_field(text: str, label: str) -> str:
     pattern = re.compile(rf"^\s*{re.escape(label)}\s*:?\s*(.+)$", re.IGNORECASE)
     for line in text.splitlines():
@@ -678,7 +685,7 @@ def _crawl_shopify(session: Session, merchant: Merchant) -> CrawlSummary:
                 merchant,
                 str(raw["id"]),
                 {
-                    "name": raw.get("title", "Unnamed Coffee"),
+                    "name": _normalize_product_name(raw.get("title", "Unnamed Coffee")),
                     "product_url": f"{merchant.homepage_url}/products/{raw.get('handle', '')}",
                     "image_url": ((raw.get("image") or {}).get("src") or ((raw.get("images") or [{}])[0].get("src") or "")),
                     "origin_text": _extract_field(text, "Origin"),
@@ -835,7 +842,7 @@ def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
                     merchant,
                     str(raw["id"]),
                     {
-                        "name": raw.get("name", "Unnamed Coffee"),
+                        "name": _normalize_product_name(raw.get("name", "Unnamed Coffee")),
                         "product_url": product_url,
                         "image_url": ((raw.get("images") or [{}])[0].get("src") or ""),
                         "origin_text": _extract_field(description, "Origin") or _merge_origin_and_site(inferred_origin, first_intro_token),
