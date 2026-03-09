@@ -1,0 +1,2 @@
+"""SzimplaCoffee application package."""
+

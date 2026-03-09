@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="panel">
+  <div class="panel-header">
+    <div>
+      <h2>{{ merchant.name }}</h2>
+      <p>{{ merchant.homepage_url }} · {{ merchant.platform_type }} · tier {{ merchant.crawl_tier }} · {{ merchant.trust_tier }}</p>
+    </div>
+    <form method="post" action="/merchants/{{ merchant.id }}/crawl">
+      <button class="button" type="submit">Refresh crawl</button>
+    </form>
+  </div>
+
+  {% if merchant.quality_profile %}
+  <p class="note">
+    Quality {{ "%.2f"|format(merchant.quality_profile.overall_quality_score) }},
+    Personal trust {{ "%.2f"|format(merchant.personal_profile.personal_trust_score if merchant.personal_profile else 0.0) }}
+  </p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3>Products</h3>
+  {% for product in products %}
+  <article class="product-card">
+    <div class="product-head">
+      <h4><a href="{{ product.product_url }}" target="_blank" rel="noreferrer">{{ product.name }}</a></h4>
+      <p>{{ product.origin_text or "Origin unknown" }} · {{ product.process_text or "Process unknown" }}</p>
+    </div>
+    {% if product.tasting_notes_text %}
+    <p class="note">{{ product.tasting_notes_text }}</p>
+    {% endif %}
+    <table>
+      <thead>
+        <tr>
+          <th>Variant</th>
+          <th>Weight</th>
+          <th>Latest price</th>
+          <th>Available</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for variant in product.variants %}
+        {% set offer = variant.offers[-1] if variant.offers else None %}
+        <tr>
+          <td>{{ variant.label }}</td>
+          <td>{{ variant.weight_grams or "?" }} g</td>
+          <td>
+            {% if offer %}
+              ${{ "%.2f"|format(offer.price_cents / 100) }}
+            {% else %}
+              n/a
+            {% endif %}
+          </td>
+          <td>{{ "yes" if variant.is_available else "no" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </article>
+  {% else %}
+  <p>No products crawled yet.</p>
+  {% endfor %}
+</section>
+{% endblock %}
+

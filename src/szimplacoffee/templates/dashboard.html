@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="metrics">
+  <article>
+    <h2>{{ metrics.merchant_count }}</h2>
+    <p>Merchants</p>
+  </article>
+  <article>
+    <h2>{{ metrics.product_count }}</h2>
+    <p>Products</p>
+  </article>
+  <article>
+    <h2>{{ metrics.variant_count }}</h2>
+    <p>Variants</p>
+  </article>
+  <article>
+    <h2>{{ metrics.offer_count }}</h2>
+    <p>Offer snapshots</p>
+  </article>
+</section>
+
+<section class="panel">
+  <div class="panel-header">
+    <h2>Tracked merchants</h2>
+    <a class="button" href="/merchants/new">Add merchant</a>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Merchant</th>
+        <th>Platform</th>
+        <th>Crawl tier</th>
+        <th>Trust tier</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for merchant in merchants %}
+      <tr>
+        <td><a href="/merchants/{{ merchant.id }}">{{ merchant.name }}</a></td>
+        <td>{{ merchant.platform_type }}</td>
+        <td>{{ merchant.crawl_tier }}</td>
+        <td>{{ merchant.trust_tier }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+
