@@ -62,6 +62,7 @@
         <strong>Active merchant offer</strong>
         <span>{{ candidate.best_promo_label }}</span>
         <span>potential final {{ money(candidate.discounted_landed_price_cents) }}</span>
+        <span>{{ price_per_oz_label(candidate.discounted_landed_price_cents, candidate.weight_grams) }}</span>
       </p>
       {% endif %}
       {% if candidate.pros %}
