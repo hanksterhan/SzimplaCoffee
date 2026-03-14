@@ -19,13 +19,34 @@ brain/
     └── YYYY-MM-DD-<slug>.md    # What was done in each work session
 ```
 
+## Agentic Engineering Systems
+
+```
+.tickets/          # Local ticket system (SC-N.yaml per work item)
+  open/            # Active tickets
+  closed/          # Completed or cancelled tickets
+  events/          # Append-only transition logs
+  schema/          # ticket.schema.json + state-machine.yaml
+  templates/       # Starter template
+
+.plans/            # Execution plans (SC-N-execution-plan.md per ticket)
+
+.memory/           # Delivery memory
+  index.json       # Searchable index of all memory entries
+  sprint-01/       # Sprint-scoped memory files
+```
+
+See `CLAUDE.md` for the full `/brainstorm → /create-tickets → /deliver` pipeline.
+
 ## Active Artifacts
 
 - `north-star.md` — Product vision and principles (read-only reference)
 - `comprehensive-plan.md` — Architecture and execution plan (read-only reference)
-- `CLAUDE.md` — Agent instructions for any AI working on this repo
+- `CLAUDE.md` — Agent instructions (includes full ticketing + plans + memory protocol)
 - `brain/backlog/now-next-later.md` — Current priorities
 - `brain/worklog/` — Session-by-session implementation log
+- `.tickets/open/` — Active work tickets (SC-1 through SC-6 bootstrapped)
+- `.plans/` — Per-ticket execution plans
 
 ## Rules
 

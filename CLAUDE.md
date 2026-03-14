@@ -64,6 +64,68 @@ pytest tests/
 ruff check src/ tests/
 ```
 
+## Agentic Engineering Pipeline
+
+SzimplaCoffee uses a structured local ticketing + plans + memory system for all delivery work.
+
+### /brainstorm → /create-tickets → /deliver
+
+1. **Brainstorm:** Identify work from `brain/backlog/now-next-later.md` or new requirements. Think through scope, dependencies, and acceptance criteria.
+2. **Create tickets:** Write YAML tickets to `.tickets/open/SC-N.yaml` following the schema at `.tickets/schema/ticket.schema.json`. Create matching execution plan at `.plans/SC-N-execution-plan.md`.
+3. **Deliver:** Implement the ticket slice by slice. Transition status fields as work progresses. Write delivery memory to `.memory/sprint-NN/`.
+
+### Local Ticketing (`.tickets/`)
+
+```
+.tickets/
+├── open/        # Active tickets (SC-N.yaml)
+├── closed/      # Done or cancelled tickets
+├── events/      # Append-only transition log
+├── schema/      # ticket.schema.json + state-machine.yaml
+└── templates/   # ticket-template.yaml
+```
+
+**Ticket lifecycle:** `draft → ready → in_progress → verifying → done`
+
+**To read a ticket:** `cat .tickets/open/SC-N.yaml`
+
+**To create a ticket:**
+1. Copy `.tickets/templates/ticket-template.yaml` to `.tickets/open/SC-N.yaml`
+2. Fill all required fields (id, title, type, priority, status, owner, problem, desired_outcome, scope_in, scope_out, acceptance_criteria, verification_required, slices, delivery)
+3. Create matching plan at `.plans/SC-N-execution-plan.md`
+
+**To transition a ticket:**
+1. Update `status` field in the YAML
+2. Meet guards in `.tickets/schema/state-machine.yaml`
+3. Append event to `.tickets/events/SC-N.log`: `2026-03-14T15:00:00Z  draft → ready  owner=h6nk-bot`
+
+**To close a ticket:** Move YAML from `open/` to `closed/` after setting `status: done`.
+
+**Ticket prefix:** `SC-` (e.g., SC-1, SC-12)
+
+**Ticket owner:** `h6nk-bot`
+
+### Execution Plans (`.plans/`)
+
+Each ticket has a corresponding execution plan:
+```
+.plans/SC-N-execution-plan.md
+```
+
+Plans describe the *how* (implementation steps, files, checks) while tickets define the *what* and *why*. Reference the plan from the ticket's `context_refs` field.
+
+See `.plans/README.md` for plan structure.
+
+### Delivery Memory (`.memory/`)
+
+After completing a ticket or discovering something important during implementation:
+1. Write a memory file: `.memory/sprint-NN/SC-N-<slug>.md`
+2. Update `.memory/index.json` to add the entry
+
+Memory captures what was learned, what failed, and what to remember — beyond what git history shows.
+
+See `.memory/README.md` for format and rules.
+
 ## Brain Protocol
 
 After any meaningful work session:
