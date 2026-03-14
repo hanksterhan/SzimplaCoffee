@@ -1,0 +1,60 @@
+id: SC-000
+title: "Ticket title"
+type: feature
+priority: p1
+status: draft
+owner: h6nk-bot
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-14T00:00:00Z"
+labels: []
+
+problem: "What is broken or missing."
+desired_outcome: "What success looks like."
+
+scope_in:
+  - "In-scope item 1"
+scope_out:
+  - "Out-of-scope item 1"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Acceptance criterion text"
+    verify: "Command or method used to verify"
+    status: pending
+
+verification_required:
+  - "ruff check src/ tests/"
+  - "pytest tests/ -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-000-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "First vertical slice"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify: []
+    files_read_only: []
+    checks: []
+    evidence: []
+    notes: ""
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Optional additional context"

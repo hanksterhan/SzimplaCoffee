@@ -1,0 +1,95 @@
+id: SC-6
+title: "Richer merchant filtering and sorting in dashboard and discovery queue"
+type: feature
+priority: p2
+status: draft
+owner: h6nk-bot
+created_at: "2026-03-14T22:00:00Z"
+updated_at: "2026-03-14T22:00:00Z"
+labels:
+  - track-ui
+  - merchant-registry
+  - dashboard
+
+problem: "The merchant list and discovery queue display merchants in a flat list without useful filtering or sorting. Operators cannot quickly find merchants by crawl tier, trust tier, platform type, or staleness — making it hard to prioritize crawl work or review candidates."
+desired_outcome: "The merchant list and discovery queue support filtering by crawl tier, trust tier, platform, and active status. They support sorting by name, last crawl time, and quality score. Filters persist within the session."
+
+scope_in:
+  - "Filter controls: crawl_tier, trust_tier, platform_type, is_active"
+  - "Sort controls: name, last_crawl_at, overall_quality_score"
+  - "HTMX-driven filter/sort without full page reload"
+  - "Filter state persisted via URL query params"
+scope_out:
+  - "Saved filter presets"
+  - "Full-text search (existing FTS5 is separate)"
+  - "Mobile-responsive redesign"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Merchant list can be filtered by crawl_tier (A/B/C/D) and trust_tier."
+    verify: "pytest tests/ -v -k test_merchant_list_filter"
+    status: pending
+  - id: AC-2
+    text: "Merchant list can be sorted by name, last_crawl_at, and overall_quality_score."
+    verify: "pytest tests/ -v -k test_merchant_list_sort"
+    status: pending
+  - id: AC-3
+    text: "Filter/sort params are reflected in URL so the filtered view is bookmarkable."
+    verify: "pytest tests/ -v -k test_merchant_list_url_params"
+    status: pending
+
+verification_required:
+  - "ruff check src/ tests/"
+  - "pytest tests/ -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-6-execution-plan.md"
+  - "/home/h6nk/SzimplaCoffee/comprehensive-plan.md"
+
+slices:
+  - id: S1
+    title: "Add filter/sort query parameter handling to merchant list route"
+    status: pending
+    depends_on: []
+    files_create:
+      - "tests/test_merchant_list_filter_sort.py"
+    files_modify:
+      - "src/szimplacoffee/main.py"
+    files_read_only:
+      - "src/szimplacoffee/models.py"
+    checks:
+      - "pytest tests/test_merchant_list_filter_sort.py -v"
+    evidence: []
+    notes: "Accept query params: tier, trust, platform, active, sort, order. Build dynamic SQLAlchemy query."
+  - id: S2
+    title: "Update merchant list template with filter/sort controls"
+    status: pending
+    depends_on:
+      - S1
+    files_create: []
+    files_modify:
+      - "src/szimplacoffee/templates/merchant_list.html"
+    files_read_only:
+      - "src/szimplacoffee/templates/base.html"
+    checks: []
+    evidence: []
+    notes: "Use HTMX hx-get on filter change to reload the merchant table partial. Reflect active filters in form state."
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Source: now-next-later.md 'Next' section."
+  - "Operator tool first — prefer inspectable over polished per comprehensive-plan.md UI rules."

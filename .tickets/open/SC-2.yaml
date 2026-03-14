@@ -1,0 +1,96 @@
+id: SC-2
+title: "Reduce promo false positives with stronger confidence heuristics"
+type: improvement
+priority: p1
+status: draft
+owner: h6nk-bot
+created_at: "2026-03-14T22:00:00Z"
+updated_at: "2026-03-14T22:00:00Z"
+labels:
+  - track-crawl
+  - promo
+  - quality
+
+problem: "The promo extraction pipeline generates false positives — banners, shipping notices, and generic site-wide text are being captured as promos. This degrades recommendation quality because promo scores inflate for merchants that don't actually have active deals."
+desired_outcome: "Promo extraction uses stronger confidence heuristics to suppress false positives. Promo snapshots with low confidence are stored but downweighted in scoring. The false-positive rate drops measurably on known-good test merchants."
+
+scope_in:
+  - "Confidence heuristics for promo extraction (discount code presence, percent/dollar patterns, explicit promo language)"
+  - "Low-confidence suppression in recommendation scoring"
+  - "Test fixtures for known false-positive and known-true-positive cases"
+scope_out:
+  - "LLM-based promo classification"
+  - "User-facing promo review UI"
+  - "Retroactive re-scoring of historical snapshots"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Promo extraction assigns confidence scores below 0.4 to known false-positive patterns (generic banners, shipping notices)."
+    verify: "pytest tests/ -v -k test_promo_confidence_heuristics"
+    status: pending
+  - id: AC-2
+    text: "Recommendation scoring ignores promo_snapshots with confidence < 0.4."
+    verify: "pytest tests/ -v -k test_recommendation_promo_weight"
+    status: pending
+  - id: AC-3
+    text: "At least 3 known false-positive fixtures and 3 known true-positive fixtures are in the test suite."
+    verify: "pytest tests/ -v -k test_promo_fixtures"
+    status: pending
+
+verification_required:
+  - "ruff check src/ tests/"
+  - "pytest tests/ -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-2-execution-plan.md"
+  - "/home/h6nk/SzimplaCoffee/comprehensive-plan.md"
+
+slices:
+  - id: S1
+    title: "Add promo confidence heuristics to crawler extraction layer"
+    status: pending
+    depends_on: []
+    files_create:
+      - "src/szimplacoffee/services/promo_confidence.py"
+      - "tests/test_promo_confidence.py"
+    files_modify:
+      - "src/szimplacoffee/services/crawlers.py"
+    files_read_only:
+      - "src/szimplacoffee/models.py"
+    checks:
+      - "pytest tests/test_promo_confidence.py -v"
+    evidence: []
+    notes: "Heuristics: discount code regex, percent/dollar off pattern, explicit keywords (sale, promo, off). Penalize generic text."
+  - id: S2
+    title: "Wire confidence threshold into recommendation scoring"
+    status: pending
+    depends_on:
+      - S1
+    files_create: []
+    files_modify:
+      - "src/szimplacoffee/services/recommendations.py"
+      - "tests/test_recommendations.py"
+    files_read_only: []
+    checks:
+      - "pytest tests/test_recommendations.py -v"
+    evidence: []
+    notes: "Skip or heavily discount promo_snapshots where confidence < 0.4 when computing deal_score."
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Source: now-next-later.md 'Now' priorities and CLAUDE.md current state."
+  - "Current state: promo false-positive suppression needs improvement (as of 2026-03-08)."

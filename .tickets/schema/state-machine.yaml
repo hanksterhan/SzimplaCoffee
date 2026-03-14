@@ -1,0 +1,48 @@
+states:
+  - draft
+  - ready
+  - in_progress
+  - blocked
+  - verifying
+  - done
+  - cancelled
+transitions:
+  draft:
+    - ready
+  ready:
+    - in_progress
+    - cancelled
+  in_progress:
+    - blocked
+    - verifying
+    - cancelled
+  blocked:
+    - in_progress
+    - cancelled
+  verifying:
+    - in_progress
+    - done
+    - cancelled
+  done: []
+  cancelled: []
+guards:
+  ready:
+    require_non_empty:
+      - acceptance_criteria
+      - slices
+      - verification_required
+  in_progress:
+    require_non_empty:
+      - delivery.branch
+  verifying:
+    require_all_slices_status: complete
+  done:
+    require_true:
+      - delivery.verification.required_passed
+    require_non_empty:
+      - delivery.branch
+      - delivery.commits
+      - delivery.pr_url
+      - delivery.completed_at
+      - delivery.verification.commands_run
+      - delivery.verification.evidence_refs

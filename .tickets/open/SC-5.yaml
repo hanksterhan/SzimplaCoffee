@@ -1,0 +1,96 @@
+id: SC-5
+title: "Richer product-note parsing for origin, process, and tasting notes"
+type: improvement
+priority: p2
+status: draft
+owner: h6nk-bot
+created_at: "2026-03-14T22:00:00Z"
+updated_at: "2026-03-14T22:00:00Z"
+labels:
+  - track-crawl
+  - product-parsing
+  - espresso-fit
+
+problem: "Product descriptions contain rich origin, process, variety, and tasting-note signals but the current parser extracts them with low fidelity. Fields like origin_text, process_text, variety_text, and tasting_notes_text are often empty or over-broad, reducing espresso_fit scoring accuracy."
+desired_outcome: "Product note parsing extracts structured origin, process, variety, roast cues, and tasting notes from unstructured product descriptions with measurably higher fidelity. Espresso-relevance scoring benefits from richer structured data."
+
+scope_in:
+  - "Regex + heuristic extraction for origin country/region, process (washed/natural/honey/anaerobic), variety (typica/geisha/etc), roast cues (light/medium/dark), tasting notes"
+  - "Confidence score per extracted field"
+  - "Unit tests with real product description fixtures from known merchants"
+scope_out:
+  - "LLM-based extraction (not for v1)"
+  - "Retroactive re-parsing of existing product records"
+  - "Multi-language product descriptions"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Parser correctly extracts origin, process, and at least one tasting note from 5 real product description fixtures."
+    verify: "pytest tests/ -v -k test_product_note_parser"
+    status: pending
+  - id: AC-2
+    text: "Extracted fields are stored in the correct product columns (origin_text, process_text, tasting_notes_text, roast_cues)."
+    verify: "pytest tests/ -v -k test_product_note_parser_storage"
+    status: pending
+  - id: AC-3
+    text: "is_espresso_recommended flag is set correctly based on roast_cues and process when product description contains espresso signals."
+    verify: "pytest tests/ -v -k test_espresso_recommended_flag"
+    status: pending
+
+verification_required:
+  - "ruff check src/ tests/"
+  - "pytest tests/ -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-5-execution-plan.md"
+  - "/home/h6nk/SzimplaCoffee/comprehensive-plan.md"
+
+slices:
+  - id: S1
+    title: "Build product note parser with origin, process, variety, and tasting note extraction"
+    status: pending
+    depends_on: []
+    files_create:
+      - "src/szimplacoffee/services/product_note_parser.py"
+      - "tests/test_product_note_parser.py"
+      - "tests/fixtures/product_descriptions.py"
+    files_modify: []
+    files_read_only:
+      - "src/szimplacoffee/models.py"
+    checks:
+      - "pytest tests/test_product_note_parser.py -v"
+    evidence: []
+    notes: "Use regex + keyword lists. Origin: known country/region names. Process: washed|natural|honey|anaerobic|wet|dry. Tasting notes: comma-separated adjective phrases after 'notes of' or 'tasting notes'."
+  - id: S2
+    title: "Wire parser into crawl pipeline and set espresso_recommended flag"
+    status: pending
+    depends_on:
+      - S1
+    files_create: []
+    files_modify:
+      - "src/szimplacoffee/services/crawlers.py"
+    files_read_only:
+      - "src/szimplacoffee/services/product_note_parser.py"
+    checks:
+      - "pytest tests/ -v -k test_product_note_parser_storage or test_espresso_recommended_flag"
+    evidence: []
+    notes: "is_espresso_recommended = True when roast_cues contains light or medium AND process not anaerobic-only AND no 'not for espresso' signal."
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Source: now-next-later.md 'Next' section."
+  - "Espresso-aware scoring is a first-class system principle per comprehensive-plan.md."
