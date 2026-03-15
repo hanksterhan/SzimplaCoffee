@@ -1,0 +1,99 @@
+id: "SC-53"
+title: "Build a top-500 merchant registry with trust and crawl-quality thresholds"
+type: "feature"
+priority: "p2"
+status: "draft"
+owner: "h6nk-bot"
+created_at: "2026-03-15T07:00:00Z"
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "feature"
+  - "workflow"
+  - "registry"
+  - "merchants"
+  - "reliability"
+problem: "Scaling to 500 merchants requires a deliberate registry with trust and crawl-quality thresholds; otherwise discovery noise and low-quality crawls will pollute the main buying dashboard."
+desired_outcome: "The project has an explicit merchant registry with watchlist and trust tiers, crawl cadences, and inclusion thresholds so large-scale merchant coverage can grow without degrading core utility."
+scope_in:
+  - "Merchant registry states and crawl cadence tiers are explicitly represented in code or data."
+  - "Main buying views exclude merchants that do not meet trust, metadata-quality, and crawl-quality thresholds."
+  - "The project documents how coverage expansion proceeds from trusted merchants toward the broader top-500 target."
+scope_out:
+  - "Follow-on implementation details outside this ticket's described slices."
+dependencies:
+  blockers:
+    - "SC-47"
+    - "SC-48"
+    - "SC-49"
+    - "SC-50"
+    - "SC-51"
+    - "SC-52"
+  unblocks: []
+acceptance_criteria:
+  -
+    id: "AC-1"
+    text: "Merchant registry states and crawl cadence tiers are explicitly represented in code or data."
+    verify: "cd backend && . .venv/bin/activate && pytest -q"
+    status: "pending"
+  -
+    id: "AC-2"
+    text: "Main buying views exclude merchants that do not meet trust, metadata-quality, and crawl-quality thresholds."
+    verify: "cd backend && . .venv/bin/activate && pytest tests/test_recommendations.py -q"
+    status: "pending"
+  -
+    id: "AC-3"
+    text: "The project documents how coverage expansion proceeds from trusted merchants toward the broader top-500 target."
+    verify: "bash -lc \"test -f README.md && test -f SzimplaCoffee/brain/backlog/now-next-later.md && echo OK\""
+    status: "pending"
+verification_required:
+  - "cd backend && . .venv/bin/activate && pytest -q"
+  - "cd backend && . .venv/bin/activate && pytest tests/test_recommendations.py -q"
+  - "bash -lc \"test -f README.md && test -f SzimplaCoffee/brain/backlog/now-next-later.md && echo OK\""
+context_refs:
+  - ".plans/SC-53-execution-plan.md"
+  - ".plans/next-steps-march15.md"
+slices:
+  -
+    id: "S1"
+    title: "Represent registry states and inclusion thresholds"
+    status: "pending"
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/api/merchants.py"
+      - "backend/src/szimplacoffee/services/discovery.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/services/recommendations.py"
+    checks:
+      - "cd backend && . .venv/bin/activate && pytest -q"
+    evidence: []
+    notes: "Keep the registry usable before total coverage exists."
+  -
+    id: "S2"
+    title: "Document top-500 rollout policy"
+    status: "pending"
+    depends_on:
+      - "S1"
+    files_create: []
+    files_modify:
+      - "README.md"
+      - "SzimplaCoffee/brain/backlog/now-next-later.md"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "bash -lc \"test -f README.md && test -f SzimplaCoffee/brain/backlog/now-next-later.md && echo OK\""
+    evidence: []
+    notes: "Coverage growth should be deliberate and quality-gated."
+delivery:
+  branch: "feat/SC-53-top-500-merchant-registry"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+notes:
+  - "Generated from .plans/next-steps-march15.md in strict-schema migration batch."

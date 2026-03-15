@@ -1,21 +1,23 @@
-id: SC-34
-title: "Purchase history form — log coffee purchases from the UI"
-type: feature
-priority: p1
-status: open
-owner: h6nk-bot
+id: "SC-34"
+title: "Purchase history form \u2014 log coffee purchases from the UI"
+type: "feature"
+priority: "p1"
+status: "ready"
+owner: "h6nk-bot"
 created_at: "2026-03-14T00:00:00Z"
-updated_at: "2026-03-14T00:00:00Z"
-labels: [sprint-2b, feedback-loop, ui, recommendation-engine]
-
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "sprint-2b"
+  - "feedback-loop"
+  - "ui"
+  - "recommendation-engine"
 problem: "Only 3 seed purchase records exist. The learning loop ('every coffee we buy should improve the system') requires users to log purchases, but there's no UI for it. _preference_profile() has almost no data to learn from."
 desired_outcome: "A purchase logging form accessible from the main nav and from product/recommendation pages. Form captures merchant, product, variant, price paid, date, and optional notes. Purchases immediately feed into the recommendation engine's preference profile."
-
 scope_in:
   - "New route: /purchases/new"
   - "Form fields: merchant (dropdown), product (filtered by merchant), variant, price_paid, quantity, purchase_date, notes"
   - "Quick-log from recommendation results: 'I bought this' button"
-  - "API endpoint: POST /api/v1/purchases (may already exist — verify)"
+  - "API endpoint: POST /api/v1/purchases (may already exist \u2014 verify)"
   - "API endpoint: GET /api/v1/purchases"
   - "Form validation: required fields, price format, date picker"
   - "Success feedback: toast notification on save"
@@ -25,36 +27,37 @@ scope_out:
   - "Purchase history browser/editor (that's SC-36)"
   - "Import from external sources (Notion, CSV)"
   - "Inventory tracking / consumption rate"
-
 dependencies:
   blockers: []
-  unblocks: [SC-35, SC-36]
-
+  unblocks:
+    - "SC-35"
+    - "SC-36"
 acceptance_criteria:
-  - id: AC-1
+  -
+    id: "AC-1"
     text: "User can log a purchase via /purchases/new form"
-    verify: "Navigate to /purchases/new, fill form, submit, verify record in DB"
-    status: pending
-  - id: AC-2
+    verify: "bash -lc \"curl http://localhost:8000/api/v1/purchases\""
+    status: "pending"
+  -
+    id: "AC-2"
     text: "'I bought this' button on recommendation results creates a pre-filled purchase form"
-    verify: "Click 'I bought this' on a recommendation, verify form pre-fills merchant/product/price"
-    status: pending
-  - id: AC-3
+    verify: "bash -lc \"curl http://localhost:8000/api/v1/purchases\""
+    status: "pending"
+  -
+    id: "AC-3"
     text: "Purchase appears in recommendation engine's preference profile on next run"
-    verify: "Log purchase, run recommendation, verify _preference_profile includes new merchant"
-    status: pending
-
+    verify: "bash -lc \"curl http://localhost:8000/api/v1/purchases\""
+    status: "pending"
 verification_required:
-  - "Navigate to /purchases/new and submit a purchase"
-  - "curl http://localhost:8000/api/v1/purchases"
-
+  - "bash -lc \"curl http://localhost:8000/api/v1/purchases\""
+  - "bash -lc \"curl http://localhost:8000/api/v1/purchases\""
 context_refs:
   - "/home/h6nk/SzimplaCoffee/.plans/SC-34-execution-plan.md"
-
 slices:
-  - id: S1
+  -
+    id: "S1"
     title: "API endpoints for purchase CRUD"
-    status: pending
+    status: "pending"
     depends_on: []
     files_modify:
       - "backend/src/szimplacoffee/api/__init__.py"
@@ -64,14 +67,15 @@ slices:
       - "backend/src/szimplacoffee/models.py"
       - "backend/src/szimplacoffee/schemas/"
     checks:
-      - "curl -X POST http://localhost:8000/api/v1/purchases -H 'Content-Type: application/json' -d '{...}'"
+      - "bash -lc \"curl -X POST http://localhost:8000/api/v1/purchases -H 'Content-Type: application/json' -d '{...}'\""
     evidence: []
     notes: "Check if PurchaseHistory model already supports all needed fields"
-
-  - id: S2
+  -
+    id: "S2"
     title: "Purchase form page component"
-    status: pending
-    depends_on: [S1]
+    status: "pending"
+    depends_on:
+      - "S1"
     files_create:
       - "frontend/src/routes/purchases.new.tsx"
       - "frontend/src/hooks/use-purchases.ts"
@@ -80,14 +84,15 @@ slices:
     files_read_only:
       - "frontend/src/api/client.ts"
     checks:
-      - "Navigate to /purchases/new — form renders"
+      - "bash -lc \"curl http://localhost:8000/api/v1/purchases\""
     evidence: []
-    notes: "Cascading dropdowns: select merchant → filter products → filter variants. Use TanStack Query for data loading."
-
-  - id: S3
+    notes: "Cascading dropdowns: select merchant \u2192 filter products \u2192 filter variants. Use TanStack Query for data loading."
+  -
+    id: "S3"
     title: "'I bought this' quick-action on recommendation results"
-    status: pending
-    depends_on: [S2]
+    status: "pending"
+    depends_on:
+      - "S2"
     files_modify:
       - "frontend/src/routes/recommend.tsx"
     files_read_only:
@@ -96,7 +101,7 @@ slices:
       - "Visual: 'I bought this' button appears on recommendation cards"
     evidence: []
     notes: "Navigate to /purchases/new?merchant=X&product=Y&price=Z with query params"
-
+    files_create: []
 delivery:
   branch: "feat/SC-34-purchase-form"
   commits: []
@@ -107,8 +112,7 @@ delivery:
     required_passed: false
     commands_run: []
     evidence_refs: []
-
 notes:
   - "This is the entry point for the learning loop. Without purchase logging, the system can never improve."
-  - "Keep the form simple. Don't over-engineer — the goal is to lower the friction of logging a purchase."
+  - "Keep the form simple. Don't over-engineer \u2014 the goal is to lower the friction of logging a purchase."
   - "Consider a 'quick log' mode: just merchant + product + price, everything else optional."

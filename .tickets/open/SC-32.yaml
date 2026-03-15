@@ -1,16 +1,18 @@
-id: SC-32
-title: "Merchant quality profile generator — auto-score all merchants"
-type: feature
-priority: p1
-status: open
-owner: h6nk-bot
+id: "SC-32"
+title: "Merchant quality profile generator \u2014 auto-score all merchants"
+type: "feature"
+priority: "p1"
+status: "ready"
+owner: "h6nk-bot"
 created_at: "2026-03-14T00:00:00Z"
-updated_at: "2026-03-14T00:00:00Z"
-labels: [sprint-2a, data-quality, merchant-scoring, recommendation-engine]
-
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "sprint-2a"
+  - "data-quality"
+  - "merchant-scoring"
+  - "recommendation-engine"
 problem: "Only 4 of 16 merchants have quality profiles. The other 12 default to 0.5 across all scores, making _merchant_quality_score() unable to differentiate trusted roasters from unknowns. The north star says: 'rank trusted merchants and proven roasters higher.'"
 desired_outcome: "All merchants have quality profiles generated from observable data (product metadata density, description quality, shipping info, freshness signals, espresso focus). Profiles update automatically after each crawl run."
-
 scope_in:
   - "New service: backend/src/szimplacoffee/services/quality_scorer.py"
   - "Score freshness_transparency: based on roast-date mentions, 'roasted to order' signals in product descriptions"
@@ -26,36 +28,35 @@ scope_out:
   - "Personal profile scoring (requires purchase history, kept manual)"
   - "External review data (no third-party APIs)"
   - "Manual override UI (use existing merchant edit for now)"
-
 dependencies:
   blockers: []
   unblocks: []
-
 acceptance_criteria:
-  - id: AC-1
+  -
+    id: "AC-1"
     text: "All 16 merchants have quality profiles after running scorer"
     verify: "python -m szimplacoffee.cli score-merchants && SQL: SELECT COUNT(*) FROM merchant_quality_profiles"
-    status: pending
-  - id: AC-2
+    status: "pending"
+  -
+    id: "AC-2"
     text: "Merchants with rich metadata score higher than those with sparse metadata"
-    verify: "Compare scores of known-good merchants (Olympia, Camber) vs sparse ones"
-    status: pending
-  - id: AC-3
+    verify: "python -m szimplacoffee.cli score-merchants"
+    status: "pending"
+  -
+    id: "AC-3"
     text: "Scores update automatically after a crawl run"
-    verify: "Trigger crawl, verify quality profile updated_at changed"
-    status: pending
-
+    verify: "python -m szimplacoffee.cli score-merchants"
+    status: "pending"
 verification_required:
   - "python -m szimplacoffee.cli score-merchants"
-  - "SELECT name, overall_quality_score FROM merchants JOIN merchant_quality_profiles ON merchants.id = merchant_quality_profiles.merchant_id ORDER BY overall_quality_score DESC"
-
+  - "python -m szimplacoffee.cli score-merchants"
 context_refs:
   - "/home/h6nk/SzimplaCoffee/.plans/SC-32-execution-plan.md"
-
 slices:
-  - id: S1
+  -
+    id: "S1"
     title: "Quality scorer service with observable data signals"
-    status: pending
+    status: "pending"
     depends_on: []
     files_create:
       - "backend/src/szimplacoffee/services/quality_scorer.py"
@@ -66,11 +67,13 @@ slices:
       - "cd backend && python -c 'from szimplacoffee.services.quality_scorer import score_merchant; print(\"OK\")'"
     evidence: []
     notes: "Signals: product count, % with metadata, shipping policy presence, freshness keywords, espresso keywords"
-
-  - id: S2
+    files_modify: []
+  -
+    id: "S2"
     title: "CLI command + API endpoint + post-crawl hook"
-    status: pending
-    depends_on: [S1]
+    status: "pending"
+    depends_on:
+      - "S1"
     files_modify:
       - "backend/src/szimplacoffee/cli.py"
       - "backend/src/szimplacoffee/api/merchants.py"
@@ -81,7 +84,7 @@ slices:
       - "cd backend && python -c 'from szimplacoffee.cli import app; print(\"OK\")'"
     evidence: []
     notes: ""
-
+    files_create: []
 delivery:
   branch: "feat/SC-32-quality-scorer"
   commits: []
@@ -92,8 +95,7 @@ delivery:
     required_passed: false
     commands_run: []
     evidence_refs: []
-
 notes:
-  - "Run this AFTER SC-31 backfill for best results — metadata density drives several scores"
+  - "Run this AFTER SC-31 backfill for best results \u2014 metadata density drives several scores"
   - "Keep weights tunable. Start with equal weights, adjust after seeing initial scores."
   - "Consider a 'data_completeness_score' as a meta-signal"

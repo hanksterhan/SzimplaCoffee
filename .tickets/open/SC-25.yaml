@@ -1,16 +1,17 @@
-id: SC-25
-title: "Recommendation console — shot style selector, bag size, scored result cards"
-type: feature
-priority: p2
-status: open
-owner: h6nk-bot
+id: "SC-25"
+title: "Recommendation console \u2014 shot style selector, bag size, scored result cards"
+type: "feature"
+priority: "p2"
+status: "ready"
+owner: "h6nk-bot"
 created_at: "2026-03-14T00:00:00Z"
-updated_at: "2026-03-14T00:00:00Z"
-labels: [phase-3, frontend, recommendations]
-
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "phase-3"
+  - "frontend"
+  - "recommendations"
 problem: "Recommendations only accessible via CLI. Users need a web UI to request personalized coffee recommendations and see scored results with rationale."
 desired_outcome: "/recommendations page shows a request form (shot style, bag size, budget) and displays scored result cards with merchant, price, and rationale. Recommendation history listed below."
-
 scope_in:
   - "Request form: shot_style (espresso/filter/omni), bag_size_grams (340/2268), budget_cents (optional)"
   - "Submit triggers POST /api/v1/recommendations"
@@ -21,40 +22,43 @@ scope_in:
 scope_out:
   - "Purchase history integration"
   - "Brew feedback form"
-
 dependencies:
-  blockers: [SC-14, SC-17, SC-20]
+  blockers:
+    - "SC-14"
+    - "SC-17"
+    - "SC-20"
   unblocks: []
-
 acceptance_criteria:
-  - id: AC-1
+  -
+    id: "AC-1"
     text: "Form renders at /recommendations with shot style and bag size options"
-    verify: "manual: open /recommendations, form visible"
-    status: pending
-  - id: AC-2
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-2"
     text: "Submitting form calls POST /api/v1/recommendations and shows result"
-    verify: "manual: submit form, result card appears"
-    status: pending
-  - id: AC-3
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-3"
     text: "History shows 7 existing recommendation runs from DB"
-    verify: "manual: history section shows >= 7 runs"
-    status: pending
-  - id: AC-4
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-4"
     text: "TypeScript compilation passes"
-    verify: "cd frontend && npx tsc --noEmit"
-    status: pending
-
+    verify: "cd frontend && npm run build"
+    status: "pending"
 verification_required:
-  - "cd frontend && npx tsc --noEmit"
   - "cd frontend && npm run build"
-
+  - "cd frontend && npm run build"
 context_refs:
   - "/home/h6nk/SzimplaCoffee/.plans/SC-25-execution-plan.md"
-
 slices:
-  - id: S1
+  -
+    id: "S1"
     title: "Recommendation form + result cards"
-    status: pending
+    status: "pending"
     depends_on: []
     files_create:
       - "frontend/src/routes/recommendations.tsx"
@@ -69,11 +73,13 @@ slices:
       - "cd frontend && npx tsc --noEmit"
     evidence: []
     notes: "shot_style options: espresso, filter, omni; bag_size: 340g (12oz), 2268g (5lb)"
-
-  - id: S2
+    files_modify: []
+  -
+    id: "S2"
     title: "History list"
-    status: pending
-    depends_on: [S1]
+    status: "pending"
+    depends_on:
+      - "S1"
     files_create:
       - "frontend/src/components/recommendations/RecommendationHistory.tsx"
     files_modify:
@@ -84,7 +90,6 @@ slices:
       - "cd frontend && npm run build"
     evidence: []
     notes: "7 existing recommendation runs in DB to display"
-
 delivery:
   branch: "feat/SC-25-recommendation-console"
   commits: []
@@ -95,8 +100,7 @@ delivery:
     required_passed: false
     commands_run: []
     evidence_refs: []
-
 notes:
   - "top_result_json shape: {product_id, variant_id, merchant_id, score (0-1), rationale, price_cents}"
-  - "wait_recommendation: bool — if true, show 'Wait for a better deal' message"
-  - "Trusted merchants get score boost — highlight if result is from trusted merchant"
+  - "wait_recommendation: bool \u2014 if true, show 'Wait for a better deal' message"
+  - "Trusted merchants get score boost \u2014 highlight if result is from trusted merchant"

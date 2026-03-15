@@ -1,56 +1,60 @@
-id: SC-27
-title: "Price history chart component (Recharts) — per-variant price over time"
-type: feature
-priority: p3
-status: open
-owner: h6nk-bot
+id: "SC-27"
+title: "Price history chart component (Recharts) \u2014 per-variant price over time"
+type: "feature"
+priority: "p3"
+status: "ready"
+owner: "h6nk-bot"
 created_at: "2026-03-14T00:00:00Z"
-updated_at: "2026-03-14T00:00:00Z"
-labels: [phase-4, frontend, charts, recharts]
-
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "phase-4"
+  - "frontend"
+  - "charts"
+  - "recharts"
 problem: "No price history visualization exists. With offer snapshots tracked over time, users should be able to see price trends per variant."
 desired_outcome: "PriceHistoryChart component using Recharts renders offer snapshots as a time-series line chart. Used in merchant detail and product detail pages."
-
 scope_in:
   - "PriceHistoryChart component: LineChart with time on X axis, price on Y axis"
   - "Multi-variant overlay: one line per variant (color-coded by label)"
   - "Tooltip showing date, variant label, price in dollars"
   - "Integration in merchant detail page product expansion"
   - "Integration in product detail page"
-  - "Currently all data is from 2026-03-09 (single day) — chart shows flat line, ready for future data"
+  - "Currently all data is from 2026-03-09 (single day) \u2014 chart shows flat line, ready for future data"
 scope_out:
   - "Price alerts"
   - "Price comparison across merchants"
-
 dependencies:
-  blockers: [SC-13, SC-17, SC-23]
+  blockers:
+    - "SC-13"
+    - "SC-17"
+    - "SC-23"
   unblocks: []
-
 acceptance_criteria:
-  - id: AC-1
+  -
+    id: "AC-1"
     text: "PriceHistoryChart renders without errors with empty data"
     verify: "cd frontend && npm run build"
-    status: pending
-  - id: AC-2
+    status: "pending"
+  -
+    id: "AC-2"
     text: "Chart renders offer snapshots as line series"
-    verify: "manual: open product detail, chart visible with data points"
-    status: pending
-  - id: AC-3
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-3"
     text: "TypeScript compilation passes"
-    verify: "cd frontend && npx tsc --noEmit"
-    status: pending
-
+    verify: "cd frontend && npm run build"
+    status: "pending"
 verification_required:
-  - "cd frontend && npx tsc --noEmit"
   - "cd frontend && npm run build"
-
+  - "cd frontend && npm run build"
 context_refs:
   - "/home/h6nk/SzimplaCoffee/.plans/SC-27-execution-plan.md"
-
 slices:
-  - id: S1
+  -
+    id: "S1"
     title: "PriceHistoryChart component"
-    status: pending
+    status: "pending"
     depends_on: []
     files_create:
       - "frontend/src/components/charts/PriceHistoryChart.tsx"
@@ -62,11 +66,12 @@ slices:
       - "cd frontend && npm run build"
     evidence: []
     notes: "npm install recharts @types/recharts"
-
-  - id: S2
+  -
+    id: "S2"
     title: "Integrate into product detail + merchant detail"
-    status: pending
-    depends_on: [S1]
+    status: "pending"
+    depends_on:
+      - "S1"
     files_modify:
       - "frontend/src/components/merchants/ProductsTab.tsx"
     files_read_only:
@@ -75,7 +80,7 @@ slices:
       - "cd frontend && npx tsc --noEmit"
     evidence: []
     notes: "Show chart inline when product row is expanded"
-
+    files_create: []
 delivery:
   branch: "feat/SC-27-price-history-chart"
   commits: []
@@ -86,8 +91,7 @@ delivery:
     required_passed: false
     commands_run: []
     evidence_refs: []
-
 notes:
-  - "All 9352 offer snapshots from 2026-03-09 — chart will show mostly flat line initially"
+  - "All 9352 offer snapshots from 2026-03-09 \u2014 chart will show mostly flat line initially"
   - "As crawls accumulate over weeks, chart will show meaningful trends"
   - "X axis: observed_at (DateTime), Y axis: price_dollars (float)"

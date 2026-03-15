@@ -1,18 +1,19 @@
-id: SC-16
+id: "SC-16"
 title: "Create /api/v1/dashboard endpoint (aggregate metrics)"
-type: feature
-priority: p0
-status: open
-owner: h6nk-bot
+type: "feature"
+priority: "p0"
+status: "ready"
+owner: "h6nk-bot"
 created_at: "2026-03-14T00:00:00Z"
-updated_at: "2026-03-14T00:00:00Z"
-labels: [phase-0, api, dashboard]
-
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "phase-0"
+  - "api"
+  - "dashboard"
 problem: "The dashboard page needs a single endpoint to fetch all key metrics in one call instead of multiple round trips."
 desired_outcome: "GET /api/v1/dashboard returns a DashboardStats object with merchant counts, product counts, crawl status, price stats, and recent activity."
-
 scope_in:
-  - "GET /api/v1/dashboard — aggregate metrics in single response"
+  - "GET /api/v1/dashboard \u2014 aggregate metrics in single response"
   - "Merchant stats: total, by platform, by trust_tier, active vs inactive"
   - "Product stats: total active, total variants, espresso_recommended count"
   - "Offer stats: total snapshots, avg price, price range, last crawl date"
@@ -21,36 +22,37 @@ scope_in:
 scope_out:
   - "Dashboard UI (SC-21)"
   - "Real-time updates (future)"
-
 dependencies:
-  blockers: [SC-11]
-  unblocks: [SC-21]
-
+  blockers:
+    - "SC-11"
+  unblocks:
+    - "SC-21"
 acceptance_criteria:
-  - id: AC-1
+  -
+    id: "AC-1"
     text: "GET /api/v1/dashboard returns 200 with DashboardStats"
     verify: "cd backend && pytest tests/test_api_dashboard.py::test_dashboard -v"
-    status: pending
-  - id: AC-2
+    status: "pending"
+  -
+    id: "AC-2"
     text: "Response includes merchant_count=16, product_count=910, variant_count=3207"
     verify: "cd backend && pytest tests/test_api_dashboard.py::test_dashboard_counts -v"
-    status: pending
-  - id: AC-3
+    status: "pending"
+  -
+    id: "AC-3"
     text: "Response time < 500ms (single aggregation query)"
     verify: "cd backend && pytest tests/test_api_dashboard.py::test_dashboard_performance -v"
-    status: pending
-
+    status: "pending"
 verification_required:
   - "cd backend && ruff check src/szimplacoffee/api/dashboard.py"
   - "cd backend && pytest tests/test_api_dashboard.py -v"
-
 context_refs:
   - "/home/h6nk/SzimplaCoffee/.plans/SC-16-execution-plan.md"
-
 slices:
-  - id: S1
+  -
+    id: "S1"
     title: "Dashboard router + DashboardStats schema"
-    status: pending
+    status: "pending"
     depends_on: []
     files_create:
       - "backend/src/szimplacoffee/api/dashboard.py"
@@ -64,11 +66,12 @@ slices:
       - "cd backend && python -c 'from szimplacoffee.api.dashboard import router'"
     evidence: []
     notes: "Use SQLAlchemy aggregate functions (func.count, func.avg) for efficiency"
-
-  - id: S2
+  -
+    id: "S2"
     title: "Dashboard tests"
-    status: pending
-    depends_on: [S1]
+    status: "pending"
+    depends_on:
+      - "S1"
     files_create:
       - "backend/tests/test_api_dashboard.py"
     files_read_only:
@@ -77,7 +80,7 @@ slices:
       - "cd backend && pytest tests/test_api_dashboard.py -v"
     evidence: []
     notes: ""
-
+    files_modify: []
 delivery:
   branch: "feat/SC-16-dashboard-api"
   commits: []
@@ -88,7 +91,6 @@ delivery:
     required_passed: false
     commands_run: []
     evidence_refs: []
-
 notes:
   - "DB ground truth: 16 merchants, 910 products, 3207 variants, 9352 offer snapshots"
   - "201 promo snapshots, 37 merchant promos, 321 shipping policies"

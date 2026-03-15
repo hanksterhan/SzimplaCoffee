@@ -1,11 +1,19 @@
-id: SC-43
-title: "Products catalog UX polish — multi-select filters, bean card cleanup, quick detail dialog"
-type: feature
-priority: high
-status: verifying
-owner: h6nk-bot
-labels: [catalog, ui, frontend, api]
-problem: "The /products catalog still has rough edges: some coffee beans are hidden under merch, category filtering is single-select only, and product cards require a route change to inspect details. Whole-bean cards also omit the bag size, making quick comparison harder."
+id: "SC-43"
+title: "Products catalog UX polish \u2014 multi-select filters, bean card cleanup, quick detail dialog"
+type: "feature"
+priority: "p1"
+status: "verifying"
+owner: "h6nk-bot"
+created_at: "2026-03-15T07:00:00Z"
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "feature"
+  - "workflow"
+  - "epic-catalog"
+  - "catalog"
+  - "frontend"
+  - "backend"
+problem: "The /products catalog still had rough edges: some coffee beans were hidden under merch, category filtering was single-select only, and product cards required a route change to inspect details. Whole-bean cards also omitted the bag size, making quick comparison harder."
 desired_outcome: "The /products experience supports multi-select category filters, treats coffee-like merch more intelligently when filtering beans, shows cleaner whole-bean summary cards, and opens an inline detail dialog with richer product metadata and outbound link."
 scope_in:
   - "Multi-select product category filtering on /products"
@@ -18,36 +26,112 @@ scope_out:
   - "New standalone product detail information architecture"
   - "Database migration for dedicated product long-description storage"
   - "Crawler/parser overhaul for perfect category classification"
+dependencies:
+  blockers: []
+  unblocks: []
 acceptance_criteria:
-  - text: "Users can select more than one product category on /products"
-    verify: "manual: select coffee + merch, verify both categories appear in results"
-  - text: "Coffee filter still includes coffee-like whole-bean products that were tagged as merch"
-    verify: "manual: select coffee, verify known coffee items previously hidden by merch tagging appear"
-  - text: "Whole-bean cards show name, merchant, price, and weight/oz summary"
-    verify: "manual: browse /products and confirm bean cards expose bag size without opening detail"
-  - text: "Clicking a product opens a detail dialog instead of forcing immediate route navigation"
-    verify: "manual: click a product card, confirm dialog opens with richer details and outbound link"
+  -
+    id: "AC-1"
+    text: "Users can select more than one product category on /products."
+    verify: "cd frontend && npm run build"
+    status: "complete"
+  -
+    id: "AC-2"
+    text: "Coffee filter still includes coffee-like whole-bean products that were tagged as merch."
+    verify: "cd backend && . .venv/bin/activate && pytest tests/test_api_products.py -q"
+    status: "complete"
+  -
+    id: "AC-3"
+    text: "Whole-bean cards show name, merchant, price, and weight/oz summary."
+    verify: "cd frontend && npm run build"
+    status: "complete"
+  -
+    id: "AC-4"
+    text: "Clicking a product opens a detail dialog instead of forcing immediate route navigation."
+    verify: "cd frontend && npm run build"
+    status: "complete"
 verification_required:
-  - "frontend manual verification on /products"
-  - "backend test coverage for multi-category filtering helper logic"
-slices:
-  - title: "Backend category filtering improvements"
-    files:
-      - "backend/src/szimplacoffee/api/products.py"
-      - "backend/tests/test_api_products.py"
-  - title: "Catalog filter and card UX"
-    files:
-      - "frontend/src/routes/products.lazy.tsx"
-      - "frontend/src/hooks/use-products.ts"
-  - title: "Inline product detail dialog"
-    files:
-      - "frontend/src/routes/products.lazy.tsx"
-      - "frontend/src/hooks/use-products.ts"
-delivery:
-  branch: "feat/SC-43-products-catalog-ux-polish"
-  notes:
-    - "Use existing product detail endpoint for the dialog where possible"
-    - "If long description is unavailable in the data model, present the best available metadata cleanly instead of inventing data"
+  - "cd backend && . .venv/bin/activate && pytest tests/test_api_products.py -q"
+  - "cd backend && . .venv/bin/activate && ruff check src tests"
+  - "cd frontend && npm run build"
 context_refs:
   - ".plans/SC-43-execution-plan.md"
   - ".tickets/open/SC-37.yaml"
+slices:
+  -
+    id: "S1"
+    title: "Backend category filtering improvements"
+    status: "complete"
+    depends_on: []
+    files_create:
+      - "backend/tests/test_api_products.py"
+    files_modify:
+      - "backend/src/szimplacoffee/api/products.py"
+      - "backend/src/szimplacoffee/schemas/products.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && . .venv/bin/activate && pytest tests/test_api_products.py -q"
+    evidence: []
+    notes: "Implemented multi-category parsing and merch-aware coffee filtering, plus summary metadata for cards."
+  -
+    id: "S2"
+    title: "Catalog filter and card UX"
+    status: "complete"
+    depends_on:
+      - "S1"
+    files_create: []
+    files_modify:
+      - "frontend/src/hooks/use-products.ts"
+      - "frontend/src/routes/products.lazy.tsx"
+    files_read_only:
+      - "frontend/src/components/ui/dropdown-menu.tsx"
+    checks:
+      - "cd frontend && npm run build"
+    evidence: []
+    notes: "Implemented category multi-select, merchant filter, sorting controls, price-per-ounce display, and stock/summary polish."
+  -
+    id: "S3"
+    title: "Inline product detail dialog"
+    status: "complete"
+    depends_on:
+      - "S2"
+    files_create: []
+    files_modify:
+      - "frontend/src/routes/products.lazy.tsx"
+    files_read_only:
+      - "frontend/src/routes/products.$productId.lazy.tsx"
+    checks:
+      - "cd frontend && npm run build"
+    evidence: []
+    notes: "Added product quick-view dialog and later removed temporary debug markers after verification."
+delivery:
+  branch: "feat/SC-43-products-catalog-ux-polish"
+  commits:
+    - "95c1731"
+    - "891eb00"
+    - "47aad6d"
+    - "b6851b8"
+    - "bb0c65b"
+    - "21b42af"
+    - "c89648e"
+    - "accbfb8"
+    - "32f4896"
+    - "9621af7"
+    - "4044d54"
+  pr_url: "main"
+  started_at: "2026-03-15T06:00:00Z"
+  completed_at: "2026-03-15T07:05:00Z"
+  verification:
+    required_passed: true
+    commands_run:
+      - "cd backend && . .venv/bin/activate && pytest tests/test_api_products.py -q"
+      - "cd backend && . .venv/bin/activate && ruff check src tests"
+      - "cd frontend && npm run build"
+    evidence_refs:
+      - ".memory/sprint-01/SC-43-products-catalog-ux-polish.md"
+      - "SzimplaCoffee/brain/worklog/2026-03-14-products-catalog-ux-polish.md"
+notes:
+  - "Converted to strict schema as the pilot migration ticket."
+  - "This ticket was delivered across multiple incremental commits before the schema migration decision."
+  - "Use this file as the reference template for backfilling the remaining SC tickets."

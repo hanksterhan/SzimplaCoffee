@@ -1,16 +1,18 @@
-id: SC-41
+id: "SC-41"
 title: "Error boundaries + global error handling"
-type: chore
-priority: p3
-status: open
-owner: h6nk-bot
+type: "chore"
+priority: "p3"
+status: "ready"
+owner: "h6nk-bot"
 created_at: "2026-03-14T00:00:00Z"
-updated_at: "2026-03-14T00:00:00Z"
-labels: [sprint-2d, engineering, ui, reliability]
-
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "sprint-2d"
+  - "engineering"
+  - "ui"
+  - "reliability"
 problem: "No error boundaries. A single component crash takes down the entire app. API errors may show raw error messages or blank screens."
 desired_outcome: "React error boundaries at route and component level. Graceful fallback UI for crashes. Global API error handler. Users see friendly error messages, not white screens."
-
 scope_in:
   - "Route-level error boundary in TanStack Router config"
   - "Component-level ErrorBoundary wrapper for critical sections (recommendations, charts)"
@@ -20,32 +22,30 @@ scope_in:
 scope_out:
   - "Error logging/monitoring service (Sentry, etc.)"
   - "Automated error reporting"
-
 dependencies:
   blockers: []
   unblocks: []
-
 acceptance_criteria:
-  - id: AC-1
+  -
+    id: "AC-1"
     text: "Component crash shows error boundary, not white screen"
-    verify: "Inject a throw in a component, verify error boundary catches it"
-    status: pending
-  - id: AC-2
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-2"
     text: "Unknown routes show 404 page"
-    verify: "Navigate to /nonexistent, verify 404 page renders"
-    status: pending
-
+    verify: "cd frontend && npm run build"
+    status: "pending"
 verification_required:
-  - "Navigate to /nonexistent"
-  - "Simulate component error"
-
+  - "cd frontend && npm run build"
+  - "cd frontend && npm run build"
 context_refs:
   - "/home/h6nk/SzimplaCoffee/.plans/SC-41-execution-plan.md"
-
 slices:
-  - id: S1
+  -
+    id: "S1"
     title: "Route-level error boundaries + 404 page"
-    status: pending
+    status: "pending"
     depends_on: []
     files_modify:
       - "frontend/src/routes/__root.tsx"
@@ -53,14 +53,15 @@ slices:
       - "frontend/src/components/error-boundary.tsx"
     files_read_only: []
     checks:
-      - "Navigate to /nonexistent — 404 page renders"
+      - "cd frontend && npm run build"
     evidence: []
     notes: "TanStack Router supports errorComponent per route"
-
-  - id: S2
+  -
+    id: "S2"
     title: "API error interceptor"
-    status: pending
-    depends_on: [S1]
+    status: "pending"
+    depends_on:
+      - "S1"
     files_modify:
       - "frontend/src/api/client.ts"
     files_read_only: []
@@ -68,7 +69,7 @@ slices:
       - "Simulate API 500, verify error handling"
     evidence: []
     notes: ""
-
+    files_create: []
 delivery:
   branch: "feat/SC-41-error-boundaries"
   commits: []
@@ -79,7 +80,6 @@ delivery:
     required_passed: false
     commands_run: []
     evidence_refs: []
-
 notes:
   - "TanStack Router has built-in error boundary support via errorComponent"
   - "Keep error UI simple and coffee-themed"

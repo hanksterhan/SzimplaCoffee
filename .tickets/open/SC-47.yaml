@@ -1,0 +1,98 @@
+id: "SC-47"
+title: "Upgrade metadata extraction with normalized parsers, confidence, and overrides"
+type: "feature"
+priority: "p1"
+status: "draft"
+owner: "h6nk-bot"
+created_at: "2026-03-15T07:00:00Z"
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "feature"
+  - "integration"
+  - "metadata"
+  - "backend"
+problem: "Even with normalized fields available, metadata quality will stay too low for trusted filtering unless extraction moves beyond the current free-text parser and starts scoring field confidence."
+desired_outcome: "The ingestion pipeline can populate normalized metadata using dictionaries, ontologies, confidence scoring, and override support, with provenance preserved for future review."
+scope_in:
+  - "Crawler and metadata pipeline populate normalized metadata fields with explicit provenance and confidence."
+  - "Override mechanisms exist for merchant-specific patterns or product-level corrections."
+  - "Conflicting coffee classifier logic is resolved so valid coffees are not filtered out by early negative checks."
+scope_out:
+  - "Follow-on implementation details outside this ticket's described slices."
+dependencies:
+  blockers:
+    - "SC-46"
+  unblocks:
+    - "SC-48"
+    - "SC-49"
+    - "SC-52"
+    - "SC-53"
+acceptance_criteria:
+  -
+    id: "AC-1"
+    text: "Crawler and metadata pipeline populate normalized metadata fields with explicit provenance and confidence."
+    verify: "cd backend && . .venv/bin/activate && pytest tests/test_coffee_parser.py -q"
+    status: "pending"
+  -
+    id: "AC-2"
+    text: "Override mechanisms exist for merchant-specific patterns or product-level corrections."
+    verify: "cd backend && . .venv/bin/activate && pytest tests/test_coffee_parser.py -q"
+    status: "pending"
+  -
+    id: "AC-3"
+    text: "Conflicting coffee classifier logic is resolved so valid coffees are not filtered out by early negative checks."
+    verify: "cd backend && . .venv/bin/activate && pytest tests/test_coffee_parser.py -q"
+    status: "pending"
+verification_required:
+  - "cd backend && . .venv/bin/activate && pytest tests/test_coffee_parser.py -q"
+  - "cd backend && . .venv/bin/activate && pytest -q"
+  - "cd backend && . .venv/bin/activate && ruff check src tests"
+context_refs:
+  - ".plans/SC-47-execution-plan.md"
+  - ".plans/next-steps-march15.md"
+slices:
+  -
+    id: "S1"
+    title: "Normalize extraction dictionaries and confidence scoring"
+    status: "pending"
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/coffee_parser.py"
+      - "backend/src/szimplacoffee/services/crawlers.py"
+      - "backend/tests/test_coffee_parser.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && . .venv/bin/activate && pytest tests/test_coffee_parser.py -q"
+    evidence: []
+    notes: "Resolve the filter-positive contradiction around filter-related coffee terms."
+  -
+    id: "S2"
+    title: "Add override and provenance plumbing"
+    status: "pending"
+    depends_on:
+      - "S1"
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/services/crawlers.py"
+      - "backend/src/szimplacoffee/bootstrap.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/schemas/products.py"
+    checks:
+      - "cd backend && . .venv/bin/activate && pytest -q"
+    evidence: []
+    notes: "Prefer explicit provenance over silent overwrite behavior."
+delivery:
+  branch: "feat/SC-47-metadata-extraction-upgrade"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+notes:
+  - "Generated from .plans/next-steps-march15.md in strict-schema migration batch."

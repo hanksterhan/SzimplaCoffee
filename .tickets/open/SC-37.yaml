@@ -1,18 +1,20 @@
-id: SC-37
+id: "SC-37"
 title: "Standalone products page with filtering and search"
-type: feature
-priority: p2
-status: open
-owner: h6nk-bot
+type: "feature"
+priority: "p2"
+status: "ready"
+owner: "h6nk-bot"
 created_at: "2026-03-14T00:00:00Z"
-updated_at: "2026-03-14T00:00:00Z"
-labels: [sprint-2c, catalog, ui, search]
-
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "sprint-2c"
+  - "catalog"
+  - "ui"
+  - "search"
 problem: "Products are only viewable within merchant detail pages. Users can't browse the full catalog, search by origin/process, or filter across merchants. Can't answer 'who sells Ethiopian washed right now?'"
 desired_outcome: "A /products page with full catalog search, filtering by origin, process, merchant, and price range. Powered by backend search/filter API. Enables discovery across the entire merchant universe."
-
 scope_in:
-  - "New route: /products — catalog browser"
+  - "New route: /products \u2014 catalog browser"
   - "Search bar: text search across product name, origin, process, tasting notes"
   - "Filters: merchant (multi-select), origin country, process method, price range, in-stock only"
   - "Sort by: price, name, merchant, score"
@@ -25,55 +27,58 @@ scope_out:
   - "Product detail page (that's SC-38)"
   - "Saved searches or alerts"
   - "Comparison view"
-
 dependencies:
   blockers: []
-  unblocks: [SC-38]
-
+  unblocks:
+    - "SC-38"
 acceptance_criteria:
-  - id: AC-1
+  -
+    id: "AC-1"
     text: "/products page shows all products with pagination"
-    verify: "Navigate to /products, verify products load and pagination works"
-    status: pending
-  - id: AC-2
+    verify: "bash -lc \"curl 'http://localhost:8000/api/v1/products?search=ethiopia&process=washed'\""
+    status: "pending"
+  -
+    id: "AC-2"
     text: "Search by product name returns correct results"
-    verify: "Search 'Ethiopia', verify only Ethiopian coffees appear"
-    status: pending
-  - id: AC-3
+    verify: "bash -lc \"curl 'http://localhost:8000/api/v1/products?search=ethiopia&process=washed'\""
+    status: "pending"
+  -
+    id: "AC-3"
     text: "Filter by merchant works"
-    verify: "Select a merchant filter, verify only that merchant's products show"
-    status: pending
-  - id: AC-4
+    verify: "bash -lc \"curl 'http://localhost:8000/api/v1/products?search=ethiopia&process=washed'\""
+    status: "pending"
+  -
+    id: "AC-4"
     text: "Filter by process method works"
-    verify: "Filter by 'washed', verify only washed coffees appear"
-    status: pending
-
+    verify: "bash -lc \"curl 'http://localhost:8000/api/v1/products?search=ethiopia&process=washed'\""
+    status: "pending"
 verification_required:
-  - "Navigate to /products"
-  - "Search for 'Ethiopia'"
-  - "curl 'http://localhost:8000/api/v1/products?search=ethiopia&process=washed'"
-
+  - "bash -lc \"curl 'http://localhost:8000/api/v1/products?search=ethiopia&process=washed'\""
+  - "bash -lc \"curl 'http://localhost:8000/api/v1/products?search=ethiopia&process=washed'\""
+  - "bash -lc \"curl 'http://localhost:8000/api/v1/products?search=ethiopia&process=washed'\""
 context_refs:
   - "/home/h6nk/SzimplaCoffee/.plans/SC-37-execution-plan.md"
-
 slices:
-  - id: S1
+  -
+    id: "S1"
     title: "Backend products search/filter API"
-    status: pending
+    status: "pending"
     depends_on: []
     files_modify:
       - "backend/src/szimplacoffee/api/products.py"
     files_read_only:
       - "backend/src/szimplacoffee/models.py"
     checks:
-      - "curl 'http://localhost:8000/api/v1/products?search=ethiopia' | python3 -m json.tool"
+      - "bash -lc \"curl 'http://localhost:8000/api/v1/products?search=ethiopia' | python3 -m json.tool\""
     evidence: []
     notes: "Use SQLite LIKE for v1. Consider FTS5 if search is too slow. Add pagination (offset/limit)."
-
-  - id: S2
+    files_create: []
+  -
+    id: "S2"
     title: "Products catalog page with search and filters"
-    status: pending
-    depends_on: [S1]
+    status: "pending"
+    depends_on:
+      - "S1"
     files_create:
       - "frontend/src/routes/products.tsx"
       - "frontend/src/hooks/use-products.ts"
@@ -83,10 +88,9 @@ slices:
     files_read_only:
       - "frontend/src/api/client.ts"
     checks:
-      - "Navigate to /products — catalog renders"
+      - "bash -lc \"curl 'http://localhost:8000/api/v1/products?search=ethiopia&process=washed'\""
     evidence: []
     notes: "Debounced search input. Filter sidebar or top bar. Product cards in a grid."
-
 delivery:
   branch: "feat/SC-37-products-page"
   commits: []
@@ -97,8 +101,7 @@ delivery:
     required_passed: false
     commands_run: []
     evidence_refs: []
-
 notes:
-  - "This becomes much more useful after SC-31 backfills metadata — otherwise search has nothing to match against"
+  - "This becomes much more useful after SC-31 backfills metadata \u2014 otherwise search has nothing to match against"
   - "Consider showing metadata completeness: products with origin/process show richer cards"
   - "Product count per filter value helps users understand data distribution"

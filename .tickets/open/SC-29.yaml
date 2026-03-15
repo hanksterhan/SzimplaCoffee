@@ -1,16 +1,18 @@
-id: SC-29
-title: "Production build — FastAPI serves built React static, single-port deployment"
-type: feature
-priority: p3
-status: open
-owner: h6nk-bot
+id: "SC-29"
+title: "Production build \u2014 FastAPI serves built React static, single-port deployment"
+type: "feature"
+priority: "p3"
+status: "ready"
+owner: "h6nk-bot"
 created_at: "2026-03-14T00:00:00Z"
-updated_at: "2026-03-14T00:00:00Z"
-labels: [phase-4, devops, production, deployment]
-
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "phase-4"
+  - "devops"
+  - "production"
+  - "deployment"
 problem: "Dev requires two processes (uvicorn + vite). Production should be a single-port deployment where FastAPI serves the built React app."
 desired_outcome: "npm run build in frontend/ produces dist/. FastAPI serves dist/ as static files. API routes under /api/v1/. React router handles all other paths (SPA fallback to index.html). Single uvicorn command runs everything."
-
 scope_in:
   - "Mount frontend/dist/ as StaticFiles in FastAPI (after SC-28 removed the Jinja mount)"
   - "SPA fallback: any non-/api/* request returns index.html (React handles routing)"
@@ -22,37 +24,37 @@ scope_out:
   - "Nginx reverse proxy"
   - "HTTPS configuration"
   - "Environment-specific configs beyond .env"
-
 dependencies:
-  blockers: [SC-28]
+  blockers:
+    - "SC-28"
   unblocks: []
-
 acceptance_criteria:
-  - id: AC-1
+  -
+    id: "AC-1"
     text: "scripts/build.sh produces a working production bundle"
     verify: "bash scripts/build.sh && curl http://localhost:8000 | grep -i szimplacoffee"
-    status: pending
-  - id: AC-2
+    status: "pending"
+  -
+    id: "AC-2"
     text: "API endpoints work on port 8000"
     verify: "bash scripts/build.sh & sleep 3 && curl http://localhost:8000/api/v1/dashboard | python3 -m json.tool"
-    status: pending
-  - id: AC-3
-    text: "React SPA served from / — navigating to /merchants returns index.html"
-    verify: "curl http://localhost:8000/merchants | grep -i root"
-    status: pending
-
+    status: "pending"
+  -
+    id: "AC-3"
+    text: "React SPA served from / \u2014 navigating to /merchants returns index.html"
+    verify: "bash -lc \"curl http://localhost:8000/merchants | grep -i root\""
+    status: "pending"
 verification_required:
   - "bash scripts/build.sh"
-  - "curl http://localhost:8000/health"
-  - "curl http://localhost:8000/api/v1/dashboard | python3 -m json.tool"
-
+  - "bash -lc \"curl http://localhost:8000/health\""
+  - "bash -lc \"curl http://localhost:8000/api/v1/dashboard | python3 -m json.tool\""
 context_refs:
   - "/home/h6nk/SzimplaCoffee/.plans/SC-29-execution-plan.md"
-
 slices:
-  - id: S1
+  -
+    id: "S1"
     title: "FastAPI static file serving + SPA fallback"
-    status: pending
+    status: "pending"
     depends_on: []
     files_modify:
       - "backend/src/szimplacoffee/main.py"
@@ -62,11 +64,13 @@ slices:
       - "cd backend && python -c 'from szimplacoffee.main import app; print(\"OK\")'"
     evidence: []
     notes: "Use aiofiles for async static file serving"
-
-  - id: S2
+    files_create: []
+  -
+    id: "S2"
     title: "Build scripts"
-    status: pending
-    depends_on: [S1]
+    status: "pending"
+    depends_on:
+      - "S1"
     files_create:
       - "scripts/build.sh"
     files_modify:
@@ -78,7 +82,6 @@ slices:
       - "bash -n scripts/build.sh"
     evidence: []
     notes: ""
-
 delivery:
   branch: "feat/SC-29-production-build"
   commits: []
@@ -89,8 +92,7 @@ delivery:
     required_passed: false
     commands_run: []
     evidence_refs: []
-
 notes:
   - "SPA fallback: mount /api/v1/* first, then static files, then catch-all returning index.html"
-  - "aiofiles needed for async FileResponse — add back to pyproject.toml"
+  - "aiofiles needed for async FileResponse \u2014 add back to pyproject.toml"
   - "Frontend .env.production: VITE_API_BASE_URL= (empty = same origin)"

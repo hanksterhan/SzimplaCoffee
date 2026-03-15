@@ -1,0 +1,97 @@
+id: "SC-49"
+title: "Build historical deal facts and biggest-sales intelligence"
+type: "feature"
+priority: "p1"
+status: "draft"
+owner: "h6nk-bot"
+created_at: "2026-03-15T07:00:00Z"
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "feature"
+  - "integration"
+  - "deals"
+  - "backend"
+problem: "The app cannot identify trustworthy daily deals because it lacks historical price baselines and a fact layer that combines current discount signals with actual merchant and variant history."
+desired_outcome: "The backend computes deal facts from real offer history and exposes a trustworthy biggest-sales endpoint with explainable reasons."
+scope_in:
+  - "Historical deal facts can be generated from offer snapshots without relying only on latest compare-at hints."
+  - "Deal scoring uses historical baselines plus current promo and price-per-ounce context."
+  - "A biggest-sales endpoint returns explainable deal candidates rooted in historical signals."
+scope_out:
+  - "Follow-on implementation details outside this ticket's described slices."
+dependencies:
+  blockers:
+    - "SC-46"
+    - "SC-48"
+    - "SC-50"
+  unblocks:
+    - "SC-52"
+    - "SC-53"
+acceptance_criteria:
+  -
+    id: "AC-1"
+    text: "Historical deal facts can be generated from offer snapshots without relying only on latest compare-at hints."
+    verify: "cd backend && . .venv/bin/activate && pytest tests/test_recommendations.py -q"
+    status: "pending"
+  -
+    id: "AC-2"
+    text: "Deal scoring uses historical baselines plus current promo and price-per-ounce context."
+    verify: "cd backend && . .venv/bin/activate && pytest tests/test_recommendations.py -q"
+    status: "pending"
+  -
+    id: "AC-3"
+    text: "A biggest-sales endpoint returns explainable deal candidates rooted in historical signals."
+    verify: "cd backend && . .venv/bin/activate && pytest -q"
+    status: "pending"
+verification_required:
+  - "cd backend && . .venv/bin/activate && pytest tests/test_recommendations.py -q"
+  - "cd backend && . .venv/bin/activate && pytest -q"
+  - "cd backend && . .venv/bin/activate && ruff check src tests"
+context_refs:
+  - ".plans/SC-49-execution-plan.md"
+  - ".plans/next-steps-march15.md"
+slices:
+  -
+    id: "S1"
+    title: "Materialize historical price facts"
+    status: "pending"
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/recommendations.py"
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/tests/test_recommendations.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/api/products.py"
+    checks:
+      - "cd backend && . .venv/bin/activate && pytest tests/test_recommendations.py -q"
+    evidence: []
+    notes: "Prefer deterministic SQLite-friendly calculations or materialized facts."
+  -
+    id: "S2"
+    title: "Expose biggest-sales API with reasons"
+    status: "pending"
+    depends_on:
+      - "S1"
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/api/recommendations.py"
+      - "backend/tests/test_recommendations.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/services/recommendations.py"
+    checks:
+      - "cd backend && . .venv/bin/activate && pytest tests/test_recommendations.py -q"
+    evidence: []
+    notes: "Responses should be explainable enough to power a daily dashboard."
+delivery:
+  branch: "feat/SC-49-deal-facts-and-sales-intelligence"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+notes:
+  - "Generated from .plans/next-steps-march15.md in strict-schema migration batch."

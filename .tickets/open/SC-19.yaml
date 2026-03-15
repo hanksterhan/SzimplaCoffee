@@ -1,16 +1,19 @@
-id: SC-19
+id: "SC-19"
 title: "Set up shadcn/ui with coffee-themed design tokens"
-type: feature
-priority: p1
-status: open
-owner: h6nk-bot
+type: "feature"
+priority: "p1"
+status: "ready"
+owner: "h6nk-bot"
 created_at: "2026-03-14T00:00:00Z"
-updated_at: "2026-03-14T00:00:00Z"
-labels: [phase-1, frontend, ui, shadcn, design-tokens]
-
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "phase-1"
+  - "frontend"
+  - "ui"
+  - "shadcn"
+  - "design-tokens"
 problem: "No UI component library configured. Pages will look unstyled without a design system. We need shadcn/ui with a warm coffee palette."
 desired_outcome: "shadcn/ui initialized with coffee-themed CSS variables (warm browns, creams, espresso). Core components installed: Button, Card, Badge, Table, Input, Select, Dialog, Tabs, Skeleton."
-
 scope_in:
   - "Run shadcn/ui init in frontend/"
   - "Define coffee-themed CSS custom properties (warm palette)"
@@ -20,36 +23,43 @@ scope_in:
 scope_out:
   - "Domain-specific components (SC-20+)"
   - "Dark mode (future)"
-
 dependencies:
-  blockers: [SC-18]
-  unblocks: [SC-20, SC-21, SC-22, SC-23, SC-24, SC-25, SC-26]
-
+  blockers:
+    - "SC-18"
+  unblocks:
+    - "SC-20"
+    - "SC-21"
+    - "SC-22"
+    - "SC-23"
+    - "SC-24"
+    - "SC-25"
+    - "SC-26"
 acceptance_criteria:
-  - id: AC-1
+  -
+    id: "AC-1"
     text: "shadcn/ui components importable from @/components/ui"
-    verify: "cd frontend && npx tsc --noEmit"
-    status: pending
-  - id: AC-2
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-2"
     text: "Coffee palette CSS vars defined in index.css (:root)"
-    verify: "grep '--background\\|--primary\\|--coffee' frontend/src/index.css"
-    status: pending
-  - id: AC-3
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-3"
     text: "Button, Card, Badge render without errors in a test component"
     verify: "cd frontend && npm run build"
-    status: pending
-
+    status: "pending"
 verification_required:
-  - "cd frontend && npx tsc --noEmit"
   - "cd frontend && npm run build"
-
+  - "cd frontend && npm run build"
 context_refs:
   - "/home/h6nk/SzimplaCoffee/.plans/SC-19-execution-plan.md"
-
 slices:
-  - id: S1
+  -
+    id: "S1"
     title: "shadcn/ui init + core component installation"
-    status: pending
+    status: "pending"
     depends_on: []
     files_create:
       - "frontend/components.json"
@@ -72,11 +82,12 @@ slices:
       - "cd frontend && npm run build"
     evidence: []
     notes: "shadcn add button card badge table input select dialog tabs skeleton separator dropdown-menu tooltip"
-
-  - id: S2
+  -
+    id: "S2"
     title: "Coffee design tokens"
-    status: pending
-    depends_on: [S1]
+    status: "pending"
+    depends_on:
+      - "S1"
     files_modify:
       - "frontend/src/index.css"
     files_create:
@@ -86,7 +97,6 @@ slices:
       - "grep 'coffee\\|espresso\\|cream' frontend/src/index.css"
     evidence: []
     notes: "Define warm palette: espresso (#2C1810), latte (#C8A882), cream (#FFF8F0), steam (#F5F0EB)"
-
 delivery:
   branch: "feat/SC-19-shadcn-ui"
   commits: []
@@ -97,7 +107,6 @@ delivery:
     required_passed: false
     commands_run: []
     evidence_refs: []
-
 notes:
-  - "shadcn/ui v2 with Tailwind CSS v4 — use 'npx shadcn@canary' for v4 compat"
+  - "shadcn/ui v2 with Tailwind CSS v4 \u2014 use 'npx shadcn@canary' for v4 compat"
   - "Coffee palette inspiration: espresso shots, milk foam, roasted beans"

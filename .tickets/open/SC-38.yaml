@@ -1,16 +1,17 @@
-id: SC-38
-title: "Product detail page — full metadata, price history, variants"
-type: feature
-priority: p2
-status: open
-owner: h6nk-bot
+id: "SC-38"
+title: "Product detail page \u2014 full metadata, price history, variants"
+type: "feature"
+priority: "p2"
+status: "ready"
+owner: "h6nk-bot"
 created_at: "2026-03-14T00:00:00Z"
-updated_at: "2026-03-14T00:00:00Z"
-labels: [sprint-2c, catalog, ui]
-
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "sprint-2c"
+  - "catalog"
+  - "ui"
 problem: "No dedicated product detail view. Users can't see full coffee metadata, compare variant prices, or view price history before deciding to buy. The recommendation shows a card but users need deeper info."
 desired_outcome: "A /products/{id} page showing complete product information: all metadata (origin, process, tasting notes, roast level), all variants with pricing, price history chart (when temporal data exists), merchant info, and a 'Buy' link."
-
 scope_in:
   - "New route: /products/{productId}"
   - "Full metadata display: origin, process, tasting notes, roast level, altitude, varietal"
@@ -24,50 +25,51 @@ scope_out:
   - "Product editing"
   - "Reviews or community data"
   - "Cross-product comparison"
-
 dependencies:
   blockers: []
   unblocks: []
-
 acceptance_criteria:
-  - id: AC-1
+  -
+    id: "AC-1"
     text: "Product detail page renders with full metadata"
-    verify: "Navigate to /products/1, verify origin, process, tasting notes displayed"
-    status: pending
-  - id: AC-2
+    verify: "bash -lc \"curl http://localhost:8000/api/v1/products/1/price-history\""
+    status: "pending"
+  -
+    id: "AC-2"
     text: "Variant table shows all variants with prices"
-    verify: "Verify all variants for product appear with correct pricing"
-    status: pending
-  - id: AC-3
+    verify: "bash -lc \"curl http://localhost:8000/api/v1/products/1/price-history\""
+    status: "pending"
+  -
+    id: "AC-3"
     text: "Price history chart renders when temporal data exists"
-    verify: "View product with multi-day snapshots, verify chart has multiple data points"
-    status: pending
-
+    verify: "bash -lc \"curl http://localhost:8000/api/v1/products/1/price-history\""
+    status: "pending"
 verification_required:
-  - "Navigate to /products/1"
-  - "curl http://localhost:8000/api/v1/products/1/price-history"
-
+  - "bash -lc \"curl http://localhost:8000/api/v1/products/1/price-history\""
+  - "bash -lc \"curl http://localhost:8000/api/v1/products/1/price-history\""
 context_refs:
   - "/home/h6nk/SzimplaCoffee/.plans/SC-38-execution-plan.md"
-
 slices:
-  - id: S1
+  -
+    id: "S1"
     title: "Price history API endpoint"
-    status: pending
+    status: "pending"
     depends_on: []
     files_modify:
       - "backend/src/szimplacoffee/api/products.py"
     files_read_only:
       - "backend/src/szimplacoffee/models.py"
     checks:
-      - "curl http://localhost:8000/api/v1/products/1/price-history | python3 -m json.tool"
+      - "bash -lc \"curl http://localhost:8000/api/v1/products/1/price-history | python3 -m json.tool\""
     evidence: []
     notes: "Return array of {date, variant_id, price_cents} for Recharts"
-
-  - id: S2
+    files_create: []
+  -
+    id: "S2"
     title: "Product detail page component"
-    status: pending
-    depends_on: [S1]
+    status: "pending"
+    depends_on:
+      - "S1"
     files_create:
       - "frontend/src/routes/products.$productId.tsx"
     files_modify:
@@ -75,10 +77,9 @@ slices:
     files_read_only:
       - "frontend/src/api/client.ts"
     checks:
-      - "Navigate to /products/1 — detail page renders"
+      - "bash -lc \"curl http://localhost:8000/api/v1/products/1/price-history\""
     evidence: []
     notes: "Reuse Recharts components from dashboard for price history chart"
-
 delivery:
   branch: "feat/SC-38-product-detail"
   commits: []
@@ -89,8 +90,7 @@ delivery:
     required_passed: false
     commands_run: []
     evidence_refs: []
-
 notes:
   - "Price history chart only becomes useful after SC-33 (crawl scheduler) generates multi-day data"
   - "Show 'No price history yet' gracefully when only single-day data exists"
-  - "Metadata display should handle empty fields gracefully — show what's available, don't show empty rows"
+  - "Metadata display should handle empty fields gracefully \u2014 show what's available, don't show empty rows"

@@ -1,0 +1,96 @@
+id: "SC-45"
+title: "Correct catalog search truth and stock semantics"
+type: "feature"
+priority: "p1"
+status: "draft"
+owner: "h6nk-bot"
+created_at: "2026-03-15T07:00:00Z"
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "feature"
+  - "workflow"
+  - "catalog"
+  - "frontend"
+  - "backend"
+problem: "The products catalog over-promises search fields and uses product presence to imply stock state, undermining shopping trust."
+desired_outcome: "Catalog search semantics and stock labels match the underlying data model, and the UI no longer implies capabilities or inventory truth that the backend does not support."
+scope_in:
+  - "Catalog search copy matches actual backend search behavior."
+  - "Product cards derive stock labels from variant availability rather than product presence alone."
+  - "Catalog UI renders with truthful stock indicators without misleading inventory states."
+scope_out:
+  - "Follow-on implementation details outside this ticket's described slices."
+dependencies:
+  blockers:
+    - "SC-44"
+  unblocks:
+    - "SC-48"
+    - "SC-52"
+acceptance_criteria:
+  -
+    id: "AC-1"
+    text: "Catalog search copy matches actual backend search behavior."
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-2"
+    text: "Product cards derive stock labels from variant availability rather than product presence alone."
+    verify: "cd backend && . .venv/bin/activate && pytest tests/test_api_products.py -q"
+    status: "pending"
+  -
+    id: "AC-3"
+    text: "Catalog UI renders with truthful stock indicators without misleading inventory states."
+    verify: "cd frontend && npm run build"
+    status: "pending"
+verification_required:
+  - "cd backend && . .venv/bin/activate && pytest tests/test_api_products.py -q"
+  - "cd backend && . .venv/bin/activate && ruff check src tests"
+  - "cd frontend && npm run build"
+context_refs:
+  - ".plans/SC-45-execution-plan.md"
+  - ".plans/next-steps-march15.md"
+slices:
+  -
+    id: "S1"
+    title: "Make stock semantics truthful in product summaries"
+    status: "pending"
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/api/products.py"
+      - "backend/src/szimplacoffee/schemas/products.py"
+      - "backend/tests/test_api_products.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && . .venv/bin/activate && pytest tests/test_api_products.py -q"
+    evidence: []
+    notes: "Prefer variant-derived availability flags in API summaries."
+  -
+    id: "S2"
+    title: "Align catalog UI messaging with backend truth"
+    status: "pending"
+    depends_on:
+      - "S1"
+    files_create: []
+    files_modify:
+      - "frontend/src/routes/products.lazy.tsx"
+      - "frontend/src/hooks/use-products.ts"
+    files_read_only:
+      - "frontend/src/routes/products.$productId.lazy.tsx"
+    checks:
+      - "cd frontend && npm run build"
+    evidence: []
+    notes: "Do not advertise unsupported search fields."
+delivery:
+  branch: "feat/SC-45-catalog-search-stock-truth"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+notes:
+  - "Generated from .plans/next-steps-march15.md in strict-schema migration batch."

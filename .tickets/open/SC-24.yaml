@@ -1,16 +1,18 @@
-id: SC-24
-title: "Add merchant page — URL input, platform auto-detection, crawl trigger"
-type: feature
-priority: p2
-status: open
-owner: h6nk-bot
+id: "SC-24"
+title: "Add merchant page \u2014 URL input, platform auto-detection, crawl trigger"
+type: "feature"
+priority: "p2"
+status: "ready"
+owner: "h6nk-bot"
 created_at: "2026-03-14T00:00:00Z"
-updated_at: "2026-03-14T00:00:00Z"
-labels: [phase-2, frontend, merchants, onboarding]
-
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "phase-2"
+  - "frontend"
+  - "merchants"
+  - "onboarding"
 problem: "No UI to add new merchants. Users must use CLI or direct DB manipulation."
 desired_outcome: "/merchants/new shows a form where users enter a store URL. Platform auto-detection happens client-side. On submit, merchant is created and crawl triggered. User redirected to merchant detail."
-
 scope_in:
   - "URL input field with validation"
   - "Platform auto-detection heuristic (shopify.com domains, /shop/ URL patterns)"
@@ -21,40 +23,43 @@ scope_in:
 scope_out:
   - "WooCommerce or agentic-specific configuration (just platform_type selection)"
   - "Bulk import"
-
 dependencies:
-  blockers: [SC-12, SC-17, SC-22]
+  blockers:
+    - "SC-12"
+    - "SC-17"
+    - "SC-22"
   unblocks: []
-
 acceptance_criteria:
-  - id: AC-1
+  -
+    id: "AC-1"
     text: "Form renders at /merchants/new"
-    verify: "manual: navigate to /merchants/new, form visible"
-    status: pending
-  - id: AC-2
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-2"
     text: "Entering a URL auto-fills canonical_domain and detects platform"
-    verify: "manual: type 'https://somestore.myshopify.com', platform shows 'Shopify'"
-    status: pending
-  - id: AC-3
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-3"
     text: "Submit creates merchant and triggers crawl, redirects to detail"
-    verify: "manual: submit form, verify redirect to /merchants/:id"
-    status: pending
-  - id: AC-4
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-4"
     text: "TypeScript compilation passes"
-    verify: "cd frontend && npx tsc --noEmit"
-    status: pending
-
+    verify: "cd frontend && npm run build"
+    status: "pending"
 verification_required:
-  - "cd frontend && npx tsc --noEmit"
   - "cd frontend && npm run build"
-
+  - "cd frontend && npm run build"
 context_refs:
   - "/home/h6nk/SzimplaCoffee/.plans/SC-24-execution-plan.md"
-
 slices:
-  - id: S1
+  -
+    id: "S1"
     title: "Add merchant form + useCreateMerchant hook"
-    status: pending
+    status: "pending"
     depends_on: []
     files_create:
       - "frontend/src/routes/merchants.new.tsx"
@@ -69,7 +74,7 @@ slices:
       - "cd frontend && npx tsc --noEmit"
     evidence: []
     notes: "platform-detect.ts: pure function, testable, no API call needed"
-
+    files_modify: []
 delivery:
   branch: "feat/SC-24-add-merchant"
   commits: []
@@ -80,7 +85,6 @@ delivery:
     required_passed: false
     commands_run: []
     evidence_refs: []
-
 notes:
   - "Platform detection heuristics: .myshopify.com = shopify, woocommerce plugin patterns = woocommerce"
   - "canonical_domain = hostname extracted from URL"

@@ -1,0 +1,100 @@
+id: "SC-52"
+title: "Build daily utility views for Today, Explorer, Watch, and Review Queue"
+type: "feature"
+priority: "p1"
+status: "draft"
+owner: "h6nk-bot"
+created_at: "2026-03-15T07:00:00Z"
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "feature"
+  - "e2e"
+  - "frontend"
+  - "dashboard"
+  - "workflow"
+problem: "Even as the backend improves, the app still lacks the daily utility views needed to answer what should I buy today quickly and with confidence."
+desired_outcome: "The app exposes a Today dashboard, richer explorer controls, merchant watch surfaces, and a review queue so a user can make a buying decision in under a minute."
+scope_in:
+  - "A Today dashboard answers daily buying questions using backend-truthful deal and freshness data."
+  - "Explorer, Watch, and Review surfaces render the new backend state without regressing the current catalog experience."
+  - "The main daily decision flow can be exercised from the app surface without ad hoc DB inspection."
+scope_out:
+  - "Follow-on implementation details outside this ticket's described slices."
+dependencies:
+  blockers:
+    - "SC-45"
+    - "SC-48"
+    - "SC-49"
+    - "SC-50"
+    - "SC-51"
+  unblocks:
+    - "SC-53"
+acceptance_criteria:
+  -
+    id: "AC-1"
+    text: "A Today dashboard answers daily buying questions using backend-truthful deal and freshness data."
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-2"
+    text: "Explorer, Watch, and Review surfaces render the new backend state without regressing the current catalog experience."
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-3"
+    text: "The main daily decision flow can be exercised from the app surface without ad hoc DB inspection."
+    verify: "bash -lc \"cd backend && . .venv/bin/activate && pytest -q && cd ../frontend && npm run build\""
+    status: "pending"
+verification_required:
+  - "cd backend && . .venv/bin/activate && pytest -q"
+  - "cd frontend && npm run build"
+  - "bash -lc \"cd backend && . .venv/bin/activate && pytest -q && cd ../frontend && npm run build\""
+context_refs:
+  - ".plans/SC-52-execution-plan.md"
+  - ".plans/next-steps-march15.md"
+slices:
+  -
+    id: "S1"
+    title: "Build Today dashboard and utility endpoints"
+    status: "pending"
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/api/recommendations.py"
+      - "frontend/src/routes/"
+      - "frontend/src/hooks/"
+    files_read_only:
+      - "backend/src/szimplacoffee/services/recommendations.py"
+    checks:
+      - "cd frontend && npm run build"
+    evidence: []
+    notes: "Optimize for what should I buy today first."
+  -
+    id: "S2"
+    title: "Add watch and review surfaces for crawl and metadata trust"
+    status: "pending"
+    depends_on:
+      - "S1"
+    files_create: []
+    files_modify:
+      - "frontend/src/routes/"
+      - "frontend/src/components/"
+      - "backend/src/szimplacoffee/api/merchants.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/services/crawlers.py"
+    checks:
+      - "cd frontend && npm run build"
+    evidence: []
+    notes: "Keep the review queue actionable rather than purely informational."
+delivery:
+  branch: "feat/SC-52-daily-utility-views"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+notes:
+  - "Generated from .plans/next-steps-march15.md in strict-schema migration batch."
