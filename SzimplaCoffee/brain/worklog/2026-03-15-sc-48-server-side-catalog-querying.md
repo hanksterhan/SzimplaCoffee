@@ -15,3 +15,4 @@ Verification completed:
 - `cd backend && ../.venv/bin/ruff check src tests`
 - `cd frontend && npm run build`
 - `cd backend && ../.venv/bin/pytest -q`
+- draft PR opened at `https://github.com/hanksterhan/SzimplaCoffee/pull/5`
