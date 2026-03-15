@@ -36,6 +36,8 @@ class Merchant(Base):
     current_promos: Mapped[list["MerchantPromo"]] = relationship(back_populates="merchant", cascade="all, delete-orphan")
     purchases: Mapped[list["PurchaseHistory"]] = relationship(back_populates="merchant", cascade="all, delete-orphan")
     crawl_runs: Mapped[list["CrawlRun"]] = relationship(back_populates="merchant", cascade="all, delete-orphan")
+    field_patterns: Mapped[list["MerchantFieldPattern"]] = relationship(back_populates="merchant", cascade="all, delete-orphan")
+    metadata_overrides: Mapped[list["ProductMetadataOverride"]] = relationship(back_populates="merchant", cascade="all, delete-orphan")
 
 
 class MerchantCandidate(Base):
@@ -141,6 +143,51 @@ class Product(Base):
 
     merchant: Mapped[Merchant] = relationship(back_populates="products")
     variants: Mapped[list["ProductVariant"]] = relationship(back_populates="product", cascade="all, delete-orphan")
+
+
+class MerchantFieldPattern(Base):
+    __tablename__ = "merchant_field_patterns"
+    __table_args__ = (UniqueConstraint("merchant_id", "field_name", "pattern"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    merchant_id: Mapped[int] = mapped_column(ForeignKey("merchants.id"), index=True)
+    field_name: Mapped[str] = mapped_column(String(64), index=True)
+    pattern: Mapped[str] = mapped_column(Text)
+    normalized_value: Mapped[str] = mapped_column(String(255))
+    confidence: Mapped[float] = mapped_column(Float, default=0.95)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    merchant: Mapped[Merchant] = relationship(back_populates="field_patterns")
+
+
+class ProductMetadataOverride(Base):
+    __tablename__ = "product_metadata_overrides"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    merchant_id: Mapped[int] = mapped_column(ForeignKey("merchants.id"), index=True)
+    external_product_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, index=True)
+    product_name: Mapped[str] = mapped_column(String(255), default="", index=True)
+    origin_text: Mapped[str] = mapped_column(Text, default="")
+    origin_country: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    origin_region: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    process_text: Mapped[str] = mapped_column(Text, default="")
+    process_family: Mapped[str] = mapped_column(String(32), default="unknown")
+    variety_text: Mapped[str] = mapped_column(Text, default="")
+    roast_cues: Mapped[str] = mapped_column(Text, default="")
+    roast_level: Mapped[str] = mapped_column(String(32), default="unknown")
+    tasting_notes_text: Mapped[str] = mapped_column(Text, default="")
+    is_single_origin: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    is_espresso_recommended: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    metadata_confidence: Mapped[float] = mapped_column(Float, default=1.0)
+    metadata_source: Mapped[str] = mapped_column(String(32), default="override")
+    note: Mapped[str] = mapped_column(Text, default="")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    merchant: Mapped[Merchant] = relationship(back_populates="metadata_overrides")
 
 
 class ProductVariant(Base):

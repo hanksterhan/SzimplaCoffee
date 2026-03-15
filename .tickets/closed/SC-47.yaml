@@ -2,10 +2,10 @@ id: "SC-47"
 title: "Upgrade metadata extraction with normalized parsers, confidence, and overrides"
 type: "feature"
 priority: "p1"
-status: "draft"
+status: "done"
 owner: "h6nk-bot"
 created_at: "2026-03-15T07:00:00Z"
-updated_at: "2026-03-15T07:00:00Z"
+updated_at: "2026-03-15T20:12:42Z"
 labels:
   - "feature"
   - "integration"
@@ -32,17 +32,17 @@ acceptance_criteria:
     id: "AC-1"
     text: "Crawler and metadata pipeline populate normalized metadata fields with explicit provenance and confidence."
     verify: "cd backend && . .venv/bin/activate && pytest tests/test_coffee_parser.py -q"
-    status: "pending"
+    status: "passed"
   -
     id: "AC-2"
     text: "Override mechanisms exist for merchant-specific patterns or product-level corrections."
     verify: "cd backend && . .venv/bin/activate && pytest tests/test_coffee_parser.py -q"
-    status: "pending"
+    status: "passed"
   -
     id: "AC-3"
     text: "Conflicting coffee classifier logic is resolved so valid coffees are not filtered out by early negative checks."
     verify: "cd backend && . .venv/bin/activate && pytest tests/test_coffee_parser.py -q"
-    status: "pending"
+    status: "passed"
 verification_required:
   - "cd backend && . .venv/bin/activate && pytest tests/test_coffee_parser.py -q"
   - "cd backend && . .venv/bin/activate && pytest -q"
@@ -54,11 +54,11 @@ slices:
   -
     id: "S1"
     title: "Normalize extraction dictionaries and confidence scoring"
-    status: "pending"
+    status: "complete"
     depends_on: []
     files_create: []
     files_modify:
-      - "backend/src/szimplacoffee/coffee_parser.py"
+      - "backend/src/szimplacoffee/services/coffee_parser.py"
       - "backend/src/szimplacoffee/services/crawlers.py"
       - "backend/tests/test_coffee_parser.py"
     files_read_only:
@@ -70,14 +70,13 @@ slices:
   -
     id: "S2"
     title: "Add override and provenance plumbing"
-    status: "pending"
+    status: "complete"
     depends_on:
       - "S1"
     files_create: []
     files_modify:
       - "backend/src/szimplacoffee/models.py"
       - "backend/src/szimplacoffee/services/crawlers.py"
-      - "backend/src/szimplacoffee/bootstrap.py"
     files_read_only:
       - "backend/src/szimplacoffee/schemas/products.py"
     checks:
@@ -85,14 +84,27 @@ slices:
     evidence: []
     notes: "Prefer explicit provenance over silent overwrite behavior."
 delivery:
-  branch: "feat/SC-47-metadata-extraction-upgrade"
-  commits: []
-  pr_url: ""
-  started_at: ""
-  completed_at: ""
+  branch: "codex/sc-47-metadata-extraction-upgrade"
+  commits:
+    - "7a233ed2fbdba13c773b8fcb177f36d8e6bf0b06"
+  pr_url: "https://github.com/hanksterhan/SzimplaCoffee/pull/4"
+  started_at: "2026-03-15T20:05:34Z"
+  completed_at: "2026-03-15T20:14:10Z"
   verification:
-    required_passed: false
-    commands_run: []
-    evidence_refs: []
+    required_passed: true
+    commands_run:
+      - "cd backend && ../.venv/bin/pytest tests/test_coffee_parser.py -q"
+      - "cd backend && ../.venv/bin/ruff check src/szimplacoffee/services/coffee_parser.py src/szimplacoffee/services/crawlers.py src/szimplacoffee/models.py tests/test_coffee_parser.py"
+      - "cd backend && ../.venv/bin/pytest -q"
+      - "cd backend && ../.venv/bin/ruff check src tests"
+      - "rg -n 'override|metadata_source|metadata_confidence|merchant_field_patterns|product_metadata_overrides' backend/src backend/tests -S"
+    evidence_refs:
+      - "pytest tests/test_coffee_parser.py: 22 passed in 0.31s"
+      - "ruff changed files: All checks passed!"
+      - "pytest full backend: 44 passed in 0.52s"
+      - "ruff full backend: All checks passed!"
+      - "override grep confirms model, crawler, and tests contain override/provenance plumbing"
 notes:
   - "Generated from .plans/next-steps-march15.md in strict-schema migration batch."
+  - "The repo does not currently have a local or remote stage branch, so delivery used main as the base branch and PR target."
+  - "Backend verification currently uses the repo-root .venv for pytest and ruff."

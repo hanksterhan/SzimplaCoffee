@@ -19,10 +19,15 @@ from bs4 import BeautifulSoup
 @dataclass
 class ParsedCoffeeMetadata:
     origin_text: str | None
+    origin_country: str | None
+    origin_region: str | None
     process_text: str | None
+    process_family: str
     variety_text: str | None
     roast_cues: str | None
+    roast_level: str
     tasting_notes_text: str | None
+    metadata_source: str
     is_single_origin: bool
     is_espresso_recommended: bool
     confidence: float
@@ -137,6 +142,25 @@ def _extract_origin(text: str) -> str | None:
     return None
 
 
+def _find_earliest_match(candidates: list[str], text: str) -> str | None:
+    matches: list[tuple[int, str]] = []
+    for candidate in candidates:
+        match = re.search(rf"\b{re.escape(candidate)}\b", text, re.IGNORECASE)
+        if match:
+            matches.append((match.start(), candidate))
+    if not matches:
+        return None
+    matches.sort(key=lambda item: item[0])
+    return matches[0][1]
+
+
+def _normalize_origin_parts(origin_text: str | None, text: str) -> tuple[str | None, str | None]:
+    source = origin_text or text
+    country = _find_earliest_match(_COUNTRIES, source)
+    region = _find_earliest_match(_REGIONS, source)
+    return country, region
+
+
 def _count_countries(text: str) -> int:
     return sum(
         1 for c in _COUNTRIES
@@ -149,6 +173,24 @@ def _extract_process(text: str) -> str | None:
         if re.search(pattern, text, re.IGNORECASE):
             return normalized
     return None
+
+
+def _normalize_process_family(process_text: str | None, text: str, is_blend: bool) -> str:
+    if is_blend:
+        return "blend"
+
+    haystack = " ".join(part for part in [process_text or "", text] if part).lower()
+    if any(term in haystack for term in ["carbonic maceration", "anaerobic"]):
+        return "anaerobic"
+    if "wet hulled" in haystack or "wet-hulled" in haystack:
+        return "wet-hulled"
+    if any(term in haystack for term in ["honey", "pulped natural"]):
+        return "honey"
+    if any(term in haystack for term in ["natural", "dry process"]):
+        return "natural"
+    if any(term in haystack for term in ["washed", "wet process", "semi-washed"]):
+        return "washed"
+    return "unknown"
 
 
 def _extract_variety(text: str) -> str | None:
@@ -184,6 +226,21 @@ def _extract_roast_cues(text: str) -> str | None:
             seen.add(key)
             deduped.append(c)
     return ", ".join(deduped)
+
+
+def _normalize_roast_level(roast_cues: str | None, text: str) -> str:
+    haystack = " ".join(part for part in [roast_cues or "", text] if part).lower()
+    if any(term in haystack for term in ["french roast", "italian roast", "dark roast", "dark-roast"]):
+        return "dark"
+    if any(term in haystack for term in ["espresso roast", "bold roast", "medium-dark"]):
+        return "medium-dark"
+    if any(term in haystack for term in ["omni roast", "all-purpose", "all purpose", "light to medium", "light-medium"]):
+        return "light-medium"
+    if any(term in haystack for term in ["medium roast", "balanced roast"]):
+        return "medium"
+    if any(term in haystack for term in ["light roast", "filter roast", "nordic roast", "nordic"]):
+        return "light"
+    return "unknown"
 
 
 def _normalize_note(note: str) -> str:
@@ -321,12 +378,16 @@ def parse_coffee_metadata(name: str, description: str) -> ParsedCoffeeMetadata:
     n_countries = _count_countries(full_text)
     # "Not a blend" / "not a blend" → negative assertion, don't penalise
     _blend_negated = re.search(r"\bnot\s+a\s+blend\b", full_text, re.IGNORECASE)
+    is_blend = bool(_BLEND_RE.search(full_text) and not _blend_negated)
     is_single_origin = (
         n_countries == 1
-        and (not _BLEND_RE.search(full_text) or bool(_blend_negated))
+        and not is_blend
     )
 
     espresso_rec = _is_espresso_recommended(roast_cues, process, full_text)
+    origin_country, origin_region = _normalize_origin_parts(origin, full_text)
+    process_family = _normalize_process_family(process, full_text, is_blend)
+    roast_level = _normalize_roast_level(roast_cues, full_text)
 
     # -- Confidence --
     filled_count = sum(1 for v in [origin, process, variety, roast_cues, tasting_notes] if v)
@@ -334,10 +395,15 @@ def parse_coffee_metadata(name: str, description: str) -> ParsedCoffeeMetadata:
 
     return ParsedCoffeeMetadata(
         origin_text=origin,
+        origin_country=origin_country,
+        origin_region=origin_region,
         process_text=process,
+        process_family=process_family,
         variety_text=variety,
         roast_cues=roast_cues,
+        roast_level=roast_level,
         tasting_notes_text=tasting_notes,
+        metadata_source="parser",
         is_single_origin=is_single_origin,
         is_espresso_recommended=espresso_rec,
         confidence=confidence,
