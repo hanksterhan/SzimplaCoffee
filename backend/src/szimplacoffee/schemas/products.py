@@ -46,6 +46,7 @@ class ProductSummary(BaseModel):
     origin_text: str   # mostly empty currently
     process_text: str  # mostly empty currently
     tasting_notes_text: str  # mostly empty currently
+    product_category: str
     is_single_origin: bool
     is_espresso_recommended: bool
     is_active: bool

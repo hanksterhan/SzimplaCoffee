@@ -126,6 +126,7 @@ class Product(Base):
     variety_text: Mapped[str] = mapped_column(Text, default="")
     roast_cues: Mapped[str] = mapped_column(Text, default="")
     tasting_notes_text: Mapped[str] = mapped_column(Text, default="")
+    product_category: Mapped[str] = mapped_column(String(32), default="coffee", index=True)
     is_single_origin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_espresso_recommended: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

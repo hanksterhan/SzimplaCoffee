@@ -995,6 +995,8 @@ export interface components {
             process_text: string;
             /** Tasting Notes Text */
             tasting_notes_text: string;
+            /** Product Category */
+            product_category: string;
             /** Is Single Origin */
             is_single_origin: boolean;
             /** Is Espresso Recommended */
@@ -1039,6 +1041,8 @@ export interface components {
             process_text: string;
             /** Tasting Notes Text */
             tasting_notes_text: string;
+            /** Product Category */
+            product_category: string;
             /** Is Single Origin */
             is_single_origin: boolean;
             /** Is Espresso Recommended */
@@ -1600,6 +1604,8 @@ export interface operations {
             query?: {
                 is_active?: boolean | null;
                 is_espresso_recommended?: boolean | null;
+                /** @description Filter by product category. Use 'all' for no filter. */
+                category?: string | null;
                 page?: number;
                 page_size?: number;
             };
@@ -1638,6 +1644,8 @@ export interface operations {
                 q?: string | null;
                 is_espresso_recommended?: boolean | null;
                 is_active?: boolean | null;
+                /** @description Filter by product category. Use 'all' to search everything. */
+                category?: string | null;
                 page?: number;
                 page_size?: number;
             };

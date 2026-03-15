@@ -108,8 +108,20 @@ function ExpandedProductRow({ productId }: ExpandedProductRowProps) {
   );
 }
 
+const CATEGORY_OPTIONS = [
+  { value: "coffee", label: "☕ Coffee Beans" },
+  { value: "cold_brew", label: "🧊 Cold Brew" },
+  { value: "instant", label: "⚡ Instant" },
+  { value: "gift", label: "🎁 Gift / Subscription" },
+  { value: "merch", label: "👕 Merch" },
+  { value: "equipment", label: "⚙️ Equipment" },
+  { value: "tea", label: "🍵 Tea" },
+  { value: "all", label: "🌐 All" },
+];
+
 export function ProductsTab({ merchantId }: ProductsTabProps) {
-  const { data, isLoading } = useMerchantProducts(merchantId, 100);
+  const [category, setCategory] = useState("coffee");
+  const { data, isLoading } = useMerchantProducts(merchantId, 100, category);
   const [expandedProductId, setExpandedProductId] = useState<number | null>(null);
 
   if (isLoading) {
@@ -136,10 +148,23 @@ export function ProductsTab({ merchantId }: ProductsTabProps) {
 
   return (
     <div className="mt-4 space-y-2">
-      <p className="text-sm text-muted-foreground">
-        {data.total} products ({data.items.filter((p) => p.is_active).length} active) —{" "}
-        <span className="text-xs">click a row to see price history</span>
-      </p>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <p className="text-sm text-muted-foreground">
+          {data.total} products ({data.items.filter((p) => p.is_active).length} active) —{" "}
+          <span className="text-xs">click a row to see price history</span>
+        </p>
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        >
+          {CATEGORY_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
       <Table>
         <TableHeader>
           <TableRow>

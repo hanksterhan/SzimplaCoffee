@@ -18,6 +18,7 @@ def list_products_for_merchant(
     db: Session = Depends(get_session),
     is_active: bool | None = Query(None),
     is_espresso_recommended: bool | None = Query(None),
+    category: str | None = Query("coffee", description="Filter by product category. Use 'all' for no filter."),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
 ) -> PaginatedResponse[ProductSummary]:
@@ -26,6 +27,8 @@ def list_products_for_merchant(
         q = q.where(Product.is_active == is_active)
     if is_espresso_recommended is not None:
         q = q.where(Product.is_espresso_recommended == is_espresso_recommended)
+    if category and category != "all":
+        q = q.where(Product.product_category == category)
     total = len(db.scalars(q).all())
     items = db.scalars(q.offset((page - 1) * page_size).limit(page_size)).all()
     return PaginatedResponse(
@@ -43,6 +46,7 @@ def search_products(
     q: str | None = Query(None, description="Search term for product name"),
     is_espresso_recommended: bool | None = Query(None),
     is_active: bool | None = Query(None),
+    category: str | None = Query("coffee", description="Filter by product category. Use 'all' to search everything."),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
 ) -> PaginatedResponse[ProductSummary]:
@@ -55,6 +59,8 @@ def search_products(
         stmt = stmt.where(Product.name.ilike(f"%{q}%"))
     if is_espresso_recommended is not None:
         stmt = stmt.where(Product.is_espresso_recommended == is_espresso_recommended)
+    if category and category != "all":
+        stmt = stmt.where(Product.product_category == category)
     total = len(db.scalars(stmt).all())
     items = db.scalars(stmt.offset((page - 1) * page_size).limit(page_size)).all()
     return PaginatedResponse(

@@ -7,9 +7,9 @@ export type ProductDetail = components["schemas"]["ProductDetail"];
 export type ProductVariantSchema = components["schemas"]["ProductVariantSchema"];
 export type OfferSnapshotSchema = components["schemas"]["OfferSnapshotSchema"];
 
-export function useProductSearch(q: string, page = 1, pageSize = 24) {
+export function useProductSearch(q: string, page = 1, pageSize = 24, category = "coffee") {
   return useQuery({
-    queryKey: ["products", "search", q, page, pageSize],
+    queryKey: ["products", "search", q, page, pageSize, category],
     queryFn: async () => {
       const { data, error } = await api.GET("/api/v1/products/search", {
         params: {
@@ -17,6 +17,7 @@ export function useProductSearch(q: string, page = 1, pageSize = 24) {
             q: q || undefined,
             page,
             page_size: pageSize,
+            category: category || undefined,
           },
         },
       });

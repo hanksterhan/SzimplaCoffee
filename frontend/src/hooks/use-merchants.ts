@@ -46,16 +46,16 @@ export function useMerchant(id: number) {
   });
 }
 
-export function useMerchantProducts(merchantId: number, pageSize = 50) {
+export function useMerchantProducts(merchantId: number, pageSize = 50, category = "coffee") {
   return useQuery({
-    queryKey: ["merchants", merchantId, "products"],
+    queryKey: ["merchants", merchantId, "products", category],
     queryFn: async () => {
       const { data, error } = await api.GET(
         "/api/v1/merchants/{merchant_id}/products",
         {
           params: {
             path: { merchant_id: merchantId },
-            query: { page_size: pageSize },
+            query: { page_size: pageSize, category: category || undefined },
           },
         }
       );

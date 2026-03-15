@@ -126,18 +126,30 @@ function ProductCardSkeleton() {
   );
 }
 
+const CATEGORY_OPTIONS = [
+  { value: "coffee", label: "☕ Coffee Beans" },
+  { value: "cold_brew", label: "🧊 Cold Brew" },
+  { value: "instant", label: "⚡ Instant" },
+  { value: "gift", label: "🎁 Gift / Subscription" },
+  { value: "merch", label: "👕 Merch" },
+  { value: "equipment", label: "⚙️ Equipment" },
+  { value: "tea", label: "🍵 Tea" },
+  { value: "all", label: "🌐 All Categories" },
+];
+
 function ProductsPage() {
   const [inputValue, setInputValue] = useState("");
+  const [category, setCategory] = useState("coffee");
   const [page, setPage] = useState(1);
   const debouncedQ = useDebounce(inputValue, 350);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Reset to page 1 when search changes
+  // Reset to page 1 when search or category changes
   useEffect(() => {
     setPage(1);
-  }, [debouncedQ]);
+  }, [debouncedQ, category]);
 
-  const { data, isLoading, isFetching } = useProductSearch(debouncedQ, page, 24);
+  const { data, isLoading, isFetching } = useProductSearch(debouncedQ, page, 24, category);
 
   const products = data?.items ?? [];
   const total = data?.total ?? 0;
@@ -153,9 +165,9 @@ function ProductsPage() {
         </p>
       </div>
 
-      {/* Search bar */}
-      <div className="flex gap-2 max-w-xl">
-        <div className="relative flex-1">
+      {/* Search + Filter bar */}
+      <div className="flex flex-wrap gap-2 max-w-2xl">
+        <div className="relative flex-1 min-w-48">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
             🔍
           </span>
@@ -167,6 +179,17 @@ function ProductsPage() {
             className="pl-8"
           />
         </div>
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        >
+          {CATEGORY_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
         {inputValue && (
           <Button
             variant="outline"
@@ -189,9 +212,14 @@ function ProductsPage() {
             <>
               {total} result{total !== 1 ? "s" : ""} for{" "}
               <span className="font-medium text-foreground">"{debouncedQ}"</span>
+              {category !== "all" && (
+                <span className="text-muted-foreground/70"> in {CATEGORY_OPTIONS.find(o => o.value === category)?.label ?? category}</span>
+              )}
             </>
           ) : (
-            `${total} products total`
+            <>
+              {total} {category !== "all" ? (CATEGORY_OPTIONS.find(o => o.value === category)?.label ?? category) + " " : ""}products
+            </>
           )}
           {isFetching && !isLoading && (
             <span className="ml-2 text-muted-foreground/60">↻</span>
