@@ -55,6 +55,7 @@ class MerchantSummary(BaseModel):
     platform_type: str  # "shopify" | "woocommerce" | "agentic" | "unknown"
     country_code: str
     is_active: bool
+    is_watched: bool = False  # SC-52 watch list
     crawl_tier: str  # "A" | "B" | "C"
     trust_tier: str  # "trusted" | "verified" | "candidate" | "rejected"
     created_at: datetime

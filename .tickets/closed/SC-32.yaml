@@ -1,0 +1,102 @@
+id: "SC-32"
+title: "Merchant quality profile generator \u2014 auto-score all merchants"
+type: "feature"
+priority: "p1"
+status: "done"
+owner: "h6nk-bot"
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "sprint-2a"
+  - "data-quality"
+  - "merchant-scoring"
+  - "recommendation-engine"
+problem: "Only 4 of 16 merchants have quality profiles. The other 12 default to 0.5 across all scores, making _merchant_quality_score() unable to differentiate trusted roasters from unknowns. The north star says: 'rank trusted merchants and proven roasters higher.'"
+desired_outcome: "All merchants have quality profiles generated from observable data (product metadata density, description quality, shipping info, freshness signals, espresso focus). Profiles update automatically after each crawl run."
+scope_in:
+  - "New service: backend/src/szimplacoffee/services/quality_scorer.py"
+  - "Score freshness_transparency: based on roast-date mentions, 'roasted to order' signals in product descriptions"
+  - "Score shipping_clarity: based on shipping policy data, free shipping threshold presence"
+  - "Score metadata_quality: based on % of products with origin, process, tasting notes filled"
+  - "Score espresso_relevance: based on % of products marked espresso-suitable or having espresso-related terms"
+  - "Score service_confidence: based on crawl success rate, product count, data consistency"
+  - "Compute overall_quality_score as weighted combination"
+  - "CLI command: szimplacoffee score-merchants"
+  - "Auto-run after crawl completes (hook into crawl pipeline)"
+  - "API endpoint: POST /api/v1/merchants/{id}/rescore"
+scope_out:
+  - "Personal profile scoring (requires purchase history, kept manual)"
+  - "External review data (no third-party APIs)"
+  - "Manual override UI (use existing merchant edit for now)"
+dependencies:
+  blockers: []
+  unblocks: []
+acceptance_criteria:
+  -
+    id: "AC-1"
+    text: "All 16 merchants have quality profiles after running scorer"
+    verify: "python -m szimplacoffee.cli score-merchants && SQL: SELECT COUNT(*) FROM merchant_quality_profiles"
+    status: "pending"
+  -
+    id: "AC-2"
+    text: "Merchants with rich metadata score higher than those with sparse metadata"
+    verify: "python -m szimplacoffee.cli score-merchants"
+    status: "pending"
+  -
+    id: "AC-3"
+    text: "Scores update automatically after a crawl run"
+    verify: "python -m szimplacoffee.cli score-merchants"
+    status: "pending"
+verification_required:
+  - "python -m szimplacoffee.cli score-merchants"
+  - "python -m szimplacoffee.cli score-merchants"
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-32-execution-plan.md"
+slices:
+  -
+    id: "S1"
+    title: "Quality scorer service with observable data signals"
+    status: "pending"
+    depends_on: []
+    files_create:
+      - "backend/src/szimplacoffee/services/quality_scorer.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/services/recommendations.py"
+    checks:
+      - "cd backend && python -c 'from szimplacoffee.services.quality_scorer import score_merchant; print(\"OK\")'"
+    evidence: []
+    notes:
+  - "quality_scorer.py service + API /refresh-quality endpoint + CLI score-merchants subcommand + auto quality scoring after each crawl_merchant(). Delivered across commits 96f24ca (service/API) and c8cf74e (CLI + auto-hook)." "Signals: product count, % with metadata, shipping policy presence, freshness keywords, espresso keywords"
+    files_modify: []
+  -
+    id: "S2"
+    title: "CLI command + API endpoint + post-crawl hook"
+    status: "pending"
+    depends_on:
+      - "S1"
+    files_modify:
+      - "backend/src/szimplacoffee/cli.py"
+      - "backend/src/szimplacoffee/api/merchants.py"
+      - "backend/src/szimplacoffee/services/crawlers.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/services/quality_scorer.py"
+    checks:
+      - "cd backend && python -c 'from szimplacoffee.cli import app; print(\"OK\")'"
+    evidence: []
+    notes: ""
+    files_create: []
+delivery:
+  branch: "feat/SC-32-quality-scorer"
+  commits: []
+  pr_url: "https://github.com/hanksterhan/SzimplaCoffee/pull/8"
+  started_at: ""
+  completed_at: "2026-03-15T00:00:00Z"
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+notes:
+  - "Run this AFTER SC-31 backfill for best results \u2014 metadata density drives several scores"
+  - "Keep weights tunable. Start with equal weights, adjust after seeing initial scores."
+  - "Consider a 'data_completeness_score' as a meta-signal"

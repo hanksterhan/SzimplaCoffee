@@ -190,6 +190,115 @@ def refresh_quality(
     }
 
 
+@router.get("/{merchant_id}/crawl-quality", response_model=dict)
+def get_crawl_quality(
+    merchant_id: int,
+    db: Session = Depends(get_session),
+) -> dict:
+    """Return crawl-quality metrics for the most recent completed crawl run (SC-51)."""
+    merchant = db.get(Merchant, merchant_id)
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+    run = db.scalar(
+        select(CrawlRun)
+        .where(CrawlRun.merchant_id == merchant_id, CrawlRun.status == "completed")
+        .order_by(CrawlRun.started_at.desc())
+        .limit(1)
+    )
+    if not run:
+        return {
+            "merchant_id": merchant_id,
+            "has_completed_crawl": False,
+            "crawl_quality_score": 0.0,
+            "catalog_strategy": "none",
+            "promo_strategy": "none",
+            "shipping_strategy": "none",
+            "metadata_strategy": "none",
+            "adapter_name": None,
+            "records_written": 0,
+            "confidence": 0.0,
+            "finished_at": None,
+        }
+    return {
+        "merchant_id": merchant_id,
+        "has_completed_crawl": True,
+        "crawl_quality_score": run.crawl_quality_score,
+        "catalog_strategy": run.catalog_strategy,
+        "promo_strategy": run.promo_strategy,
+        "shipping_strategy": run.shipping_strategy,
+        "metadata_strategy": run.metadata_strategy,
+        "adapter_name": run.adapter_name,
+        "records_written": run.records_written,
+        "confidence": run.confidence,
+        "finished_at": run.finished_at.isoformat() if run.finished_at else None,
+    }
+
+
+@router.get("/low-confidence", response_model=list[MerchantSummary])
+def list_low_confidence_merchants(
+    db: Session = Depends(get_session),
+    max_quality_score: float = Query(0.5, ge=0.0, le=1.0),
+    page_size: int = Query(50, ge=1, le=200),
+) -> list[MerchantSummary]:
+    """List merchants with low crawl quality — for the review queue (SC-51/SC-52)."""
+    # Find merchant IDs with recent completed runs having low quality scores
+    subq = (
+        select(CrawlRun.merchant_id)
+        .where(CrawlRun.status == "completed", CrawlRun.crawl_quality_score <= max_quality_score)
+        .distinct()
+    )
+    low_confidence_ids = db.scalars(subq).all()
+    if not low_confidence_ids:
+        return []
+    merchants = db.scalars(
+        select(Merchant)
+        .where(Merchant.id.in_(low_confidence_ids), Merchant.is_active.is_(True))
+        .limit(page_size)
+    ).all()
+    return [MerchantSummary.model_validate(m) for m in merchants]
+
+
+@router.get("/watchlist", response_model=list[MerchantSummary])
+def list_watchlist(
+    db: Session = Depends(get_session),
+) -> list[MerchantSummary]:
+    """SC-52: Return merchants on the watch list."""
+    merchants = db.scalars(
+        select(Merchant)
+        .where(Merchant.is_watched.is_(True), Merchant.is_active.is_(True))
+        .order_by(Merchant.name)
+    ).all()
+    return [MerchantSummary.model_validate(m) for m in merchants]
+
+
+@router.post("/{merchant_id}/watch", response_model=dict)
+def add_to_watchlist(
+    merchant_id: int,
+    db: Session = Depends(get_session),
+) -> dict:
+    """SC-52: Add a merchant to the watch list."""
+    merchant = db.get(Merchant, merchant_id)
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+    merchant.is_watched = True
+    db.commit()
+    return {"merchant_id": merchant_id, "is_watched": True}
+
+
+@router.delete("/{merchant_id}/watch", response_model=dict)
+def remove_from_watchlist(
+    merchant_id: int,
+    db: Session = Depends(get_session),
+) -> dict:
+    """SC-52: Remove a merchant from the watch list."""
+    merchant = db.get(Merchant, merchant_id)
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+    merchant.is_watched = False
+    db.commit()
+    return {"merchant_id": merchant_id, "is_watched": False}
+
+
 @router.get("/{merchant_id}/promos", response_model=list[MerchantPromoSchema])
 def list_merchant_promos(
     merchant_id: int,

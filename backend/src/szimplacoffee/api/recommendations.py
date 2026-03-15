@@ -114,6 +114,41 @@ def list_recommendations(
     return [RecommendationRunSchema.model_validate(r) for r in runs]
 
 
+@router.get("/today", response_model=dict)
+def today_buying_brief(
+    db: Session = Depends(get_session),
+    shot_style: str = Query("modern_58mm"),
+    quantity_mode: str = Query("12-18 oz"),
+    limit: int = Query(5, ge=1, le=20),
+) -> dict:
+    """SC-52: Return a Today buying brief — best current option + notable sales.
+
+    This is designed for the daily utility dashboard: single call answers
+    'what should I buy today?' without requiring a full recommendation run.
+    """
+    req = RecommendationRequest(
+        shot_style=shot_style,  # type: ignore[arg-type]
+        quantity_mode=quantity_mode,  # type: ignore[arg-type]
+        bulk_allowed=False,
+        allow_decaf=False,
+    )
+    candidates = build_recommendations(db, req)
+    sales = build_biggest_sales(db, limit=limit)
+
+    top = candidates[0] if candidates else None
+    alternatives = candidates[1:3]
+
+    return {
+        "has_recommendation": bool(top),
+        "top_pick": asdict(top) if top else None,
+        "alternatives": [asdict(a) for a in alternatives],
+        "notable_sales": [asdict(s) for s in sales[:limit]],
+        "shot_style": shot_style,
+        "quantity_mode": quantity_mode,
+        "wait_recommendation": not bool(candidates),
+    }
+
+
 @router.get("/biggest-sales", response_model=list[BiggestSaleCandidateOut])
 def biggest_sales_today(
     db: Session = Depends(get_session),

@@ -23,6 +23,7 @@ class Merchant(Base):
     platform_type: Mapped[str] = mapped_column(String(50), default="unknown", index=True)
     country_code: Mapped[str] = mapped_column(String(8), default="US")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_watched: Mapped[bool] = mapped_column(Boolean, default=False, index=True)  # SC-52 watch list
     crawl_tier: Mapped[str] = mapped_column(String(1), default="B", index=True)
     trust_tier: Mapped[str] = mapped_column(String(32), default="candidate", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -310,6 +311,14 @@ class CrawlRun(Base):
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
     records_written: Mapped[int] = mapped_column(Integer, default=0)
     error_summary: Mapped[str] = mapped_column(Text, default="")
+    # Crawl strategy layer tracking (SC-51)
+    # Strategy layers: "feed" | "structured" | "dom" | "agentic" | "none"
+    catalog_strategy: Mapped[str] = mapped_column(String(32), default="none")
+    promo_strategy: Mapped[str] = mapped_column(String(32), default="none")
+    shipping_strategy: Mapped[str] = mapped_column(String(32), default="none")
+    metadata_strategy: Mapped[str] = mapped_column(String(32), default="none")
+    # Derived quality score [0.0–1.0] for this run
+    crawl_quality_score: Mapped[float] = mapped_column(Float, default=0.0)
 
     merchant: Mapped[Merchant] = relationship(back_populates="crawl_runs")
 

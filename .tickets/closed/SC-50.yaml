@@ -1,0 +1,106 @@
+id: "SC-50"
+title: "Start recurring crawl scheduling and historical data collection"
+type: "feature"
+priority: "p1"
+status: "done"
+owner: "h6nk-bot"
+created_at: "2026-03-15T07:00:00Z"
+updated_at: "2026-03-15T16:10:00Z"
+labels:
+  - "feature"
+  - "workflow"
+  - "scheduler"
+  - "backend"
+  - "reliability"
+problem: "Automated refresh is not actually running, so the app cannot accumulate the offer history required for trustworthy daily-sales logic or broad merchant coverage."
+desired_outcome: "The app can run recurring crawl work on a predictable schedule, collect real offer history over time, and expose scheduler state clearly enough to trust the ingestion loop."
+scope_in:
+  - "Application startup can initialize and run recurring crawl scheduling instead of acting as a passive calculator only."
+  - "Scheduler-triggered crawl work records freshness-relevant state that supports historical offer collection."
+  - "Operational docs explain how recurring crawl work starts, runs, and is observed in local-first mode."
+scope_out:
+  - "Follow-on implementation details outside this ticket's described slices."
+dependencies:
+  blockers:
+    - "SC-44"
+  unblocks:
+    - "SC-49"
+    - "SC-51"
+    - "SC-52"
+    - "SC-53"
+acceptance_criteria:
+  -
+    id: "AC-1"
+    text: "Application startup can initialize and run recurring crawl scheduling instead of acting as a passive calculator only."
+    verify: "cd backend && . .venv/bin/activate && pytest -q"
+    status: "complete"
+  -
+    id: "AC-2"
+    text: "Scheduler-triggered crawl work records freshness-relevant state that supports historical offer collection."
+    verify: "cd backend && . .venv/bin/activate && pytest -q"
+    status: "complete"
+  -
+    id: "AC-3"
+    text: "Operational docs explain how recurring crawl work starts, runs, and is observed in local-first mode."
+    verify: "bash -lc \"test -f backend/src/szimplacoffee/scheduler.py && echo OK\""
+    status: "complete"
+verification_required:
+  - "cd backend && . .venv/bin/activate && pytest -q"
+  - "cd backend && . .venv/bin/activate && ruff check src tests"
+  - "bash -lc \"test -f backend/src/szimplacoffee/scheduler.py && echo OK\""
+context_refs:
+  - ".plans/SC-50-execution-plan.md"
+  - ".plans/next-steps-march15.md"
+slices:
+  -
+    id: "S1"
+    title: "Wire scheduler loop to real crawl execution"
+    status: "complete"
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/main.py"
+      - "backend/src/szimplacoffee/scheduler.py"
+      - "backend/src/szimplacoffee/crawl.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && . .venv/bin/activate && pytest -q"
+    evidence:
+      - "63 tests pass"
+      - "APScheduler wired to real crawl execution in main.py lifespan"
+      - "Tier A: 6h, Tier B: 24h, Tier C: 7d intervals"
+    notes: "Keep the runtime single-user and local-first."
+  -
+    id: "S2"
+    title: "Document scheduler operation and freshness expectations"
+    status: "complete"
+    depends_on:
+      - "S1"
+    files_create: []
+    files_modify:
+      - "README.md"
+      - "backend/README.md"
+    files_read_only:
+      - "backend/src/szimplacoffee/scheduler.py"
+    checks:
+      - "bash -lc \"test -f backend/README.md && echo OK\""
+    evidence:
+      - "README.md and backend/README.md updated with scheduler operation docs"
+    notes: "Clarify how much history is required before daily-sales claims become trustworthy."
+delivery:
+  branch: "feat/SC-50-recurring-crawl-scheduling"
+  commits: []
+  pr_url: ""
+  started_at: "2026-03-15T16:10:00Z"
+  completed_at: "2026-03-15T16:10:00Z"
+  verification:
+    required_passed: true
+    commands_run:
+      - "cd backend && . .venv/bin/activate && pytest -q  # 63 passed"
+      - "cd backend && . .venv/bin/activate && ruff check src tests  # All checks passed"
+      - "bash -lc \"test -f backend/src/szimplacoffee/scheduler.py && echo OK\"  # OK"
+    evidence_refs:
+      - ".memory/sprint-01/SC-50-recurring-crawl-scheduling.md"
+notes:
+  - "Generated from .plans/next-steps-march15.md in strict-schema migration batch."

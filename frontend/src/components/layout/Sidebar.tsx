@@ -4,10 +4,12 @@ import { X } from "lucide-react";
 
 const NAV_ITEMS: Array<{ to: string; label: string; icon: string }> = [
   { to: "/", label: "Dashboard", icon: "☕" },
+  { to: "/today", label: "Today", icon: "🗓️" },
   { to: "/merchants", label: "Merchants", icon: "🏪" },
   { to: "/products", label: "Products", icon: "📦" },
   { to: "/recommend", label: "Recommendations", icon: "🎯" },
   { to: "/discovery", label: "Discovery", icon: "🔍" },
+  { to: "/watch", label: "Watch & Review", icon: "👁️" },
   { to: "/purchases", label: "Purchases", icon: "🛒" },
 ];
 
