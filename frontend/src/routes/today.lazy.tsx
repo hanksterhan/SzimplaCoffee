@@ -171,10 +171,12 @@ function SaleCard({
 function TodayPage() {
   const [shotStyle, setShotStyle] = useState("modern_58mm");
   const [quantityMode, setQuantityMode] = useState("12-18 oz");
+  const [inventoryGrams, setInventoryGrams] = useState(0);
 
   const { data, isLoading, refetch, isFetching } = useTodayBrief({
     shot_style: shotStyle,
     quantity_mode: quantityMode,
+    current_inventory_grams: inventoryGrams,
   });
 
   return (
@@ -213,6 +215,22 @@ function TodayPage() {
               <SelectItem value="5lb">5 lb</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">
+            Coffee on hand (oz)
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={200}
+            step={2}
+            value={Math.round(inventoryGrams / 28.35)}
+            onChange={(e) => setInventoryGrams(Math.round(Number(e.target.value) * 28.35))}
+            className="w-24 h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            placeholder="0"
+          />
         </div>
 
         <div className="flex items-end">

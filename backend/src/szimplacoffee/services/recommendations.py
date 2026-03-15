@@ -35,6 +35,8 @@ class RecommendationRequest:
     quantity_mode: QuantityMode
     bulk_allowed: bool
     allow_decaf: bool = False
+    # SC-56: Optional personal inventory in grams (0 = unknown)
+    current_inventory_grams: int = 0
 
 
 @dataclass
@@ -168,12 +170,33 @@ def _quantity_target(quantity_mode: QuantityMode) -> tuple[int, int]:
     return mapping[quantity_mode]
 
 
-def _quantity_score(weight_grams: int | None, quantity_mode: QuantityMode, bulk_allowed: bool) -> float:
+def _quantity_score(
+    weight_grams: int | None,
+    quantity_mode: QuantityMode,
+    bulk_allowed: bool,
+    current_inventory_grams: int = 0,
+) -> float:
+    """SC-56: Factor in personal inventory when scoring bag size fit.
+
+    If the user already has >= 1lb on hand, down-score large bulk buys.
+    If the user has >= 2lb, down-score anything over 12oz.
+    """
     if quantity_mode == "any":
         return 0.8
     if weight_grams is None:
         return 0.4
     lower, upper = _quantity_target(quantity_mode)
+
+    # SC-56: Inventory penalty for over-stocking
+    if current_inventory_grams >= 900:  # >= 2lb on hand
+        # Strong penalty for large bags — buying more bulk when already stocked is wasteful
+        if weight_grams > 510:  # > 18oz
+            return 0.15
+    elif current_inventory_grams >= 450:  # >= 1lb on hand
+        # Modest penalty for very large bags
+        if weight_grams > 1100:  # > ~2.5lb
+            return 0.25
+
     if lower <= weight_grams <= upper:
         return 1.0
     if not bulk_allowed and weight_grams > upper:
@@ -623,7 +646,7 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
             if fact is None:
                 continue
 
-            quantity_score = _quantity_score(variant.weight_grams, request.quantity_mode, request.bulk_allowed)
+            quantity_score = _quantity_score(variant.weight_grams, request.quantity_mode, request.bulk_allowed, request.current_inventory_grams)
             espresso_score, espresso_reasons = _espresso_fit(product, request.shot_style)
             deal_score, landed, deal_reasons = _deal_score(
                 fact,
@@ -688,11 +711,20 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
     return selected
 
 
-def build_wait_assessment(candidates: list[RecommendationCandidate], no_candidates: bool = False) -> tuple[bool, str | None]:
-    """SC-54: Determine if the system should recommend waiting, and why.
+def build_wait_assessment(
+    candidates: list[RecommendationCandidate],
+    no_candidates: bool = False,
+    current_inventory_grams: int = 0,
+) -> tuple[bool, str | None]:
+    """SC-54/SC-56: Determine if the system should recommend waiting, and why.
 
     Returns (wait_recommendation, wait_rationale).
     """
+    # SC-56: Inventory-based wait signal
+    if current_inventory_grams >= 900:  # >= 2lb on hand
+        grams_lbs = current_inventory_grams / 453.6
+        return True, f"You have ~{grams_lbs:.1f}lb on hand — top up when you're below 1lb."
+
     if no_candidates:
         return True, "No coffee meets the current filters — try broadening your criteria or check back after the next crawl cycle."
     if not candidates:

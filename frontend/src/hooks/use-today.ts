@@ -50,18 +50,20 @@ export interface TodayBriefOptions {
   shot_style?: string;
   quantity_mode?: string;
   limit?: number;
+  current_inventory_grams?: number;
 }
 
 export function useTodayBrief(options: TodayBriefOptions = {}) {
-  const { shot_style = "modern_58mm", quantity_mode = "12-18 oz", limit = 5 } = options;
+  const { shot_style = "modern_58mm", quantity_mode = "12-18 oz", limit = 5, current_inventory_grams = 0 } = options;
 
   return useQuery({
-    queryKey: ["today", shot_style, quantity_mode, limit],
+    queryKey: ["today", shot_style, quantity_mode, limit, current_inventory_grams],
     queryFn: async () => {
       const params = new URLSearchParams({
         shot_style,
         quantity_mode,
         limit: String(limit),
+        current_inventory_grams: String(current_inventory_grams),
       });
       const response = await fetch(`/api/v1/recommendations/today?${params}`);
       if (!response.ok) throw new Error("Failed to fetch today brief");
