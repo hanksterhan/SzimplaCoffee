@@ -43,6 +43,8 @@ function useDebounce<T>(value: T, delay: number): T {
 
 type ProductCardSummary = ProductSummary & {
   latest_price_cents?: number | null;
+  latest_compare_at_price_cents?: number | null;
+  latest_discount_percent?: number | null;
   primary_weight_grams?: number | null;
   primary_is_whole_bean?: boolean;
 };
@@ -78,6 +80,18 @@ function formatPricePerOz(cents: number | null | undefined, grams: number | null
   return `$${((cents / 100) / ounces).toFixed(2)}/oz`;
 }
 
+function pricePerOzValue(cents: number | null | undefined, grams: number | null | undefined) {
+  if (!cents || !grams) return null;
+  const ounces = grams / 28.3495;
+  if (!ounces) return null;
+  return (cents / 100) / ounces;
+}
+
+function discountPercentValue(priceCents: number | null | undefined, compareAtCents: number | null | undefined) {
+  if (!priceCents || !compareAtCents || compareAtCents <= priceCents) return null;
+  return Math.round((1 - priceCents / compareAtCents) * 100);
+}
+
 function buildTags(product: Pick<ProductDetail, "product_category" | "origin_text" | "process_text" | "variety_text" | "roast_cues" | "tasting_notes_text" | "is_single_origin" | "is_espresso_recommended">) {
   const tags = [
     product.product_category,
@@ -101,6 +115,12 @@ function toggleCategory(current: string[], value: string) {
   const exists = withoutAll.includes(value);
   const next = exists ? withoutAll.filter((item) => item !== value) : [...withoutAll, value];
   return next.length > 0 ? next : ["coffee"];
+}
+
+function toggleMerchant(current: string[], value: string) {
+  const exists = current.includes(value);
+  const next = exists ? current.filter((item) => item !== value) : [...current, value];
+  return next;
 }
 
 function ProductCard({ product, onClick }: { product: ProductCardSummary; onClick: () => void }) {
@@ -321,6 +341,8 @@ function ProductQuickView({ productId }: { productId: number | null }) {
 function ProductsPage() {
   const [inputValue, setInputValue] = useState("");
   const [categories, setCategories] = useState<string[]>(["coffee"]);
+  const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<"featured" | "merchant" | "price_low" | "price_high" | "price_per_oz_low" | "price_per_oz_high" | "discount">("featured");
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const debouncedQ = useDebounce(inputValue, 350);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -328,7 +350,43 @@ function ProductsPage() {
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useProductSearch(debouncedQ, categories);
 
   const products = (data?.pages.flatMap((page) => page.items) ?? []) as ProductCardSummary[];
-  const totalLoaded = products.length;
+  const merchantOptions = Array.from(
+    new Set(products.map((product) => product.merchant_name).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+
+  const filteredProducts = products.filter((product) => {
+    if (selectedMerchants.length === 0) return true;
+    return selectedMerchants.includes(product.merchant_name);
+  });
+
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    const aDiscount = a.latest_discount_percent ?? discountPercentValue(a.latest_price_cents, a.latest_compare_at_price_cents) ?? -1;
+    const bDiscount = b.latest_discount_percent ?? discountPercentValue(b.latest_price_cents, b.latest_compare_at_price_cents) ?? -1;
+    const aPricePerOz = pricePerOzValue(a.latest_price_cents, a.primary_weight_grams);
+    const bPricePerOz = pricePerOzValue(b.latest_price_cents, b.primary_weight_grams);
+    const aPrice = a.latest_price_cents ?? Number.POSITIVE_INFINITY;
+    const bPrice = b.latest_price_cents ?? Number.POSITIVE_INFINITY;
+
+    switch (sortBy) {
+      case "merchant":
+        return a.merchant_name.localeCompare(b.merchant_name) || a.name.localeCompare(b.name);
+      case "price_low":
+        return aPrice - bPrice;
+      case "price_high":
+        return bPrice - aPrice;
+      case "price_per_oz_low":
+        return (aPricePerOz ?? Number.POSITIVE_INFINITY) - (bPricePerOz ?? Number.POSITIVE_INFINITY);
+      case "price_per_oz_high":
+        return (bPricePerOz ?? -1) - (aPricePerOz ?? -1);
+      case "discount":
+        return bDiscount - aDiscount || aPrice - bPrice;
+      case "featured":
+      default:
+        return 0;
+    }
+  });
+
+  const totalLoaded = sortedProducts.length;
   const selectedLabels = categories.includes("all")
     ? ["🌐 All Categories"]
     : CATEGORY_OPTIONS.filter((option) => categories.includes(option.value)).map((option) => option.label);
@@ -337,6 +395,9 @@ function ProductsPage() {
     : selectedLabels.length > 0
       ? `${selectedLabels.length} selected`
       : "Select categories";
+  const merchantMenuLabel = selectedMerchants.length > 0
+    ? `${selectedMerchants.length} selected`
+    : "All merchants";
 
   const handleLoadMore = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -401,9 +462,83 @@ function ProductsPage() {
                 })}
               </DropdownMenuContent>
             </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  Merchants
+                  <span className="text-muted-foreground">{merchantMenuLabel}</span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-72 max-h-80 overflow-y-auto">
+                <DropdownMenuLabel>Filter merchants</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {merchantOptions.length === 0 ? (
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">No merchants loaded yet</div>
+                ) : (
+                  merchantOptions.map((merchant) => {
+                    const checked = selectedMerchants.includes(merchant);
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={merchant}
+                        checked={checked}
+                        onCheckedChange={() => setSelectedMerchants((current) => toggleMerchant(current, merchant))}
+                        onSelect={(event) => event.preventDefault()}
+                      >
+                        <div className="flex items-center justify-between w-full gap-3">
+                          <span className="truncate">{merchant}</span>
+                          {checked && <Check className="h-4 w-4 text-green-600" />}
+                        </div>
+                      </DropdownMenuCheckboxItem>
+                    );
+                  })
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  Sort
+                  <span className="text-muted-foreground">{sortBy.replaceAll("_", " ")}</span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56">
+                <DropdownMenuLabel>Sort products</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {[
+                  ["featured", "Featured"],
+                  ["merchant", "Merchant"],
+                  ["price_low", "Price: low to high"],
+                  ["price_high", "Price: high to low"],
+                  ["price_per_oz_low", "Price/oz: low to high"],
+                  ["price_per_oz_high", "Price/oz: high to low"],
+                  ["discount", "Discount: best first"],
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-sm hover:bg-accent ${sortBy === value ? "bg-accent" : ""}`}
+                    onClick={() => setSortBy(value as typeof sortBy)}
+                  >
+                    <span>{label}</span>
+                    {sortBy === value && <Check className="h-4 w-4 text-green-600" />}
+                  </button>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {selectedLabels.map((label) => (
               <Badge key={label} variant="secondary">{label}</Badge>
             ))}
+            {selectedMerchants.slice(0, 3).map((merchant) => (
+              <Badge key={merchant} variant="secondary">{merchant}</Badge>
+            ))}
+            {selectedMerchants.length > 3 && (
+              <Badge variant="secondary">+{selectedMerchants.length - 3} merchants</Badge>
+            )}
             {inputValue && (
               <Button
                 variant="outline"
@@ -442,7 +577,7 @@ function ProductsPage() {
               <ProductCardSkeleton key={i} />
             ))}
           </div>
-        ) : products.length === 0 ? (
+        ) : sortedProducts.length === 0 ? (
           <div className="rounded-lg border border-dashed p-16 text-center text-muted-foreground">
             <p className="text-4xl mb-3">📦</p>
             <p className="font-medium">
@@ -455,7 +590,7 @@ function ProductsPage() {
         ) : (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {products.map((product) => (
+              {sortedProducts.map((product) => (
                 <ProductCard key={product.id} product={product} onClick={() => setSelectedProductId(product.id)} />
               ))}
             </div>

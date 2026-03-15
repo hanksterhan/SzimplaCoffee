@@ -116,6 +116,10 @@ def _product_summary_with_merchant(product: Product, merchant_name: str) -> Prod
     if primary_variant:
         variant, latest_offer = primary_variant
         summary.latest_price_cents = latest_offer.price_cents
+        summary.latest_compare_at_price_cents = latest_offer.compare_at_price_cents
+        if latest_offer.compare_at_price_cents and latest_offer.compare_at_price_cents > latest_offer.price_cents:
+            savings_ratio = 1 - (latest_offer.price_cents / latest_offer.compare_at_price_cents)
+            summary.latest_discount_percent = int(round(savings_ratio * 100))
         summary.primary_weight_grams = variant.weight_grams
         summary.primary_is_whole_bean = variant.is_whole_bean
     return summary

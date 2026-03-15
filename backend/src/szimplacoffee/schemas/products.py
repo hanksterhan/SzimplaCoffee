@@ -52,6 +52,8 @@ class ProductSummary(BaseModel):
     is_espresso_recommended: bool
     is_active: bool
     latest_price_cents: Optional[int] = None
+    latest_compare_at_price_cents: Optional[int] = None
+    latest_discount_percent: Optional[int] = None
     primary_weight_grams: Optional[int] = None
     primary_is_whole_bean: bool = False
     first_seen_at: datetime
