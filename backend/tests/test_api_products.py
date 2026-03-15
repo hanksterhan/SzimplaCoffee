@@ -1,5 +1,12 @@
-from szimplacoffee.api.products import _parse_categories, _coffee_like_merch_clause
+from fastapi import Query
+
+from szimplacoffee.api.products import _parse_categories, _coffee_like_merch_clause, _normalize_query_default
 from szimplacoffee.models import Product
+
+
+def test_normalize_query_default_unwraps_fastapi_query_objects():
+    assert _normalize_query_default(Query(None)) is None
+    assert _normalize_query_default(Query("coffee")) == "coffee"
 
 
 def test_parse_categories_defaults_to_coffee():

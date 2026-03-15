@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, selectinload
@@ -32,7 +34,14 @@ MERCH_NAME_EXCLUSIONS = (
 )
 
 
+def _normalize_query_default(value: Any):
+    if hasattr(value, "default"):
+        return value.default
+    return value
+
+
 def _parse_categories(category: str | None) -> list[str]:
+    category = _normalize_query_default(category)
     if not category:
         return ["coffee"]
     categories = [part.strip() for part in category.split(",") if part.strip()]
@@ -105,6 +114,11 @@ def list_products_for_merchant(
     limit: int = Query(24, ge=1, le=200),
     cursor: int | None = Query(None, description="Last product ID seen; returns products with id > cursor"),
 ) -> CursorPage[ProductSummary]:
+    is_active = _normalize_query_default(is_active)
+    is_espresso_recommended = _normalize_query_default(is_espresso_recommended)
+    category = _normalize_query_default(category)
+    limit = _normalize_query_default(limit)
+    cursor = _normalize_query_default(cursor)
     merchant = db.get(Merchant, merchant_id)
     merchant_name = merchant.name if merchant else ""
     q = (
@@ -142,6 +156,12 @@ def search_products(
     limit: int = Query(24, ge=1, le=200),
     cursor: int | None = Query(None, description="Last product ID seen; returns products with id > cursor"),
 ) -> CursorPage[ProductSummary]:
+    q = _normalize_query_default(q)
+    is_espresso_recommended = _normalize_query_default(is_espresso_recommended)
+    is_active = _normalize_query_default(is_active)
+    category = _normalize_query_default(category)
+    limit = _normalize_query_default(limit)
+    cursor = _normalize_query_default(cursor)
     stmt = (
         select(Product)
         .options(selectinload(Product.variants).selectinload(ProductVariant.offers))
