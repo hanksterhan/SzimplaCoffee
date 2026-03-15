@@ -63,6 +63,13 @@ function formatWeight(grams: number | null | undefined) {
   return `${Math.round(ounces)} oz`;
 }
 
+function formatPricePerOz(cents: number | null | undefined, grams: number | null | undefined) {
+  if (!cents || !grams) return null;
+  const ounces = grams / 28.3495;
+  if (!ounces) return null;
+  return `$${((cents / 100) / ounces).toFixed(2)}/oz`;
+}
+
 function buildTags(product: Pick<ProductDetail, "product_category" | "origin_text" | "process_text" | "variety_text" | "roast_cues" | "tasting_notes_text" | "is_single_origin" | "is_espresso_recommended">) {
   const tags = [
     product.product_category,
@@ -90,6 +97,7 @@ function toggleCategory(current: string[], value: string) {
 
 function ProductCard({ product, onClick }: { product: ProductCardSummary; onClick: () => void }) {
   const weightLabel = formatWeight(product.primary_weight_grams);
+  const pricePerOzLabel = formatPricePerOz(product.latest_price_cents, product.primary_weight_grams);
 
   return (
     <button
@@ -134,15 +142,19 @@ function ProductCard({ product, onClick }: { product: ProductCardSummary; onClic
         <div className="mt-auto flex items-end justify-between gap-3">
           <div className="min-w-0">
             {product.latest_price_cents ? (
-              <p className="font-bold text-sm text-amber-900">{formatPrice(product.latest_price_cents)}</p>
+              <>
+                <p className="font-bold text-sm text-amber-900">{formatPrice(product.latest_price_cents)}</p>
+                {product.primary_is_whole_bean && (weightLabel || pricePerOzLabel) && (
+                  <p className="text-xs text-muted-foreground">
+                    {[weightLabel, pricePerOzLabel].filter(Boolean).join(" • ")}
+                  </p>
+                )}
+              </>
             ) : (
               <p className="text-sm text-muted-foreground">Price unavailable</p>
             )}
-            {product.primary_is_whole_bean && weightLabel && (
-              <p className="text-xs text-muted-foreground">{weightLabel}</p>
-            )}
           </div>
-          <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+          <span className={`text-[11px] whitespace-nowrap ${product.is_active ? "text-green-600" : "text-muted-foreground"}`}>
             {product.is_active ? "● In stock" : "● Unavailable"}
           </span>
         </div>
@@ -194,6 +206,9 @@ function ProductQuickView({ productId }: { productId: number | null }) {
 
   const tags = buildTags(product);
   const description = product.tasting_notes_text || "No long-form product description is available yet, but the metadata below should still help you evaluate it quickly.";
+  const quickViewPricePerOz = cheapestVariant?.latest_offer
+    ? formatPricePerOz(cheapestVariant.latest_offer.price_cents, cheapestVariant.weight_grams)
+    : null;
 
   return (
     <div className="space-y-5 max-h-[80vh] overflow-y-auto pr-1">
@@ -227,7 +242,9 @@ function ProductQuickView({ productId }: { productId: number | null }) {
             {cheapestVariant?.latest_offer && (
               <span className="font-semibold text-amber-900">
                 {formatPrice(cheapestVariant.latest_offer.price_cents)}
-                {formatWeight(cheapestVariant.weight_grams) ? ` / ${formatWeight(cheapestVariant.weight_grams)}` : ""}
+                {[formatWeight(cheapestVariant.weight_grams), quickViewPricePerOz].filter(Boolean).length > 0
+                  ? ` / ${[formatWeight(cheapestVariant.weight_grams), quickViewPricePerOz].filter(Boolean).join(" • ")}`
+                  : ""}
               </span>
             )}
             <span className={product.is_active ? "text-green-600" : "text-muted-foreground"}>
@@ -253,25 +270,32 @@ function ProductQuickView({ productId }: { productId: number | null }) {
         <div className="space-y-2">
           <h3 className="font-medium">Variants</h3>
           <div className="space-y-2">
-            {product.variants.map((variant) => (
-              <div key={variant.id} className="rounded-md border p-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-medium text-sm truncate">{variant.label}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatWeight(variant.weight_grams) || "Size unavailable"}
-                    {variant.is_whole_bean ? " • whole bean" : " • not whole bean"}
-                  </p>
+            {product.variants.map((variant) => {
+              const variantPricePerOz = variant.latest_offer
+                ? formatPricePerOz(variant.latest_offer.price_cents, variant.weight_grams)
+                : null;
+
+              return (
+                <div key={variant.id} className="rounded-md border p-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{variant.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatWeight(variant.weight_grams) || "Size unavailable"}
+                      {variantPricePerOz ? ` • ${variantPricePerOz}` : ""}
+                      {variant.is_whole_bean ? " • whole bean" : " • not whole bean"}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-medium text-sm">
+                      {variant.latest_offer ? formatPrice(variant.latest_offer.price_cents) : "—"}
+                    </p>
+                    <p className={`text-xs ${variant.is_available ? "text-green-600" : "text-muted-foreground"}`}>
+                      {variant.is_available ? "In stock" : "Unavailable"}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="font-medium text-sm">
-                    {variant.latest_offer ? formatPrice(variant.latest_offer.price_cents) : "—"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {variant.is_available ? "In stock" : "Unavailable"}
-                  </p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
