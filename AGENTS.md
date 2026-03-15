@@ -1,4 +1,4 @@
-# AGENTS.md — SzimplaCoffee Codex Instructions
+# SzimplaCoffee Agent Instructions
 
 ## What This Is
 
@@ -6,7 +6,7 @@ SzimplaCoffee is a local-first coffee sourcing and recommendation platform. It a
 
 Read `north-star.md` for product vision. Read `comprehensive-plan.md` for architecture and execution plan.
 
-This file is the Codex-facing equivalent of `CLAUDE.md`. Use it as the primary repo instruction file when working in Codex or other agentic coding environments that look for `AGENTS.md`.
+Use this file as the primary instruction file for agentic coding work in this repository.
 
 ## Tech Stack
 
@@ -37,7 +37,7 @@ backend/                 # Python backend (FastAPI)
     templates/           # Jinja2 templates
     static/              # CSS/JS
   tests/                 # pytest tests
-frontend/                # Frontend scaffold (SC-18)
+frontend/                # Frontend scaffold / SPA
 data/                    # Shared data (DB lives here)
   szimplacoffee.db       # SQLite database
 scripts/
@@ -47,7 +47,7 @@ north-star.md            # Product vision (read-only reference)
 comprehensive-plan.md    # Architecture plan (read-only reference)
 ```
 
-## Codex Working Rules
+## Agent Working Rules
 
 - Read this file first when starting work in the repo.
 - Prefer small, reviewable changes over wide refactors.
@@ -55,8 +55,32 @@ comprehensive-plan.md    # Architecture plan (read-only reference)
 - Keep backend, frontend, tickets, plans, and memory in sync when work crosses those boundaries.
 - Do not invent workflows when the repo already defines one in `.tickets/`, `.plans/`, `.memory/`, or `SzimplaCoffee/brain/`.
 - Before changing behavior, inspect the nearest related files, tests, and current patterns.
-- When fixing bugs, prefer the smallest correct fix plus tests or verification notes.
-- When adding features, follow the current naming, typing, and folder conventions instead of introducing parallel patterns.
+- When fixing bugs, prefer the smallest correct fix plus tests or explicit verification notes.
+- When adding features, follow the current naming, typing, query, and folder conventions instead of introducing parallel patterns.
+- Prefer extending existing hooks, schemas, routes, and services before creating new abstractions.
+- Keep generated or derived artifacts in sync when API contracts change.
+
+## Repo-Specific Implementation Guidance
+
+### Backend
+
+- Keep FastAPI route contracts, Pydantic schemas, and SQLAlchemy queries aligned.
+- Prefer explicit response models and predictable query semantics.
+- Treat `offer_snapshots` and historical pricing/promo data as append-only time-series.
+- Avoid hidden behavior changes in recommendation logic; preserve quality-first ranking intent.
+
+### Frontend
+
+- Follow existing TanStack/React Query patterns for data fetching and caching.
+- Reuse shared hooks before adding route-local fetch logic.
+- Keep filter state, pagination/cursor state, and UI loading states explicit.
+- When backend response shapes change, update affected frontend types and usage together.
+
+### Tickets, Plans, and Memory
+
+- Delivery work should map to a ticket when the change is non-trivial.
+- Every implementation ticket should have a matching execution plan.
+- Capture learnings that matter in delivery memory, not just in commit history.
 
 ## Conventions
 
@@ -114,7 +138,7 @@ SzimplaCoffee uses a structured local ticketing + plans + memory system for all 
 
 **To create a ticket:**
 1. Copy `.tickets/templates/ticket-template.yaml` to `.tickets/open/SC-N.yaml`
-2. Fill all required fields (id, title, type, priority, status, owner, problem, desired_outcome, scope_in, scope_out, acceptance_criteria, verification_required, slices, delivery)
+2. Fill all required fields (`id`, `title`, `type`, `priority`, `status`, `owner`, `problem`, `desired_outcome`, `scope_in`, `scope_out`, `acceptance_criteria`, `verification_required`, `slices`, `delivery`)
 3. Create matching plan at `.plans/SC-N-execution-plan.md`
 
 **To transition a ticket:**
@@ -127,6 +151,60 @@ SzimplaCoffee uses a structured local ticketing + plans + memory system for all 
 **Ticket prefix:** `SC-` (e.g., SC-1, SC-12)
 
 **Ticket owner:** `h6nk-bot`
+
+## How to Write Tickets, Plans, and Delivery Memory
+
+### Ticket Writing
+
+- Write tickets as clear problem statements, not vague feature labels.
+- Keep `scope_in` and `scope_out` explicit so changes do not sprawl.
+- Make acceptance criteria observable and verifiable.
+- Break work into slices that can be delivered incrementally.
+- Reference related plans, memory, or architectural context in `context_refs`.
+
+### Plan Writing
+
+Create a matching plan at `.plans/SC-N-execution-plan.md`.
+
+A good plan should:
+- Restate the goal and constraints briefly.
+- Name the files and systems expected to change.
+- Break implementation into ordered steps.
+- Call out risk areas, migrations, contract changes, or validation needs.
+- Define how the work will be verified.
+
+Recommended structure:
+
+```md
+# SC-N Execution Plan
+
+## Goal
+
+## Context
+
+## Files / Areas Expected to Change
+
+## Implementation Steps
+
+## Risks / Notes
+
+## Verification
+
+## Out of Scope
+```
+
+### Delivery Memory Writing
+
+After meaningful delivery work or an important discovery:
+- Write `.memory/sprint-NN/SC-N-<slug>.md`
+- Update `.memory/index.json`
+
+Memory should capture:
+- what changed
+- why it changed
+- surprises or failed approaches
+- follow-ups or sharp edges
+- anything future agents should know that git diff alone will not explain
 
 ## Execution Plans (`.plans/`)
 
