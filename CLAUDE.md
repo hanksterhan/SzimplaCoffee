@@ -13,27 +13,34 @@ Read `north-star.md` for product vision. Read `comprehensive-plan.md` for archit
 - **Crawling:** Crawlee for Python (BeautifulSoup → Adaptive Playwright → full browser fallback)
 - **Scheduling:** APScheduler
 - **Tooling:** uv, ruff, pytest
-- **CLI:** `szimpla` entrypoint via `src/szimplacoffee/cli.py`
+- **CLI:** `szimpla` entrypoint via `backend/src/szimplacoffee/cli.py`
 
 ## Project Layout
 
 ```
-src/szimplacoffee/       # Application source
-  main.py                # FastAPI app + routes
-  cli.py                 # CLI entrypoint
-  config.py              # Configuration
-  db.py                  # SQLAlchemy engine/session
-  models.py              # SQLAlchemy models
-  bootstrap.py           # Seed data
-  services/
-    crawlers.py           # Adapter-based crawling
-    discovery.py          # Merchant discovery
-    platforms.py          # Platform detection
-    recommendations.py   # Scoring engine
-  templates/             # Jinja2 templates
-  static/                # CSS/JS
-tests/                   # pytest tests
-SzimplaCoffee/brain/     # Second brain (see below)
+backend/                 # Python backend (FastAPI)
+  pyproject.toml         # Python project config
+  src/szimplacoffee/     # Application source
+    main.py              # FastAPI app + routes
+    cli.py               # CLI entrypoint
+    config.py            # Configuration
+    db.py                # SQLAlchemy engine/session
+    models.py            # SQLAlchemy models
+    bootstrap.py         # Seed data
+    services/
+      crawlers.py        # Adapter-based crawling
+      discovery.py       # Merchant discovery
+      platforms.py       # Platform detection
+      recommendations.py # Scoring engine
+    templates/           # Jinja2 templates
+    static/              # CSS/JS
+  tests/                 # pytest tests
+frontend/                # Frontend scaffold (SC-18)
+data/                    # Shared data (DB lives here)
+  szimplacoffee.db       # SQLite database
+scripts/
+  dev.sh                 # Start dev environment
+SzimplaCoffee/           # Second brain (see below)
 north-star.md            # Product vision (read-only reference)
 comprehensive-plan.md    # Architecture plan (read-only reference)
 ```
@@ -49,19 +56,22 @@ comprehensive-plan.md    # Architecture plan (read-only reference)
 ## Commands
 
 ```bash
-# Run the web app
-uvicorn szimplacoffee.main:app --reload
+# Run the web app (from backend/)
+cd backend && uvicorn szimplacoffee.main:app --reload
 
-# Run CLI
-szimpla merchant add <url>
-szimpla crawl merchant <id>
-szimpla recommend
+# Or use dev script
+./scripts/dev.sh
 
-# Tests
-pytest tests/
+# Run CLI (from backend/)
+cd backend && szimpla merchant add <url>
+cd backend && szimpla crawl merchant <id>
+cd backend && szimpla recommend
 
-# Lint
-ruff check src/ tests/
+# Tests (from backend/)
+cd backend && pytest tests/
+
+# Lint (from backend/)
+cd backend && ruff check src/ tests/
 ```
 
 ## Agentic Engineering Pipeline

@@ -1,9 +1,25 @@
+# Python
 .venv/
 __pycache__/
 *.pyc
 .pytest_cache/
 .mypy_cache/
 *.egg-info/
+
+# SQLite
+data/szimplacoffee.db-shm
+data/szimplacoffee.db-wal
 szimplacoffee.db-shm
 szimplacoffee.db-wal
+
+# Frontend
+node_modules/
+dist/
+.next/
+.nuxt/
+build/
+*.tsbuildinfo
+
+# Misc
 instance/
+.DS_Store
