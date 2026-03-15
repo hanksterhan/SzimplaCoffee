@@ -1,8 +1,22 @@
+import ast
 import json
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict
+
+
+def _safe_parse(value: str, default):
+    """Parse a JSON or Python repr string safely."""
+    if not value:
+        return default
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, ValueError):
+        try:
+            return ast.literal_eval(value)
+        except Exception:
+            return default
 
 
 class RecommendationRunSchema(BaseModel):
@@ -15,10 +29,3 @@ class RecommendationRunSchema(BaseModel):
     alternatives_json: str
     wait_recommendation: bool
     model_version: str
-
-    @model_validator(mode="after")
-    def parse_json_fields(self) -> "RecommendationRunSchema":
-        # Expose parsed versions as attributes
-        object.__setattr__(self, "_request", json.loads(self.request_json or "{}"))
-        object.__setattr__(self, "_top_result", json.loads(self.top_result_json or "{}"))
-        return self

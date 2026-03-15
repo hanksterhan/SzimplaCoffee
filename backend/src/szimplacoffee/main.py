@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .api import api_router
 from .bootstrap import bootstrap_if_empty, init_db
 from .config import STATIC_DIR, TEMPLATES_DIR
 from .db import get_session, session_scope
@@ -28,6 +29,7 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="SzimplaCoffee", lifespan=lifespan)
+app.include_router(api_router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 

@@ -37,15 +37,12 @@ class MerchantPersonalProfileSchema(BaseModel):
 
     id: int
     merchant_id: int
-    bio: Optional[str] = None
-    founded_year: Optional[int] = None
-    roastery_location: Optional[str] = None
-    sourcing_philosophy: Optional[str] = None
-    certifications: Optional[str] = None
-    social_instagram: Optional[str] = None
-    social_twitter: Optional[str] = None
-    social_facebook: Optional[str] = None
-    updated_at: datetime
+    has_order_history: bool
+    would_reorder: bool
+    personal_trust_score: float
+    average_rating: float
+    notes: str
+    last_ordered_at: Optional[datetime] = None
 
 
 class MerchantSummary(BaseModel):
