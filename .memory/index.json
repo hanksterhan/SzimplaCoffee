@@ -1,6 +1,13 @@
 {
   "entries": [
     {
+      "id": "SC-46-normalized-product-metadata",
+      "path": ".memory/sprint-01/SC-46-normalized-product-metadata.md",
+      "ticket": "SC-46",
+      "title": "Normalized product metadata foundation",
+      "date": "2026-03-15"
+    },
+    {
       "id": "SC-44-backend-test-stability-package-root",
       "path": ".memory/sprint-01/SC-44-backend-test-stability-package-root.md",
       "ticket": "SC-44",

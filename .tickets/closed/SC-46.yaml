@@ -2,10 +2,10 @@ id: "SC-46"
 title: "Add normalized coffee metadata fields and migration path"
 type: "feature"
 priority: "p1"
-status: "draft"
+status: "done"
 owner: "h6nk-bot"
 created_at: "2026-03-15T07:00:00Z"
-updated_at: "2026-03-15T07:00:00Z"
+updated_at: "2026-03-15T19:45:44Z"
 labels:
   - "feature"
   - "contract"
@@ -32,17 +32,17 @@ acceptance_criteria:
     id: "AC-1"
     text: "The data model supports canonical normalized coffee metadata fields without removing free-text fields."
     verify: "cd backend && . .venv/bin/activate && alembic upgrade head"
-    status: "pending"
+    status: "passed"
   -
     id: "AC-2"
     text: "Backend schemas expose normalized metadata fields needed for filters and deal facts."
     verify: "cd backend && . .venv/bin/activate && pytest -q"
-    status: "pending"
+    status: "passed"
   -
     id: "AC-3"
     text: "The migration and backfill path is documented and reproducible."
     verify: "bash -lc \"test -f .plans/SC-46-execution-plan.md && echo OK\""
-    status: "pending"
+    status: "passed"
 verification_required:
   - "cd backend && . .venv/bin/activate && alembic upgrade head"
   - "cd backend && . .venv/bin/activate && pytest -q"
@@ -54,44 +54,66 @@ slices:
   -
     id: "S1"
     title: "Define normalized metadata schema and ORM fields"
-    status: "pending"
+    status: "complete"
     depends_on: []
     files_create:
+      - "backend/alembic.ini"
+      - "backend/alembic/"
       - "backend/alembic/versions/"
     files_modify:
       - "backend/src/szimplacoffee/models.py"
       - "backend/src/szimplacoffee/schemas/products.py"
+      - "backend/src/szimplacoffee/bootstrap.py"
     files_read_only:
-      - "backend/src/szimplacoffee/coffee_parser.py"
+      - "backend/src/szimplacoffee/services/coffee_parser.py"
     checks:
       - "cd backend && . .venv/bin/activate && alembic upgrade head"
-    evidence: []
+    evidence:
+      - "Added canonical product metadata fields for origin country/region, roast level, process family, metadata confidence, and metadata source."
+      - "Introduced the repo's first Alembic scaffold and revision to migrate existing SQLite databases safely."
+      - "Extended the bootstrap compatibility shim so older local databases can add the new columns before Alembic becomes the only path."
     notes: "Prefer constrained normalized values where practical."
   -
     id: "S2"
     title: "Document migration and backfill strategy"
-    status: "pending"
+    status: "complete"
     depends_on:
       - "S1"
     files_create: []
     files_modify:
       - "backend/README.md"
       - ".plans/SC-46-execution-plan.md"
+      - "backend/scripts/backfill_product_metadata.py"
     files_read_only:
       - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/services/coffee_parser.py"
     checks:
       - "cd backend && . .venv/bin/activate && pytest -q"
-    evidence: []
+    evidence:
+      - "Documented the Alembic migration command and parser-backed backfill path in backend/README.md."
+      - "Extended the existing backfill script so it populates the new normalized fields and metadata provenance."
+      - "Updated the execution plan to reflect the actual migration and backfill files used in delivery."
     notes: "Backfill can remain incremental as long as the path is explicit."
 delivery:
-  branch: "feat/SC-46-normalized-metadata-model"
-  commits: []
-  pr_url: ""
-  started_at: ""
-  completed_at: ""
+  branch: "codex/sc-46-normalized-metadata-model"
+  commits:
+    - "0a9925c75a02985c6644ef698a47f7918a1479e7"
+  pr_url: "https://github.com/hanksterhan/SzimplaCoffee/pull/3"
+  started_at: "2026-03-15T19:09:47Z"
+  completed_at: "2026-03-15T19:45:44Z"
   verification:
-    required_passed: false
-    commands_run: []
-    evidence_refs: []
+    required_passed: true
+    commands_run:
+      - "cd backend && .venv/bin/alembic upgrade head"
+      - "cd backend && ../.venv/bin/pytest -q"
+      - "cd backend && ../.venv/bin/ruff check src tests scripts/backfill_product_metadata.py alembic"
+      - "rg -n 'origin_country|origin_region|roast_level|process_family|metadata_confidence|metadata_source' backend/src backend/alembic backend/scripts .plans/SC-46-execution-plan.md -S"
+    evidence_refs:
+      - "alembic: Running upgrade -> 20260315_01"
+      - "pytest: 41 passed in 0.59s"
+      - "ruff: All checks passed!"
+      - "field grep confirms normalized metadata fields in backend model, schema, migration, script, and plan"
 notes:
   - "Generated from .plans/next-steps-march15.md in strict-schema migration batch."
+  - "The repo does not currently have a local or remote stage branch, so delivery used main as the base branch and PR target."
+  - "Backend verification currently uses backend/.venv for Alembic and the repo-root .venv for pytest/ruff because the backend venv does not include those tools."
