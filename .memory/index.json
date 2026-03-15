@@ -1,6 +1,13 @@
 {
   "entries": [
     {
+      "id": "SC-44-backend-test-stability-package-root",
+      "path": ".memory/sprint-01/SC-44-backend-test-stability-package-root.md",
+      "ticket": "SC-44",
+      "title": "Backend test stability and package root cleanup",
+      "date": "2026-03-15"
+    },
+    {
       "id": "SC-43-products-catalog-ux-polish",
       "path": ".memory/sprint-01/SC-43-products-catalog-ux-polish.md",
       "ticket": "SC-43",

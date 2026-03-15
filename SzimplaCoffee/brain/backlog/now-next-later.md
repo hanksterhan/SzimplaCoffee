@@ -2,6 +2,7 @@
 
 ## Now
 
+- SC-45 through SC-53 are unblocked now that SC-44 restored the backend test and lint gate and clarified the backend package root
 - Add crawl-health and merchant-error visibility in the UI
 - Reduce remaining promo false positives and add stronger promo confidence heuristics
 - Decide whether custom platforms like Squarespace need a first-pass product crawler or should stay discovery-only

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from szimplacoffee.main import _price_per_oz_label, _weight_label
 from szimplacoffee.services.discovery import _decode_bing_result_url
 from szimplacoffee.models import MerchantPromo, OfferSnapshot
 from szimplacoffee.services.recommendations import (
@@ -8,6 +7,7 @@ from szimplacoffee.services.recommendations import (
     _build_pros,
     _discounted_price_cents,
     _espresso_fit,
+    _price_per_oz_cents,
     _quantity_score,
 )
 from szimplacoffee.services.crawlers import (
@@ -67,10 +67,9 @@ def test_subscription_downranks_espresso_fit() -> None:
     assert any("subscription" in reason for reason in reasons)
 
 
-def test_weight_and_price_per_oz_helpers() -> None:
-    assert _weight_label(340) == "340 g / 12.0 oz"
-    assert _weight_label(907) == "2 lb (907 g)"
-    assert _price_per_oz_label(2400, 340) == "$2.00/oz"
+def test_price_per_oz_cents_uses_current_recommendation_helper() -> None:
+    assert _price_per_oz_cents(2400, 340) == 200
+    assert _price_per_oz_cents(2400, None) is None
 
 
 def test_extract_code_requires_real_promo_code_shape() -> None:

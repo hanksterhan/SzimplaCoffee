@@ -89,6 +89,8 @@ bash scripts/dev.sh
 
 ## Project Structure
 
+The canonical backend package root is `backend/src/szimplacoffee`. The repository-root `src/` directory is not part of the runtime package layout and should be treated as stray local artifact space only.
+
 ```
 SzimplaCoffee/
 ├── backend/                 # Python FastAPI backend
@@ -194,6 +196,7 @@ The recommendation engine uses weighted scoring across 8 dimensions:
 ## Contributing
 
 This is a personal tool, but the architecture supports extension. Key conventions:
+- Canonical backend package root: `backend/src/szimplacoffee`
 - Backend lint: `cd backend && ruff check src/`
 - Frontend typecheck: `cd frontend && npx tsc -b`
 - Frontend build: `cd frontend && npm run build`

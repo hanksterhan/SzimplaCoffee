@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from ..db import get_session
 from ..models import Merchant, OfferSnapshot, Product, ProductVariant
-from ..schemas.common import CursorPage, PaginatedResponse
+from ..schemas.common import CursorPage
 from pydantic import BaseModel
 
 from ..schemas.products import OfferSnapshotSchema, ProductDetail, ProductSummary
