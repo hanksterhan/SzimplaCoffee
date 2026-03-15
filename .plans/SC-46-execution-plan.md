@@ -20,13 +20,13 @@ Introduce normalized coffee metadata fields and a safe migration path while pres
 
 ### S1 Define normalized metadata schema and ORM fields
 - Files create: `backend/alembic/versions/`
-- Files modify: `backend/src/szimplacoffee/models.py`, `backend/src/szimplacoffee/schemas/products.py`
-- Files read only: `backend/src/szimplacoffee/coffee_parser.py`
+- Files modify: `backend/src/szimplacoffee/models.py`, `backend/src/szimplacoffee/schemas/products.py`, `backend/src/szimplacoffee/bootstrap.py`
+- Files read only: `backend/src/szimplacoffee/services/coffee_parser.py`
 - Prohibited changes: do not remove original free-text fields
 
 ### S2 Document migration and backfill strategy
-- Files modify: `backend/README.md`, `.plans/SC-46-execution-plan.md`
-- Files read only: `backend/src/szimplacoffee/models.py`
+- Files modify: `backend/README.md`, `.plans/SC-46-execution-plan.md`, `backend/scripts/backfill_product_metadata.py`
+- Files read only: `backend/src/szimplacoffee/models.py`, `backend/src/szimplacoffee/services/coffee_parser.py`
 - Prohibited changes: do not imply full backfill if only schema groundwork exists
 
 ## Verification Commands

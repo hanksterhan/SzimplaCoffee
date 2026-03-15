@@ -22,6 +22,18 @@ def _apply_lightweight_migrations() -> None:
     with engine.begin() as connection:
         if "image_url" not in product_columns:
             connection.execute(text("ALTER TABLE products ADD COLUMN image_url VARCHAR(1000) NOT NULL DEFAULT ''"))
+        if "origin_country" not in product_columns:
+            connection.execute(text("ALTER TABLE products ADD COLUMN origin_country VARCHAR(128)"))
+        if "origin_region" not in product_columns:
+            connection.execute(text("ALTER TABLE products ADD COLUMN origin_region VARCHAR(128)"))
+        if "process_family" not in product_columns:
+            connection.execute(text("ALTER TABLE products ADD COLUMN process_family VARCHAR(32) NOT NULL DEFAULT 'unknown'"))
+        if "roast_level" not in product_columns:
+            connection.execute(text("ALTER TABLE products ADD COLUMN roast_level VARCHAR(32) NOT NULL DEFAULT 'unknown'"))
+        if "metadata_confidence" not in product_columns:
+            connection.execute(text("ALTER TABLE products ADD COLUMN metadata_confidence FLOAT NOT NULL DEFAULT 0"))
+        if "metadata_source" not in product_columns:
+            connection.execute(text("ALTER TABLE products ADD COLUMN metadata_source VARCHAR(32) NOT NULL DEFAULT 'unknown'"))
     with Session(engine) as session:
         for merchant in session.scalars(select(Merchant)).all():
             normalized = normalize_url(merchant.homepage_url)
