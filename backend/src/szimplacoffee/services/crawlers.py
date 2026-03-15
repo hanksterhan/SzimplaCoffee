@@ -13,10 +13,41 @@ from bs4 import BeautifulSoup
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import CrawlRun, Merchant, MerchantPromo, OfferSnapshot, Product, ProductVariant, PromoSnapshot, ShippingPolicy
+from ..models import (
+    CrawlRun,
+    Merchant,
+    MerchantFieldPattern,
+    MerchantPromo,
+    OfferSnapshot,
+    Product,
+    ProductMetadataOverride,
+    ProductVariant,
+    PromoSnapshot,
+    ShippingPolicy,
+)
 from .coffee_parser import parse_coffee_metadata
 
 USER_AGENT = "SzimplaCoffeeBot/0.1 (+local-first research utility)"
+_STRUCTURED_METADATA_FIELDS = (
+    "origin_text",
+    "process_text",
+    "variety_text",
+    "roast_cues",
+    "tasting_notes_text",
+)
+_OVERRIDABLE_METADATA_FIELDS = (
+    "origin_text",
+    "origin_country",
+    "origin_region",
+    "process_text",
+    "process_family",
+    "variety_text",
+    "roast_cues",
+    "roast_level",
+    "tasting_notes_text",
+    "is_single_origin",
+    "is_espresso_recommended",
+)
 
 
 @dataclass
@@ -273,8 +304,6 @@ def _is_coffee_product(name: str, product_type: str = "", tags: Iterable[str] | 
         haystacks.extend(categories)
     text = " ".join(haystacks).lower()
     negative_keywords = [
-        "filter",
-        "filters",
         "mug",
         "cup",
         "kettle",
@@ -338,6 +367,7 @@ def _enrich_payload_with_parser(payload: dict, name: str, description: str) -> d
     field empty, so hand-structured descriptions (Origin: X labels) still
     take priority.
     """
+    structured_seeded = any(payload.get(field) for field in _STRUCTURED_METADATA_FIELDS)
     parsed = parse_coffee_metadata(name, description)
     if not payload.get("origin_text") and parsed.origin_text:
         payload["origin_text"] = parsed.origin_text
@@ -349,11 +379,126 @@ def _enrich_payload_with_parser(payload: dict, name: str, description: str) -> d
         payload["roast_cues"] = parsed.roast_cues
     if not payload.get("tasting_notes_text") and parsed.tasting_notes_text:
         payload["tasting_notes_text"] = parsed.tasting_notes_text
+    if not payload.get("origin_country") and parsed.origin_country:
+        payload["origin_country"] = parsed.origin_country
+    if not payload.get("origin_region") and parsed.origin_region:
+        payload["origin_region"] = parsed.origin_region
+    if payload.get("process_family") in (None, "", "unknown") and parsed.process_family != "unknown":
+        payload["process_family"] = parsed.process_family
+    if payload.get("roast_level") in (None, "", "unknown") and parsed.roast_level != "unknown":
+        payload["roast_level"] = parsed.roast_level
     # Flags: parser wins if crawler left defaults
     if not payload.get("is_single_origin"):
         payload["is_single_origin"] = parsed.is_single_origin
     if not payload.get("is_espresso_recommended"):
         payload["is_espresso_recommended"] = parsed.is_espresso_recommended
+    normalized_found = any(
+        payload.get(field)
+        for field in ("origin_country", "origin_region", "process_family", "roast_level")
+    )
+    if normalized_found:
+        source = "structured" if structured_seeded else parsed.metadata_source
+        payload["metadata_source"] = payload.get("metadata_source") or source
+        payload["metadata_confidence"] = max(
+            float(payload.get("metadata_confidence") or 0.0),
+            0.85 if source == "structured" else parsed.confidence,
+        )
+    return payload
+
+
+def _metadata_haystack(name: str, description: str, payload: dict) -> str:
+    return "\n".join(
+        str(part)
+        for part in [
+            name,
+            description,
+            payload.get("origin_text", ""),
+            payload.get("process_text", ""),
+            payload.get("variety_text", ""),
+            payload.get("roast_cues", ""),
+            payload.get("tasting_notes_text", ""),
+        ]
+        if part
+    )
+
+
+def _coerce_override_value(field_name: str, value: str) -> str | bool | None:
+    if field_name in {"is_single_origin", "is_espresso_recommended"}:
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes"}:
+            return True
+        if lowered in {"false", "0", "no"}:
+            return False
+        return None
+    return value.strip()
+
+
+def _apply_metadata_rule(payload: dict, field_name: str, value: str, confidence: float) -> bool:
+    if field_name not in _OVERRIDABLE_METADATA_FIELDS:
+        return False
+
+    coerced = _coerce_override_value(field_name, value)
+    if coerced in (None, "", "unknown"):
+        return False
+
+    payload[field_name] = coerced
+    payload["metadata_source"] = "override"
+    payload["metadata_confidence"] = max(float(payload.get("metadata_confidence") or 0.0), confidence)
+    return True
+
+
+def _override_matches(
+    override: ProductMetadataOverride,
+    external_product_id: str,
+    product_name: str,
+) -> bool:
+    if override.external_product_id and override.external_product_id == str(external_product_id):
+        return True
+    return bool(override.product_name and override.product_name.lower() == product_name.lower())
+
+
+def _apply_metadata_overrides(
+    session: Session,
+    merchant: Merchant,
+    external_product_id: str,
+    payload: dict,
+    name: str,
+    description: str,
+) -> dict:
+    haystack = _metadata_haystack(name, description, payload)
+    patterns = session.scalars(
+        select(MerchantFieldPattern).where(
+            MerchantFieldPattern.merchant_id == merchant.id,
+            MerchantFieldPattern.is_active.is_(True),
+        )
+    ).all()
+    for pattern in patterns:
+        try:
+            if re.search(pattern.pattern, haystack, re.IGNORECASE):
+                _apply_metadata_rule(payload, pattern.field_name, pattern.normalized_value, pattern.confidence)
+        except re.error:
+            continue
+
+    overrides = session.scalars(
+        select(ProductMetadataOverride).where(
+            ProductMetadataOverride.merchant_id == merchant.id,
+            ProductMetadataOverride.is_active.is_(True),
+        )
+    ).all()
+    for override in overrides:
+        if not _override_matches(override, external_product_id, name):
+            continue
+        for field_name in _OVERRIDABLE_METADATA_FIELDS:
+            value = getattr(override, field_name)
+            if value is None or value == "" or value == "unknown":
+                continue
+            payload[field_name] = value
+        payload["metadata_source"] = override.metadata_source or "override"
+        payload["metadata_confidence"] = max(
+            float(payload.get("metadata_confidence") or 0.0),
+            float(override.metadata_confidence or 1.0),
+        )
+
     return payload
 
 
@@ -377,10 +522,16 @@ def _upsert_product(session: Session, merchant: Merchant, external_product_id: s
     product.product_url = payload["product_url"]
     product.image_url = payload.get("image_url", "")
     product.origin_text = payload.get("origin_text", "")
+    product.origin_country = payload.get("origin_country")
+    product.origin_region = payload.get("origin_region")
     product.process_text = payload.get("process_text", "")
+    product.process_family = payload.get("process_family", "unknown")
     product.variety_text = payload.get("variety_text", "")
     product.roast_cues = payload.get("roast_cues", "")
+    product.roast_level = payload.get("roast_level", "unknown")
     product.tasting_notes_text = payload.get("tasting_notes_text", "")
+    product.metadata_confidence = float(payload.get("metadata_confidence", 0.0) or 0.0)
+    product.metadata_source = payload.get("metadata_source", "unknown")
     product.is_single_origin = payload.get("is_single_origin", False)
     product.is_espresso_recommended = payload.get("is_espresso_recommended", False)
     product.is_active = True
@@ -784,19 +935,26 @@ def _crawl_shopify(session: Session, merchant: Merchant) -> CrawlSummary:
 
             text = _clean_text(raw.get("body_html", ""))
             product_name = _normalize_product_name(raw.get("title", "Unnamed Coffee"))
-            shopify_payload = _enrich_payload_with_parser(
-                {
-                    "name": product_name,
-                    "product_url": f"{root_url}/products/{raw.get('handle', '')}",
-                    "image_url": _normalize_asset_url((raw.get("image") or {}).get("src") or ((raw.get("images") or [{}])[0].get("src") or "")),
-                    "origin_text": _extract_field(text, "Origin"),
-                    "process_text": _extract_field(text, "Process"),
-                    "variety_text": _extract_field(text, "Variety"),
-                    "roast_cues": "light" if "light" in " ".join(tags).lower() else "",
-                    "tasting_notes_text": _extract_tasting_notes(text),
-                    "is_single_origin": _normalize_single_origin_flag(raw.get("title", ""), tags, text),
-                    "is_espresso_recommended": "espresso" in " ".join(tags).lower() or "recommended for espresso" in text.lower(),
-                },
+            shopify_payload = _apply_metadata_overrides(
+                session,
+                merchant,
+                str(raw["id"]),
+                _enrich_payload_with_parser(
+                    {
+                        "name": product_name,
+                        "product_url": f"{root_url}/products/{raw.get('handle', '')}",
+                        "image_url": _normalize_asset_url((raw.get("image") or {}).get("src") or ((raw.get("images") or [{}])[0].get("src") or "")),
+                        "origin_text": _extract_field(text, "Origin"),
+                        "process_text": _extract_field(text, "Process"),
+                        "variety_text": _extract_field(text, "Variety"),
+                        "roast_cues": "light" if "light" in " ".join(tags).lower() else "",
+                        "tasting_notes_text": _extract_tasting_notes(text),
+                        "is_single_origin": _normalize_single_origin_flag(raw.get("title", ""), tags, text),
+                        "is_espresso_recommended": "espresso" in " ".join(tags).lower() or "recommended for espresso" in text.lower(),
+                    },
+                    product_name,
+                    raw.get("body_html", ""),
+                ),
                 product_name,
                 raw.get("body_html", ""),
             )
@@ -1072,19 +1230,26 @@ def _crawl_agentic_catalog(
             image_url = ""
 
         external_product_id = str(ld_product.get("productID") or urlparse(product_url).path.rstrip("/"))
-        agentic_payload = _enrich_payload_with_parser(
-            {
-                "name": product_name,
-                "product_url": product_url,
-                "image_url": image_url,
-                "origin_text": _extract_field(combined_context, "Origin") or _infer_origin_from_text(product_name, combined_context),
-                "process_text": _extract_field(combined_context, "Process") or _extract_process_from_text(product_name, combined_context),
-                "variety_text": _extract_field(combined_context, "Variety") or _extract_variety_from_text(product_name, combined_context),
-                "roast_cues": "light" if "light" in combined_context.lower() else "",
-                "tasting_notes_text": _extract_tasting_notes(combined_context),
-                "is_single_origin": _normalize_single_origin_flag(product_name, [], combined_context),
-                "is_espresso_recommended": "espresso" in combined_context.lower(),
-            },
+        agentic_payload = _apply_metadata_overrides(
+            session,
+            merchant,
+            external_product_id,
+            _enrich_payload_with_parser(
+                {
+                    "name": product_name,
+                    "product_url": product_url,
+                    "image_url": image_url,
+                    "origin_text": _extract_field(combined_context, "Origin") or _infer_origin_from_text(product_name, combined_context),
+                    "process_text": _extract_field(combined_context, "Process") or _extract_process_from_text(product_name, combined_context),
+                    "variety_text": _extract_field(combined_context, "Variety") or _extract_variety_from_text(product_name, combined_context),
+                    "roast_cues": "light" if "light" in combined_context.lower() else "",
+                    "tasting_notes_text": _extract_tasting_notes(combined_context),
+                    "is_single_origin": _normalize_single_origin_flag(product_name, [], combined_context),
+                    "is_espresso_recommended": "espresso" in combined_context.lower(),
+                },
+                product_name,
+                combined_context,
+            ),
             product_name,
             combined_context,
         )
@@ -1171,19 +1336,26 @@ def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
                     first_intro_token = ""
 
                 woo_product_name = _normalize_product_name(raw.get("name", "Unnamed Coffee"))
-                woo_payload = _enrich_payload_with_parser(
-                    {
-                        "name": woo_product_name,
-                        "product_url": product_url,
-                        "image_url": ((raw.get("images") or [{}])[0].get("src") or ""),
-                        "origin_text": _extract_field(description, "Origin") or _merge_origin_and_site(inferred_origin, first_intro_token),
-                        "process_text": _extract_field(description, "Process") or _extract_process_from_text(raw.get("name", ""), combined_context),
-                        "variety_text": _extract_field(description, "Variety") or _extract_variety_from_text(raw.get("name", ""), combined_context),
-                        "roast_cues": "light" if "light" in combined_context.lower() else "",
-                        "tasting_notes_text": _extract_tasting_notes(combined_context),
-                        "is_single_origin": _normalize_single_origin_flag(raw.get("name", ""), [], combined_context, categories),
-                        "is_espresso_recommended": "espresso" in combined_context.lower(),
-                    },
+                woo_payload = _apply_metadata_overrides(
+                    session,
+                    merchant,
+                    str(raw["id"]),
+                    _enrich_payload_with_parser(
+                        {
+                            "name": woo_product_name,
+                            "product_url": product_url,
+                            "image_url": ((raw.get("images") or [{}])[0].get("src") or ""),
+                            "origin_text": _extract_field(description, "Origin") or _merge_origin_and_site(inferred_origin, first_intro_token),
+                            "process_text": _extract_field(description, "Process") or _extract_process_from_text(raw.get("name", ""), combined_context),
+                            "variety_text": _extract_field(description, "Variety") or _extract_variety_from_text(raw.get("name", ""), combined_context),
+                            "roast_cues": "light" if "light" in combined_context.lower() else "",
+                            "tasting_notes_text": _extract_tasting_notes(combined_context),
+                            "is_single_origin": _normalize_single_origin_flag(raw.get("name", ""), [], combined_context, categories),
+                            "is_espresso_recommended": "espresso" in combined_context.lower(),
+                        },
+                        woo_product_name,
+                        combined_context,
+                    ),
                     woo_product_name,
                     combined_context,
                 )

@@ -1,6 +1,13 @@
 {
   "entries": [
     {
+      "id": "SC-47-metadata-extraction-upgrade",
+      "path": ".memory/sprint-01/SC-47-metadata-extraction-upgrade.md",
+      "ticket": "SC-47",
+      "title": "Metadata extraction upgrade",
+      "date": "2026-03-15"
+    },
+    {
       "id": "SC-46-normalized-product-metadata",
       "path": ".memory/sprint-01/SC-46-normalized-product-metadata.md",
       "ticket": "SC-46",
