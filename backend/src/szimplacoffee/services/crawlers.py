@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 import html
 import json
-import math
 import re
 from typing import Iterable
 from urllib.parse import urljoin, urlparse, urlunparse
@@ -1007,7 +1006,6 @@ def _crawl_agentic_catalog(
     landing_html: str,
     confidence: float,
 ) -> CrawlSummary:
-    root_url = _site_root(merchant.homepage_url)
     product_links = _extract_product_links(landing_url, landing_html)
     if not product_links:
         return CrawlSummary(adapter_name="agentic_catalog", records_written=0, confidence=confidence * 0.75)

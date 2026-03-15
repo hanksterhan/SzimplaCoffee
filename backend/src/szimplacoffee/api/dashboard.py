@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, UTC
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
@@ -14,7 +13,6 @@ from ..models import (
     OfferSnapshot,
     Product,
     ProductVariant,
-    PromoSnapshot,
     RecommendationRun,
 )
 from ..schemas.dashboard import DashboardMetrics
@@ -29,7 +27,7 @@ def get_dashboard_metrics(db: Session = Depends(get_session)) -> DashboardMetric
     variant_count = db.scalar(func.count(ProductVariant.id)) or 0
     offer_count = db.scalar(func.count(OfferSnapshot.id)) or 0
     promo_count = db.scalar(
-        select(func.count(MerchantPromo.id)).where(MerchantPromo.is_active == True)
+        select(func.count(MerchantPromo.id)).where(MerchantPromo.is_active.is_(True))
     ) or 0
     crawl_run_count = db.scalar(func.count(CrawlRun.id)) or 0
     recommendation_count = db.scalar(func.count(RecommendationRun.id)) or 0

@@ -50,7 +50,7 @@ def search_products(
     if is_active is not None:
         stmt = stmt.where(Product.is_active == is_active)
     else:
-        stmt = stmt.where(Product.is_active == True)
+        stmt = stmt.where(Product.is_active.is_(True))
     if q:
         stmt = stmt.where(Product.name.ilike(f"%{q}%"))
     if is_espresso_recommended is not None:

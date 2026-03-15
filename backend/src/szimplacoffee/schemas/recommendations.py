@@ -1,7 +1,6 @@
 import ast
 import json
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 

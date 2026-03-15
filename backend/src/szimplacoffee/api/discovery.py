@@ -8,7 +8,6 @@ from ..db import get_session, session_scope
 from ..models import Merchant, MerchantCandidate
 from ..schemas.discovery import MerchantCandidateSchema
 from ..services.discovery import promote_candidate, run_discovery
-from ..services.crawlers import crawl_merchant
 
 router = APIRouter(prefix="/discovery", tags=["discovery"])
 

@@ -177,7 +177,7 @@ def list_merchant_promos(
         raise HTTPException(status_code=404, detail="Merchant not found")
     q = select(MerchantPromo).where(MerchantPromo.merchant_id == merchant_id)
     if active_only:
-        q = q.where(MerchantPromo.is_active == True)
+        q = q.where(MerchantPromo.is_active.is_(True))
     q = q.order_by(MerchantPromo.estimated_value_cents.desc(), MerchantPromo.last_seen_at.desc())
     promos = db.scalars(q).all()
     return [MerchantPromoSchema.model_validate(p) for p in promos]
