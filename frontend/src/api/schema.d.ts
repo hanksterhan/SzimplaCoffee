@@ -713,6 +713,18 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** CursorPage[ProductSummary] */
+        CursorPage_ProductSummary_: {
+            /** Items */
+            items: components["schemas"]["ProductSummary"][];
+            /** Next Cursor */
+            next_cursor?: number | null;
+            /**
+             * Has More
+             * @default false
+             */
+            has_more: boolean;
+        };
         /** DashboardMetrics */
         DashboardMetrics: {
             /** Merchant Count */
@@ -955,19 +967,6 @@ export interface components {
         PaginatedResponse_MerchantSummary_: {
             /** Items */
             items: components["schemas"]["MerchantSummary"][];
-            /** Total */
-            total: number;
-            /** Page */
-            page: number;
-            /** Page Size */
-            page_size: number;
-            /** Has Next */
-            has_next: boolean;
-        };
-        /** PaginatedResponse[ProductSummary] */
-        PaginatedResponse_ProductSummary_: {
-            /** Items */
-            items: components["schemas"]["ProductSummary"][];
             /** Total */
             total: number;
             /** Page */
@@ -1616,8 +1615,9 @@ export interface operations {
                 is_espresso_recommended?: boolean | null;
                 /** @description Filter by product category. Use 'all' for no filter. */
                 category?: string | null;
-                page?: number;
-                page_size?: number;
+                limit?: number;
+                /** @description Last product ID seen; returns products with id > cursor */
+                cursor?: number | null;
             };
             header?: never;
             path: {
@@ -1633,7 +1633,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PaginatedResponse_ProductSummary_"];
+                    "application/json": components["schemas"]["CursorPage_ProductSummary_"];
                 };
             };
             /** @description Validation Error */
@@ -1656,8 +1656,9 @@ export interface operations {
                 is_active?: boolean | null;
                 /** @description Filter by product category. Use 'all' to search everything. */
                 category?: string | null;
-                page?: number;
-                page_size?: number;
+                limit?: number;
+                /** @description Last product ID seen; returns products with id > cursor */
+                cursor?: number | null;
             };
             header?: never;
             path?: never;
@@ -1671,7 +1672,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PaginatedResponse_ProductSummary_"];
+                    "application/json": components["schemas"]["CursorPage_ProductSummary_"];
                 };
             };
             /** @description Validation Error */

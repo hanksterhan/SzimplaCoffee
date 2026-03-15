@@ -1,4 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { components } from "@/api/schema";
+
+export type CursorPageProductSummary = components["schemas"]["CursorPage_ProductSummary_"];
 import { toast } from "sonner";
 import { api } from "@/api/client";
 
@@ -46,23 +49,21 @@ export function useMerchant(id: number) {
   });
 }
 
-export function useMerchantProducts(merchantId: number, pageSize = 50, category = "coffee") {
-  return useQuery({
+export function useMerchantProducts(merchantId: number, category = "coffee") {
+  return useInfiniteQuery({
     queryKey: ["merchants", merchantId, "products", category],
-    queryFn: async () => {
-      const { data, error } = await api.GET(
-        "/api/v1/merchants/{merchant_id}/products",
-        {
-          params: {
-            path: { merchant_id: merchantId },
-            query: { page_size: pageSize, category: category || undefined },
-          },
-        }
+    queryFn: async ({ pageParam }) => {
+      const response = await fetch(
+        `/api/v1/merchants/${merchantId}/products?category=${encodeURIComponent(category || "coffee")}&limit=24${pageParam ? `&cursor=${pageParam}` : ""}`
       );
-      if (error) throw error;
-      return data;
+      if (!response.ok) throw new Error("Failed to fetch products");
+      return response.json() as Promise<CursorPageProductSummary>;
     },
+    initialPageParam: null as number | null,
+    getNextPageParam: (lastPage) =>
+      lastPage.has_more ? lastPage.next_cursor ?? undefined : undefined,
     enabled: !!merchantId && merchantId > 0,
+    staleTime: 30_000,
   });
 }
 

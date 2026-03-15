@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useMerchantProducts } from "@/hooks/use-merchants";
 import { useProductDetail } from "@/hooks/use-product-offers";
+import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
 import { PriceHistoryChart } from "@/components/charts/PriceHistoryChart";
 import {
   Table,
@@ -13,6 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import type { ProductSummary } from "@/hooks/use-products";
 
 interface ProductsTabProps {
   merchantId: number;
@@ -121,8 +123,30 @@ const CATEGORY_OPTIONS = [
 
 export function ProductsTab({ merchantId }: ProductsTabProps) {
   const [category, setCategory] = useState("coffee");
-  const { data, isLoading } = useMerchantProducts(merchantId, 100, category);
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useMerchantProducts(merchantId, category);
   const [expandedProductId, setExpandedProductId] = useState<number | null>(null);
+
+  // Flatten all pages
+  const products: ProductSummary[] = data?.pages.flatMap((page) => page.items) ?? [];
+  const totalLoaded = products.length;
+  const activeCount = products.filter((p) => p.is_active).length;
+
+  const handleLoadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const loadMoreRef = useIntersectionObserver(handleLoadMore, {
+    enabled: hasNextPage && !isFetchingNextPage,
+    rootMargin: "200px",
+  });
 
   if (isLoading) {
     return (
@@ -134,7 +158,7 @@ export function ProductsTab({ merchantId }: ProductsTabProps) {
     );
   }
 
-  if (!data?.items.length) {
+  if (!products.length && !isLoading) {
     return (
       <div className="py-12 text-center text-muted-foreground">
         No products found for this merchant.
@@ -150,7 +174,7 @@ export function ProductsTab({ merchantId }: ProductsTabProps) {
     <div className="mt-4 space-y-2">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-muted-foreground">
-          {data.total} products ({data.items.filter((p) => p.is_active).length} active) —{" "}
+          Showing {totalLoaded}{hasNextPage ? "+" : ""} products ({activeCount} active) —{" "}
           <span className="text-xs">click a row to see price history</span>
         </p>
         <select
@@ -178,7 +202,7 @@ export function ProductsTab({ merchantId }: ProductsTabProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.items.map((p) => (
+          {products.map((p) => (
             <>
               <TableRow
                 key={p.id}
@@ -253,6 +277,25 @@ export function ProductsTab({ merchantId }: ProductsTabProps) {
           ))}
         </TableBody>
       </Table>
+
+      {/* Inline skeleton rows while fetching next page */}
+      {isFetchingNextPage && (
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
+        </div>
+      )}
+
+      {/* End state */}
+      {!hasNextPage && totalLoaded > 0 && (
+        <p className="text-center text-sm text-muted-foreground py-2">
+          ✓ All {totalLoaded} products shown
+        </p>
+      )}
+
+      {/* Sentinel */}
+      <div ref={loadMoreRef} className="h-1" />
     </div>
   );
 }

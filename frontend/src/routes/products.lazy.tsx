@@ -1,10 +1,11 @@
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProductSearch, type ProductSummary } from "@/hooks/use-products";
+import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
 
 export const Route = createLazyFileRoute("/products")({
   component: ProductsPage,
@@ -143,20 +144,31 @@ const CATEGORY_OPTIONS = [
 function ProductsPage() {
   const [inputValue, setInputValue] = useState("");
   const [category, setCategory] = useState("coffee");
-  const [page, setPage] = useState(1);
   const debouncedQ = useDebounce(inputValue, 350);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Reset to page 1 when search or category changes
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedQ, category]);
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useProductSearch(debouncedQ, category);
 
-  const { data, isLoading, isFetching } = useProductSearch(debouncedQ, page, 24, category);
+  // Flatten pages into single product list
+  const products = data?.pages.flatMap((page) => page.items) ?? [];
+  const totalLoaded = products.length;
 
-  const products = data?.items ?? [];
-  const total = data?.total ?? 0;
-  const totalPages = Math.ceil(total / 24);
+  const handleLoadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const loadMoreRef = useIntersectionObserver(handleLoadMore, {
+    enabled: hasNextPage && !isFetchingNextPage,
+    rootMargin: "200px",
+  });
 
   return (
     <div className="space-y-6">
@@ -164,7 +176,7 @@ function ProductsPage() {
       <div>
         <h1 className="text-2xl font-bold">📦 Products</h1>
         <p className="text-muted-foreground text-sm">
-          Browse {total > 0 ? `${total} ` : ""}specialty coffee products
+          Browse specialty coffee products
         </p>
       </div>
 
@@ -213,51 +225,28 @@ function ProductsPage() {
             "Loading…"
           ) : debouncedQ ? (
             <>
-              {total} result{total !== 1 ? "s" : ""} for{" "}
+              Showing {totalLoaded} result{totalLoaded !== 1 ? "s" : ""} for{" "}
               <span className="font-medium text-foreground">"{debouncedQ}"</span>
               {category !== "all" && (
                 <span className="text-muted-foreground/70"> in {CATEGORY_OPTIONS.find(o => o.value === category)?.label ?? category}</span>
               )}
+              {hasNextPage && <span className="text-muted-foreground/60"> (more below)</span>}
             </>
           ) : (
             <>
-              {total} {category !== "all" ? (CATEGORY_OPTIONS.find(o => o.value === category)?.label ?? category) + " " : ""}products
+              Showing {totalLoaded}
+              {hasNextPage ? "+" : ""}{" "}
+              {category !== "all" ? (CATEGORY_OPTIONS.find(o => o.value === category)?.label ?? category) + " " : ""}
+              products
             </>
           )}
-          {isFetching && !isLoading && (
-            <span className="ml-2 text-muted-foreground/60">↻</span>
-          )}
         </p>
-
-        {totalPages > 1 && (
-          <div className="flex items-center gap-2 text-sm">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              ← Prev
-            </Button>
-            <span className="text-muted-foreground">
-              {page} / {totalPages}
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next →
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* Grid */}
       {isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {Array.from({ length: 12 }).map((_, i) => (
+          {Array.from({ length: 24 }).map((_, i) => (
             <ProductCardSkeleton key={i} />
           ))}
         </div>
@@ -274,40 +263,30 @@ function ProductsPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {products.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
-      )}
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {products.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
 
-      {/* Bottom pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2">
-          <Button
-            variant="outline"
-            disabled={page === 1}
-            onClick={() => {
-              setPage((p) => p - 1);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          >
-            ← Previous
-          </Button>
-          <span className="flex items-center text-sm text-muted-foreground px-4">
-            Page {page} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            disabled={page >= totalPages}
-            onClick={() => {
-              setPage((p) => p + 1);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          >
-            Next →
-          </Button>
-        </div>
+          {/* Inline loader for subsequent pages */}
+          {isFetchingNextPage && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <ProductCardSkeleton key={i} />
+              ))}
+            </div>
+          )}
+
+          {/* Sentinel for intersection observer + end state */}
+          {!hasNextPage && !isLoading && (
+            <p className="text-center text-sm text-muted-foreground py-4">
+              ✓ All {totalLoaded} products shown
+            </p>
+          )}
+          <div ref={loadMoreRef} className="h-1" />
+        </>
       )}
     </div>
   );
