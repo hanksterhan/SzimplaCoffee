@@ -1,6 +1,13 @@
 {
   "entries": [
     {
+      "id": "SC-48-server-side-catalog-querying",
+      "path": ".memory/sprint-01/SC-48-server-side-catalog-querying.md",
+      "ticket": "SC-48",
+      "title": "Server-side catalog querying",
+      "date": "2026-03-15"
+    },
+    {
       "id": "SC-47-metadata-extraction-upgrade",
       "path": ".memory/sprint-01/SC-47-metadata-extraction-upgrade.md",
       "ticket": "SC-47",

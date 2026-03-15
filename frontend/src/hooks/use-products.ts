@@ -8,16 +8,44 @@ export type ProductVariantSchema = components["schemas"]["ProductVariantSchema"]
 export type OfferSnapshotSchema = components["schemas"]["OfferSnapshotSchema"];
 export type CursorPageProductSummary = components["schemas"]["CursorPage_ProductSummary_"];
 export type ProductMerchantOption = { merchant_id: number; merchant_name: string };
+export type ProductSort =
+  | "featured"
+  | "merchant"
+  | "price_low"
+  | "price_high"
+  | "price_per_oz_low"
+  | "price_per_oz_high"
+  | "discount";
 
-export function useProductSearch(q: string, categories: string[] = ["coffee"]) {
+export type ProductSearchParams = {
+  q: string;
+  categories?: string[];
+  merchantIds?: number[];
+  sort?: ProductSort;
+};
+
+export function useProductSearch({
+  q,
+  categories = ["coffee"],
+  merchantIds = [],
+  sort = "featured",
+}: ProductSearchParams) {
   const categoryParam = categories.length > 0 ? categories.join(",") : "coffee";
+  const merchantParam = merchantIds.length > 0 ? merchantIds.join(",") : "";
 
   return useInfiniteQuery({
-    queryKey: ["products", "search", q, categoryParam],
+    queryKey: ["products", "search", q, categoryParam, merchantParam, sort],
     queryFn: async ({ pageParam }) => {
-      const response = await fetch(
-        `/api/v1/products/search?q=${encodeURIComponent(q)}&category=${encodeURIComponent(categoryParam)}&limit=24${pageParam ? `&cursor=${pageParam}` : ""}`
-      );
+      const params = new URLSearchParams();
+      params.set("category", categoryParam);
+      params.set("limit", "24");
+      params.set("sort", sort);
+      if (q) params.set("q", q);
+      if (merchantParam) params.set("merchant_id", merchantParam);
+      if (pageParam !== null && pageParam !== undefined) {
+        params.set("cursor", String(pageParam));
+      }
+      const response = await fetch(`/api/v1/products/search?${params.toString()}`);
       if (!response.ok) throw new Error("Search failed");
       return response.json() as Promise<CursorPageProductSummary>;
     },

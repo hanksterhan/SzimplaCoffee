@@ -2,10 +2,10 @@ id: "SC-48"
 title: "Move catalog filtering and sorting to the backend"
 type: "feature"
 priority: "p1"
-status: "draft"
+status: "done"
 owner: "h6nk-bot"
 created_at: "2026-03-15T07:00:00Z"
-updated_at: "2026-03-15T07:00:00Z"
+updated_at: "2026-03-15T20:26:34Z"
 labels:
   - "feature"
   - "workflow"
@@ -34,17 +34,17 @@ acceptance_criteria:
     id: "AC-1"
     text: "The products API accepts server-side filter parameters for merchant, stock, bean status, sale status, normalized metadata, and price-per-oz bounds."
     verify: "cd backend && . .venv/bin/activate && pytest tests/test_api_products.py -q"
-    status: "pending"
+    status: "passed"
   -
     id: "AC-2"
     text: "The products API returns globally sorted results for supported sort modes."
     verify: "cd backend && . .venv/bin/activate && pytest tests/test_api_products.py -q"
-    status: "pending"
+    status: "passed"
   -
     id: "AC-3"
     text: "The frontend products page uses backend-driven sort and filter state instead of client-side page-local ranking."
     verify: "cd frontend && npm run build"
-    status: "pending"
+    status: "passed"
 verification_required:
   - "cd backend && . .venv/bin/activate && pytest tests/test_api_products.py -q"
   - "cd backend && . .venv/bin/activate && ruff check src tests"
@@ -56,7 +56,7 @@ slices:
   -
     id: "S1"
     title: "Expand products API query model"
-    status: "pending"
+    status: "complete"
     depends_on: []
     files_create: []
     files_modify:
@@ -73,7 +73,7 @@ slices:
   -
     id: "S2"
     title: "Rewire frontend catalog controls to backend query state"
-    status: "pending"
+    status: "complete"
     depends_on:
       - "S1"
     files_create: []
@@ -87,14 +87,26 @@ slices:
     evidence: []
     notes: "Keep current dropdown UX while moving ranking truth to the backend."
 delivery:
-  branch: "feat/SC-48-server-side-catalog-querying"
+  branch: "codex/sc-48-server-side-catalog-querying"
   commits: []
   pr_url: ""
-  started_at: ""
-  completed_at: ""
+  started_at: "2026-03-15T20:19:55Z"
+  completed_at: "2026-03-15T20:26:34Z"
   verification:
-    required_passed: false
-    commands_run: []
-    evidence_refs: []
+    required_passed: true
+    commands_run:
+      - "cd backend && ../.venv/bin/pytest tests/test_api_products.py -q"
+      - "cd backend && ../.venv/bin/ruff check src/szimplacoffee/api/products.py src/szimplacoffee/schemas/products.py tests/test_api_products.py"
+      - "cd backend && ../.venv/bin/ruff check src tests"
+      - "cd frontend && npm run build"
+      - "cd backend && ../.venv/bin/pytest -q"
+    evidence_refs:
+      - "pytest tests/test_api_products.py: 12 passed in 0.65s"
+      - "ruff changed backend files: All checks passed!"
+      - "ruff full backend: All checks passed!"
+      - "frontend build: vite build succeeded"
+      - "pytest full backend: 49 passed in 0.63s"
 notes:
   - "Generated from .plans/next-steps-march15.md in strict-schema migration batch."
+  - "The repo does not currently have a local or remote stage branch, so delivery used main as the base branch and PR target."
+  - "Backend verification currently uses the repo-root .venv for pytest and ruff."
