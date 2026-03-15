@@ -1,7 +1,13 @@
 from datetime import datetime
+from typing import Literal
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, computed_field
+
+
+RoastLevel = Literal["light", "light-medium", "medium", "medium-dark", "dark", "unknown"]
+ProcessFamily = Literal["washed", "natural", "honey", "anaerobic", "wet-hulled", "blend", "unknown"]
+MetadataSource = Literal["unknown", "structured", "parser", "agentic", "override"]
 
 
 class OfferSnapshotSchema(BaseModel):
@@ -45,8 +51,14 @@ class ProductSummary(BaseModel):
     product_url: str
     image_url: str
     origin_text: str   # mostly empty currently
+    origin_country: Optional[str] = None
+    origin_region: Optional[str] = None
     process_text: str  # mostly empty currently
+    process_family: ProcessFamily = "unknown"
     tasting_notes_text: str  # mostly empty currently
+    roast_level: RoastLevel = "unknown"
+    metadata_confidence: float = 0.0
+    metadata_source: MetadataSource = "unknown"
     product_category: str
     is_single_origin: bool
     is_espresso_recommended: bool
