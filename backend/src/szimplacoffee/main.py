@@ -170,7 +170,7 @@ def discovery_reject_form(candidate_id: int, session: Session = Depends(get_sess
 # Production SPA serving — only active when frontend/dist exists
 # ---------------------------------------------------------------------------
 
-FRONTEND_DIST = Path(__file__).parents[4] / "frontend" / "dist"
+FRONTEND_DIST = Path(__file__).resolve().parents[3] / "frontend" / "dist"
 
 if FRONTEND_DIST.exists():
     # Serve compiled JS/CSS assets
