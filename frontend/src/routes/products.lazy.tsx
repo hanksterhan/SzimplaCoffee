@@ -524,9 +524,6 @@ function ProductsPage() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {selectedLabels.map((label) => (
-              <Badge key={label} variant="secondary">{label}</Badge>
-            ))}
             {selectedMerchants.slice(0, 3).map((merchant) => (
               <Badge key={merchant} variant="secondary">{merchant}</Badge>
             ))}
