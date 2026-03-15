@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -11,12 +12,21 @@ from ..models import Merchant, OfferSnapshot, Product, ProductVariant
 from ..schemas.common import CursorPage
 from pydantic import BaseModel
 
-from ..schemas.products import OfferSnapshotSchema, ProductDetail, ProductSummary
+from ..schemas.products import OfferSnapshotSchema, ProductDetail, ProductSort, ProductSummary
 
 
 class ProductMerchantOption(BaseModel):
     merchant_id: int
     merchant_name: str
+
+
+@dataclass
+class ProductResultRow:
+    summary: ProductSummary
+    has_stock: bool
+    has_whole_bean: bool
+    is_on_sale: bool
+    price_per_oz: float | None
 
 router = APIRouter(tags=["products"])
 
@@ -59,6 +69,23 @@ def _parse_categories(category: str | None) -> list[str]:
     return list(dict.fromkeys(categories))
 
 
+def _parse_csv_values(value: str | None) -> list[str]:
+    value = _normalize_query_default(value)
+    if not value:
+        return []
+    return list(dict.fromkeys(part.strip() for part in value.split(",") if part.strip()))
+
+
+def _parse_csv_ints(value: str | None) -> list[int]:
+    ids: list[int] = []
+    for item in _parse_csv_values(value):
+        try:
+            ids.append(int(item))
+        except ValueError:
+            continue
+    return list(dict.fromkeys(ids))
+
+
 def _coffee_like_merch_clause():
     exclusions = [Product.name.ilike(f"%{term}%") for term in MERCH_NAME_EXCLUSIONS]
     return and_(
@@ -99,6 +126,27 @@ def _variant_latest_offer(variant: ProductVariant):
     return max(offers, key=lambda offer: offer.observed_at)
 
 
+def _offer_is_on_sale(offer: OfferSnapshot | None) -> bool:
+    if offer is None:
+        return False
+    return bool(
+        offer.is_on_sale
+        or (
+            offer.compare_at_price_cents
+            and offer.compare_at_price_cents > offer.price_cents
+        )
+    )
+
+
+def _price_per_oz(price_cents: int | None, weight_grams: int | None) -> float | None:
+    if not price_cents or not weight_grams:
+        return None
+    ounces = weight_grams / 28.3495
+    if ounces <= 0:
+        return None
+    return (price_cents / 100) / ounces
+
+
 
 def _select_primary_variant(product: Product) -> tuple[ProductVariant, Any] | None:
     variants_with_offer = []
@@ -113,6 +161,175 @@ def _select_primary_variant(product: Product) -> tuple[ProductVariant, Any] | No
     whole_bean = [item for item in variants_with_offer if item[0].is_whole_bean and item[0].weight_grams]
     pool = whole_bean or variants_with_offer
     return min(pool, key=lambda item: item[1].price_cents)
+
+
+def _build_product_result(product: Product, merchant_name: str) -> ProductResultRow:
+    summary = _product_summary_with_merchant(product, merchant_name)
+    has_stock = False
+    has_whole_bean = False
+    is_on_sale = False
+
+    for variant in product.variants:
+        latest_offer = _variant_latest_offer(variant)
+        if variant.is_whole_bean:
+            has_whole_bean = True
+        if variant.is_available and latest_offer and latest_offer.is_available:
+            has_stock = True
+        if _offer_is_on_sale(latest_offer):
+            is_on_sale = True
+
+    return ProductResultRow(
+        summary=summary,
+        has_stock=has_stock,
+        has_whole_bean=has_whole_bean,
+        is_on_sale=is_on_sale,
+        price_per_oz=_price_per_oz(summary.latest_price_cents, summary.primary_weight_grams),
+    )
+
+
+def _matches_result_filters(
+    result: ProductResultRow,
+    *,
+    in_stock: bool | None,
+    whole_bean_only: bool | None,
+    on_sale: bool | None,
+    price_per_oz_min: float | None,
+    price_per_oz_max: float | None,
+) -> bool:
+    if in_stock is not None and result.has_stock != in_stock:
+        return False
+    if whole_bean_only is not None and result.has_whole_bean != whole_bean_only:
+        return False
+    if on_sale is not None and result.is_on_sale != on_sale:
+        return False
+    if price_per_oz_min is not None:
+        if result.price_per_oz is None or result.price_per_oz < price_per_oz_min:
+            return False
+    if price_per_oz_max is not None:
+        if result.price_per_oz is None or result.price_per_oz > price_per_oz_max:
+            return False
+    return True
+
+
+def _sort_results(rows: list[ProductResultRow], sort: ProductSort) -> list[ProductResultRow]:
+    if sort == "merchant":
+        return sorted(
+            rows,
+            key=lambda row: (
+                row.summary.merchant_name.lower(),
+                row.summary.name.lower(),
+                row.summary.id,
+            ),
+        )
+    if sort == "price_low":
+        return sorted(
+            rows,
+            key=lambda row: (
+                row.summary.latest_price_cents if row.summary.latest_price_cents is not None else float("inf"),
+                row.summary.name.lower(),
+                row.summary.id,
+            ),
+        )
+    if sort == "price_high":
+        return sorted(
+            rows,
+            key=lambda row: (
+                -(row.summary.latest_price_cents or -1),
+                row.summary.name.lower(),
+                row.summary.id,
+            ),
+        )
+    if sort == "price_per_oz_low":
+        return sorted(
+            rows,
+            key=lambda row: (
+                row.price_per_oz if row.price_per_oz is not None else float("inf"),
+                row.summary.name.lower(),
+                row.summary.id,
+            ),
+        )
+    if sort == "price_per_oz_high":
+        return sorted(
+            rows,
+            key=lambda row: (
+                -(row.price_per_oz or -1),
+                row.summary.name.lower(),
+                row.summary.id,
+            ),
+        )
+    if sort == "discount":
+        return sorted(
+            rows,
+            key=lambda row: (
+                -(row.summary.latest_discount_percent or -1),
+                row.summary.latest_price_cents if row.summary.latest_price_cents is not None else float("inf"),
+                row.summary.name.lower(),
+                row.summary.id,
+            ),
+        )
+    return sorted(
+        rows,
+        key=lambda row: (
+            -int(row.has_stock),
+            -row.summary.metadata_confidence,
+            -row.summary.last_seen_at.timestamp(),
+            row.summary.merchant_name.lower(),
+            row.summary.name.lower(),
+            row.summary.id,
+        ),
+    )
+
+
+def _paginate_results(rows: list[ProductResultRow], cursor: int | None, limit: int) -> CursorPage[ProductSummary]:
+    start = max(cursor or 0, 0)
+    items = rows[start : start + limit]
+    has_more = start + limit < len(rows)
+    next_cursor = start + limit if has_more else None
+    return CursorPage(
+        items=[row.summary for row in items],
+        next_cursor=next_cursor,
+        has_more=has_more,
+    )
+
+
+def _apply_catalog_filters(
+    stmt,
+    *,
+    q: str | None = None,
+    merchant_ids: list[int] | None = None,
+    is_active: bool | None = None,
+    is_espresso_recommended: bool | None = None,
+    is_single_origin: bool | None = None,
+    category: str | None = None,
+    origin_country: str | None = None,
+    process_family: str | None = None,
+    roast_level: str | None = None,
+):
+    if is_active is not None:
+        stmt = stmt.where(Product.is_active == is_active)
+    if q:
+        stmt = stmt.where(Product.name.ilike(f"%{q}%"))
+    if merchant_ids:
+        stmt = stmt.where(Product.merchant_id.in_(merchant_ids))
+    if is_espresso_recommended is not None:
+        stmt = stmt.where(Product.is_espresso_recommended == is_espresso_recommended)
+    if is_single_origin is not None:
+        stmt = stmt.where(Product.is_single_origin == is_single_origin)
+    stmt = _apply_category_filter(stmt, category)
+
+    origin_countries = _parse_csv_values(origin_country)
+    if origin_countries:
+        stmt = stmt.where(Product.origin_country.in_(origin_countries))
+
+    process_families = _parse_csv_values(process_family)
+    if process_families:
+        stmt = stmt.where(Product.process_family.in_(process_families))
+
+    roast_levels = _parse_csv_values(roast_level)
+    if roast_levels:
+        stmt = stmt.where(Product.roast_level.in_(roast_levels))
+
+    return stmt
 
 
 def _merchant_options_query(db: Session, category: str | None = None, q: str | None = None):
@@ -154,91 +371,150 @@ def list_products_for_merchant(
     db: Session = Depends(get_session),
     is_active: bool | None = Query(None),
     is_espresso_recommended: bool | None = Query(None),
+    is_single_origin: bool | None = Query(None),
+    in_stock: bool | None = Query(None),
+    whole_bean_only: bool | None = Query(None),
+    on_sale: bool | None = Query(None),
     category: str | None = Query("coffee", description="Filter by product category. Use 'all' for no filter."),
+    origin_country: str | None = Query(None, description="Comma-separated normalized origin countries."),
+    process_family: str | None = Query(None, description="Comma-separated normalized process families."),
+    roast_level: str | None = Query(None, description="Comma-separated normalized roast levels."),
+    price_per_oz_min: float | None = Query(None, ge=0),
+    price_per_oz_max: float | None = Query(None, ge=0),
+    sort: ProductSort = Query("featured"),
     limit: int = Query(24, ge=1, le=200),
-    cursor: int | None = Query(None, description="Last product ID seen; returns products with id > cursor"),
+    cursor: int | None = Query(None, ge=0, description="Zero-based offset into the sorted result set."),
 ) -> CursorPage[ProductSummary]:
     is_active = _normalize_query_default(is_active)
     is_espresso_recommended = _normalize_query_default(is_espresso_recommended)
+    is_single_origin = _normalize_query_default(is_single_origin)
+    in_stock = _normalize_query_default(in_stock)
+    whole_bean_only = _normalize_query_default(whole_bean_only)
+    on_sale = _normalize_query_default(on_sale)
     category = _normalize_query_default(category)
+    origin_country = _normalize_query_default(origin_country)
+    process_family = _normalize_query_default(process_family)
+    roast_level = _normalize_query_default(roast_level)
+    price_per_oz_min = _normalize_query_default(price_per_oz_min)
+    price_per_oz_max = _normalize_query_default(price_per_oz_max)
+    sort = _normalize_query_default(sort)
     limit = _normalize_query_default(limit)
     cursor = _normalize_query_default(cursor)
     merchant = db.get(Merchant, merchant_id)
     merchant_name = merchant.name if merchant else ""
-    q = (
+    stmt = (
         select(Product)
         .options(selectinload(Product.variants).selectinload(ProductVariant.offers))
         .where(Product.merchant_id == merchant_id)
     )
-    if is_active is not None:
-        q = q.where(Product.is_active == is_active)
-    if is_espresso_recommended is not None:
-        q = q.where(Product.is_espresso_recommended == is_espresso_recommended)
-    q = _apply_category_filter(q, category)
-    if cursor is not None:
-        q = q.where(Product.id > cursor)
-    q = q.order_by(Product.id)
-    # Fetch limit+1 to detect has_more
-    rows = db.scalars(q.limit(limit + 1)).all()
-    has_more = len(rows) > limit
-    items = rows[:limit]
-    next_cursor = items[-1].id if has_more and items else None
-    return CursorPage(
-        items=[_product_summary_with_merchant(p, merchant_name) for p in items],
-        next_cursor=next_cursor,
-        has_more=has_more,
+    stmt = _apply_catalog_filters(
+        stmt,
+        is_active=is_active,
+        is_espresso_recommended=is_espresso_recommended,
+        is_single_origin=is_single_origin,
+        category=category,
+        origin_country=origin_country,
+        process_family=process_family,
+        roast_level=roast_level,
     )
+    rows = [
+        row
+        for row in (
+            _build_product_result(product, merchant_name)
+            for product in db.scalars(stmt).all()
+        )
+        if _matches_result_filters(
+            row,
+            in_stock=in_stock,
+            whole_bean_only=whole_bean_only,
+            on_sale=on_sale,
+            price_per_oz_min=price_per_oz_min,
+            price_per_oz_max=price_per_oz_max,
+        )
+    ]
+    return _paginate_results(_sort_results(rows, sort), cursor, limit)
 
 
 @router.get("/products/search", response_model=CursorPage[ProductSummary])
 def search_products(
     db: Session = Depends(get_session),
     q: str | None = Query(None, description="Search term for product name"),
+    merchant_id: str | None = Query(None, description="Comma-separated merchant IDs."),
     is_espresso_recommended: bool | None = Query(None),
     is_active: bool | None = Query(None),
+    is_single_origin: bool | None = Query(None),
+    in_stock: bool | None = Query(None),
+    whole_bean_only: bool | None = Query(None),
+    on_sale: bool | None = Query(None),
     category: str | None = Query("coffee", description="Filter by product category. Use 'all' to search everything."),
+    origin_country: str | None = Query(None, description="Comma-separated normalized origin countries."),
+    process_family: str | None = Query(None, description="Comma-separated normalized process families."),
+    roast_level: str | None = Query(None, description="Comma-separated normalized roast levels."),
+    price_per_oz_min: float | None = Query(None, ge=0),
+    price_per_oz_max: float | None = Query(None, ge=0),
+    sort: ProductSort = Query("featured"),
     limit: int = Query(24, ge=1, le=200),
-    cursor: int | None = Query(None, description="Last product ID seen; returns products with id > cursor"),
+    cursor: int | None = Query(None, ge=0, description="Zero-based offset into the sorted result set."),
 ) -> CursorPage[ProductSummary]:
     q = _normalize_query_default(q)
+    merchant_id = _normalize_query_default(merchant_id)
     is_espresso_recommended = _normalize_query_default(is_espresso_recommended)
     is_active = _normalize_query_default(is_active)
+    is_single_origin = _normalize_query_default(is_single_origin)
+    in_stock = _normalize_query_default(in_stock)
+    whole_bean_only = _normalize_query_default(whole_bean_only)
+    on_sale = _normalize_query_default(on_sale)
     category = _normalize_query_default(category)
+    origin_country = _normalize_query_default(origin_country)
+    process_family = _normalize_query_default(process_family)
+    roast_level = _normalize_query_default(roast_level)
+    price_per_oz_min = _normalize_query_default(price_per_oz_min)
+    price_per_oz_max = _normalize_query_default(price_per_oz_max)
+    sort = _normalize_query_default(sort)
     limit = _normalize_query_default(limit)
     cursor = _normalize_query_default(cursor)
+    merchant_ids = _parse_csv_ints(merchant_id)
     stmt = (
         select(Product)
         .options(selectinload(Product.variants).selectinload(ProductVariant.offers))
         .join(Merchant, Product.merchant_id == Merchant.id)
+        .where(Merchant.is_active.is_(True))
     )
-    if is_active is not None:
-        stmt = stmt.where(Product.is_active == is_active)
-    else:
-        stmt = stmt.where(Product.is_active.is_(True))
-    if q:
-        stmt = stmt.where(Product.name.ilike(f"%{q}%"))
-    if is_espresso_recommended is not None:
-        stmt = stmt.where(Product.is_espresso_recommended == is_espresso_recommended)
-    stmt = _apply_category_filter(stmt, category)
-    if cursor is not None:
-        stmt = stmt.where(Product.id > cursor)
-    stmt = stmt.order_by(Product.id)
-    # Fetch limit+1 to detect has_more
-    rows = db.scalars(stmt.limit(limit + 1)).all()
-    has_more = len(rows) > limit
-    items = rows[:limit]
-    next_cursor = items[-1].id if has_more and items else None
-    # Build merchant name lookup for the result set
-    merchant_ids = {p.merchant_id for p in items}
-    merchants = {
-        m.id: m.name
-        for m in db.scalars(select(Merchant).where(Merchant.id.in_(merchant_ids))).all()
+    stmt = _apply_catalog_filters(
+        stmt,
+        q=q,
+        merchant_ids=merchant_ids,
+        is_active=is_active if is_active is not None else True,
+        is_espresso_recommended=is_espresso_recommended,
+        is_single_origin=is_single_origin,
+        category=category,
+        origin_country=origin_country,
+        process_family=process_family,
+        roast_level=roast_level,
+    )
+    products = db.scalars(stmt).all()
+    merchant_names = {
+        merchant.id: merchant.name
+        for merchant in db.scalars(
+            select(Merchant).where(Merchant.id.in_({product.merchant_id for product in products}))
+        ).all()
     }
-    return CursorPage(
-        items=[_product_summary_with_merchant(p, merchants.get(p.merchant_id, "")) for p in items],
-        next_cursor=next_cursor,
-        has_more=has_more,
-    )
+    rows = [
+        row
+        for row in (
+            _build_product_result(product, merchant_names.get(product.merchant_id, ""))
+            for product in products
+        )
+        if _matches_result_filters(
+            row,
+            in_stock=in_stock,
+            whole_bean_only=whole_bean_only,
+            on_sale=on_sale,
+            price_per_oz_min=price_per_oz_min,
+            price_per_oz_max=price_per_oz_max,
+        )
+    ]
+    return _paginate_results(_sort_results(rows, sort), cursor, limit)
 
 
 @router.get("/products/merchant-options", response_model=list[ProductMerchantOption])

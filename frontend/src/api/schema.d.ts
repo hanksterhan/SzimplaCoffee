@@ -1613,10 +1613,23 @@ export interface operations {
             query?: {
                 is_active?: boolean | null;
                 is_espresso_recommended?: boolean | null;
+                is_single_origin?: boolean | null;
+                in_stock?: boolean | null;
+                whole_bean_only?: boolean | null;
+                on_sale?: boolean | null;
                 /** @description Filter by product category. Use 'all' for no filter. */
                 category?: string | null;
+                /** @description Comma-separated normalized origin countries. */
+                origin_country?: string | null;
+                /** @description Comma-separated normalized process families. */
+                process_family?: string | null;
+                /** @description Comma-separated normalized roast levels. */
+                roast_level?: string | null;
+                price_per_oz_min?: number | null;
+                price_per_oz_max?: number | null;
+                sort?: "featured" | "merchant" | "price_low" | "price_high" | "price_per_oz_low" | "price_per_oz_high" | "discount";
                 limit?: number;
-                /** @description Last product ID seen; returns products with id > cursor */
+                /** @description Zero-based offset into the sorted result set. */
                 cursor?: number | null;
             };
             header?: never;
@@ -1652,12 +1665,27 @@ export interface operations {
             query?: {
                 /** @description Search term for product name */
                 q?: string | null;
+                /** @description Comma-separated merchant IDs. */
+                merchant_id?: string | null;
                 is_espresso_recommended?: boolean | null;
                 is_active?: boolean | null;
+                is_single_origin?: boolean | null;
+                in_stock?: boolean | null;
+                whole_bean_only?: boolean | null;
+                on_sale?: boolean | null;
                 /** @description Filter by product category. Use 'all' to search everything. */
                 category?: string | null;
+                /** @description Comma-separated normalized origin countries. */
+                origin_country?: string | null;
+                /** @description Comma-separated normalized process families. */
+                process_family?: string | null;
+                /** @description Comma-separated normalized roast levels. */
+                roast_level?: string | null;
+                price_per_oz_min?: number | null;
+                price_per_oz_max?: number | null;
+                sort?: "featured" | "merchant" | "price_low" | "price_high" | "price_per_oz_low" | "price_per_oz_high" | "discount";
                 limit?: number;
-                /** @description Last product ID seen; returns products with id > cursor */
+                /** @description Zero-based offset into the sorted result set. */
                 cursor?: number | null;
             };
             header?: never;

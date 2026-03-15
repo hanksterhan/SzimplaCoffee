@@ -2,7 +2,7 @@
 
 ## Now
 
-- SC-48 through SC-53 are unblocked now that SC-44 restored the backend quality gates and SC-46 plus SC-47 established normalized metadata storage and extraction groundwork
+- SC-49, SC-52, and SC-53 are unblocked now that SC-48 moved catalog ranking truth and shopping filters into the backend
 - Add crawl-health and merchant-error visibility in the UI
 - Reduce remaining promo false positives and add stronger promo confidence heuristics
 - Decide whether custom platforms like Squarespace need a first-pass product crawler or should stay discovery-only

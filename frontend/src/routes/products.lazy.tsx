@@ -25,6 +25,7 @@ import {
   useProductMerchantOptions,
   useProductSearch,
   type ProductDetail,
+  type ProductSort,
   type ProductSummary,
 } from "@/hooks/use-products";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
@@ -81,18 +82,6 @@ function formatPricePerOz(cents: number | null | undefined, grams: number | null
   return `$${((cents / 100) / ounces).toFixed(2)}/oz`;
 }
 
-function pricePerOzValue(cents: number | null | undefined, grams: number | null | undefined) {
-  if (!cents || !grams) return null;
-  const ounces = grams / 28.3495;
-  if (!ounces) return null;
-  return (cents / 100) / ounces;
-}
-
-function discountPercentValue(priceCents: number | null | undefined, compareAtCents: number | null | undefined) {
-  if (!priceCents || !compareAtCents || compareAtCents <= priceCents) return null;
-  return Math.round((1 - priceCents / compareAtCents) * 100);
-}
-
 function buildTags(product: Pick<ProductDetail, "product_category" | "origin_text" | "process_text" | "variety_text" | "roast_cues" | "tasting_notes_text" | "is_single_origin" | "is_espresso_recommended">) {
   const tags = [
     product.product_category,
@@ -118,7 +107,7 @@ function toggleCategory(current: string[], value: string) {
   return next.length > 0 ? next : ["coffee"];
 }
 
-function toggleMerchant(current: string[], value: string) {
+function toggleMerchant(current: number[], value: number) {
   const exists = current.includes(value);
   const next = exists ? current.filter((item) => item !== value) : [...current, value];
   return next;
@@ -342,51 +331,23 @@ function ProductQuickView({ productId }: { productId: number | null }) {
 function ProductsPage() {
   const [inputValue, setInputValue] = useState("");
   const [categories, setCategories] = useState<string[]>(["coffee"]);
-  const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState<"featured" | "merchant" | "price_low" | "price_high" | "price_per_oz_low" | "price_per_oz_high" | "discount">("featured");
+  const [selectedMerchants, setSelectedMerchants] = useState<number[]>([]);
+  const [sortBy, setSortBy] = useState<ProductSort>("featured");
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const debouncedQ = useDebounce(inputValue, 350);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useProductSearch(debouncedQ, categories);
+  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useProductSearch({
+    q: debouncedQ,
+    categories,
+    merchantIds: selectedMerchants,
+    sort: sortBy,
+  });
   const { data: merchantOptionRows } = useProductMerchantOptions(debouncedQ, categories);
 
   const products = (data?.pages.flatMap((page) => page.items) ?? []) as ProductCardSummary[];
-  const merchantOptions = (merchantOptionRows ?? []).map((row) => row.merchant_name);
-
-  const filteredProducts = products.filter((product) => {
-    if (selectedMerchants.length === 0) return true;
-    return selectedMerchants.includes(product.merchant_name);
-  });
-
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    const aDiscount = a.latest_discount_percent ?? discountPercentValue(a.latest_price_cents, a.latest_compare_at_price_cents) ?? -1;
-    const bDiscount = b.latest_discount_percent ?? discountPercentValue(b.latest_price_cents, b.latest_compare_at_price_cents) ?? -1;
-    const aPricePerOz = pricePerOzValue(a.latest_price_cents, a.primary_weight_grams);
-    const bPricePerOz = pricePerOzValue(b.latest_price_cents, b.primary_weight_grams);
-    const aPrice = a.latest_price_cents ?? Number.POSITIVE_INFINITY;
-    const bPrice = b.latest_price_cents ?? Number.POSITIVE_INFINITY;
-
-    switch (sortBy) {
-      case "merchant":
-        return a.merchant_name.localeCompare(b.merchant_name) || a.name.localeCompare(b.name);
-      case "price_low":
-        return aPrice - bPrice;
-      case "price_high":
-        return bPrice - aPrice;
-      case "price_per_oz_low":
-        return (aPricePerOz ?? Number.POSITIVE_INFINITY) - (bPricePerOz ?? Number.POSITIVE_INFINITY);
-      case "price_per_oz_high":
-        return (bPricePerOz ?? -1) - (aPricePerOz ?? -1);
-      case "discount":
-        return bDiscount - aDiscount || aPrice - bPrice;
-      case "featured":
-      default:
-        return 0;
-    }
-  });
-
-  const totalLoaded = sortedProducts.length;
+  const merchantOptions = merchantOptionRows ?? [];
+  const totalLoaded = products.length;
   const selectedLabels = categories.includes("all")
     ? ["🌐 All Categories"]
     : CATEGORY_OPTIONS.filter((option) => categories.includes(option.value)).map((option) => option.label);
@@ -416,7 +377,7 @@ function ProductsPage() {
         <div>
           <h1 className="text-2xl font-bold">📦 Products</h1>
           <p className="text-muted-foreground text-sm">
-            Browse specialty coffee products
+            Browse specialty coffee products with backend-truth sorting and filtering
           </p>
         </div>
 
@@ -427,7 +388,7 @@ function ProductsPage() {
               ref={inputRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Search by name, origin, process, tasting notes…"
+              placeholder="Search by product name…"
               className="pl-8"
             />
           </div>
@@ -475,15 +436,15 @@ function ProductsPage() {
                   <div className="px-2 py-1.5 text-sm text-muted-foreground">No merchants loaded yet</div>
                 ) : (
                   merchantOptions.map((merchant) => {
-                    const checked = selectedMerchants.includes(merchant);
+                    const checked = selectedMerchants.includes(merchant.merchant_id);
                     return (
                       <DropdownMenuCheckboxItem
-                        key={merchant}
+                        key={merchant.merchant_id}
                         checked={checked}
-                        onCheckedChange={() => setSelectedMerchants((current) => toggleMerchant(current, merchant))}
+                        onCheckedChange={() => setSelectedMerchants((current) => toggleMerchant(current, merchant.merchant_id))}
                         onSelect={(event) => event.preventDefault()}
                       >
-                        <span className="truncate">{merchant}</span>
+                        <span className="truncate">{merchant.merchant_name}</span>
                       </DropdownMenuCheckboxItem>
                     );
                   })
@@ -562,7 +523,7 @@ function ProductsPage() {
               <ProductCardSkeleton key={i} />
             ))}
           </div>
-        ) : sortedProducts.length === 0 ? (
+        ) : products.length === 0 ? (
           <div className="rounded-lg border border-dashed p-16 text-center text-muted-foreground">
             <p className="text-4xl mb-3">📦</p>
             <p className="font-medium">
@@ -575,7 +536,7 @@ function ProductsPage() {
         ) : (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {sortedProducts.map((product) => (
+              {products.map((product) => (
                 <ProductCard key={product.id} product={product} onClick={() => setSelectedProductId(product.id)} />
               ))}
             </div>
