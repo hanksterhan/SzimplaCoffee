@@ -1,6 +1,13 @@
 {
   "entries": [
     {
+      "id": "SC-52-daily-utility-views",
+      "path": ".memory/sprint-01/SC-52-daily-utility-views.md",
+      "ticket": "SC-52",
+      "title": "Daily utility views (Today, Watch, Review Queue)",
+      "date": "2026-03-15"
+    },
+    {
       "id": "SC-31-32-33-cli-gaps",
       "path": ".memory/sprint-01/SC-31-32-33-cli-gaps.md",
       "ticket": "SC-31,SC-32,SC-33",
