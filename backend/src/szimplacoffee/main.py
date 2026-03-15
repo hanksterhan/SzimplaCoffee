@@ -1,23 +1,22 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import BackgroundTasks, Depends, FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import BackgroundTasks, Depends, FastAPI, Form
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .api import api_router
 from .bootstrap import bootstrap_if_empty, init_db
-from .config import STATIC_DIR, TEMPLATES_DIR
 from .db import get_session, session_scope
-from .models import CrawlRun, Merchant, MerchantCandidate, MerchantPromo, OfferSnapshot, Product, ProductVariant, ShippingPolicy
+from .models import CrawlRun, Merchant, MerchantCandidate
 from .services.crawlers import crawl_merchant
 from .services.discovery import promote_candidate, run_discovery
 from .services.platforms import detect_platform, recommended_crawl_tier
-from .services.recommendations import RecommendationRequest, build_recommendations, persist_recommendation_run
 
 
 @asynccontextmanager
@@ -29,104 +28,23 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="SzimplaCoffee", lifespan=lifespan)
-app.include_router(api_router)
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-
-def _money(cents: int | None) -> str:
-    if cents is None:
-        return "n/a"
-    return f"${cents / 100:.2f}"
-
-
-def _weight_label(weight_grams: int | None) -> str:
-    if not weight_grams:
-        return "?"
-    ounces = weight_grams / 28.3495
-    pounds = ounces / 16
-    if abs(pounds - round(pounds)) <= 0.06 and pounds >= 1.75:
-        return f"{round(pounds):.0f} lb ({weight_grams} g)"
-    return f"{weight_grams} g / {ounces:.1f} oz"
-
-
-def _price_per_oz_label(price_cents: int | None, weight_grams: int | None) -> str:
-    if price_cents is None or not weight_grams:
-        return "n/a"
-    ounces = weight_grams / 28.3495
-    if ounces <= 0:
-        return "n/a"
-    return f"${price_cents / 100 / ounces:.2f}/oz"
-
-
-def _latest_offer_for_variant(variant: ProductVariant) -> OfferSnapshot | None:
-    if not variant.offers:
-        return None
-    return max(variant.offers, key=lambda offer: offer.observed_at)
-
-
-def _visible_variants(product: Product) -> list[ProductVariant]:
-    available = [variant for variant in product.variants if variant.is_available]
-    return available or list(product.variants)
-
-
-def _dashboard_metrics(session: Session) -> dict:
-    merchant_count = len(session.scalars(select(Merchant.id)).all())
-    product_count = len(session.scalars(select(Product.id)).all())
-    variant_count = len(session.scalars(select(ProductVariant.id)).all())
-    latest_offer_count = len(session.scalars(select(OfferSnapshot.id)).all())
-    return {
-        "merchant_count": merchant_count,
-        "product_count": product_count,
-        "variant_count": variant_count,
-        "offer_count": latest_offer_count,
-    }
-
-
-def _latest_crawl_run(session: Session, merchant_id: int) -> CrawlRun | None:
-    return session.scalar(
-        select(CrawlRun)
-        .where(CrawlRun.merchant_id == merchant_id)
-        .order_by(CrawlRun.started_at.desc())
-        .limit(1)
-    )
-
-
-def _latest_successful_crawl_run(session: Session, merchant_id: int) -> CrawlRun | None:
-    return session.scalar(
-        select(CrawlRun)
-        .where(CrawlRun.merchant_id == merchant_id, CrawlRun.status == "completed")
-        .order_by(CrawlRun.finished_at.desc(), CrawlRun.started_at.desc())
-        .limit(1)
-    )
-
-
-def _crawl_adapter_label(adapter_name: str | None) -> str:
-    labels = {
-        "shopify": "Structured Shopify feed",
-        "shopify_collection": "Shopify collection feed",
-        "woocommerce": "WooCommerce Store API",
-        "agentic_catalog": "Agentic HTML extraction",
-        "generic": "Promo-only scan",
-        None: "Unknown",
-    }
-    return labels.get(adapter_name, adapter_name.replace("_", " ").title() if adapter_name else "Unknown")
-
-
-def _is_agentic_adapter(adapter_name: str | None) -> bool:
-    return adapter_name == "agentic_catalog"
-
-
-templates.env.globals.update(
-    money=_money,
-    weight_label=_weight_label,
-    price_per_oz_label=_price_per_oz_label,
-    latest_offer_for_variant=_latest_offer_for_variant,
-    visible_variants=_visible_variants,
-    crawl_adapter_label=_crawl_adapter_label,
-    is_agentic_adapter=_is_agentic_adapter,
+# CORS for development (Vite dev server on :5173)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
+# Mount the API router
+app.include_router(api_router)
+
+
+# ---------------------------------------------------------------------------
+# Background crawl helpers (preserved from Jinja era)
+# ---------------------------------------------------------------------------
 
 def _enqueue_crawl(session: Session, merchant: Merchant) -> tuple[CrawlRun, bool]:
     latest_run = _latest_crawl_run(session, merchant.id)
@@ -157,39 +75,28 @@ def _background_crawl(merchant_id: int, run_id: int) -> None:
         return
 
 
-@app.get("/", response_class=HTMLResponse)
-def dashboard(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
-    merchants = session.scalars(select(Merchant).order_by(Merchant.trust_tier.asc(), Merchant.name.asc())).all()
-    merchant_rows = [
-        {
-            "merchant": merchant,
-            "catalog_run": _latest_successful_crawl_run(session, merchant.id) or _latest_crawl_run(session, merchant.id),
-        }
-        for merchant in merchants
-    ]
-    return templates.TemplateResponse(
-        request,
-        "dashboard.html",
-        {
-            "metrics": _dashboard_metrics(session),
-            "merchant_rows": merchant_rows,
-            "pending_candidates": len(session.scalars(select(MerchantCandidate.id).where(MerchantCandidate.status == "pending")).all()),
-        },
+def _latest_crawl_run(session: Session, merchant_id: int) -> CrawlRun | None:
+    return session.scalar(
+        select(CrawlRun)
+        .where(CrawlRun.merchant_id == merchant_id)
+        .order_by(CrawlRun.started_at.desc())
+        .limit(1)
     )
 
 
-@app.get("/merchants/new", response_class=HTMLResponse)
-def merchant_form(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(request, "merchant_form.html", {"errors": []})
-
+# ---------------------------------------------------------------------------
+# Legacy HTML form endpoints — now thin wrappers that POST to the API layer
+# These keep curl/form-submit compatibility while the React SPA is the UI.
+# ---------------------------------------------------------------------------
 
 @app.post("/merchants/new")
-def create_merchant(
+def create_merchant_form(
     background_tasks: BackgroundTasks,
     url: str = Form(...),
     trust_tier: str = Form("candidate"),
     session: Session = Depends(get_session),
 ):
+    """Form-compatible endpoint for adding a merchant (used by scripts/CLI)."""
     detection = detect_platform(url)
     existing = session.scalar(select(Merchant).where(Merchant.canonical_domain == detection.domain))
     if existing:
@@ -197,7 +104,7 @@ def create_merchant(
         session.commit()
         if should_schedule:
             background_tasks.add_task(_background_crawl, existing.id, run.id)
-        return RedirectResponse(url=f"/merchants/{existing.id}", status_code=303)
+        return {"merchant_id": existing.id, "status": "existing"}
 
     merchant = Merchant(
         name=detection.merchant_name,
@@ -213,139 +120,73 @@ def create_merchant(
     session.commit()
     if should_schedule:
         background_tasks.add_task(_background_crawl, merchant.id, run.id)
-    return RedirectResponse(url=f"/merchants/{merchant.id}", status_code=303)
+    return {"merchant_id": merchant.id, "status": "created"}
 
 
-@app.get("/merchants/{merchant_id}", response_class=HTMLResponse)
-def merchant_detail(merchant_id: int, request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
-    merchant = session.get(Merchant, merchant_id)
-    products = session.scalars(select(Product).where(Product.merchant_id == merchant_id).order_by(Product.name.asc())).all()
-    promos = session.scalars(
-        select(MerchantPromo)
-        .where(MerchantPromo.merchant_id == merchant_id, MerchantPromo.is_active.is_(True))
-        .order_by(MerchantPromo.estimated_value_cents.desc().nullslast(), MerchantPromo.last_seen_at.desc())
-    ).all()
-    shipping_policy = session.scalar(
-        select(ShippingPolicy)
-        .where(ShippingPolicy.merchant_id == merchant_id)
-        .order_by(ShippingPolicy.observed_at.desc())
-        .limit(1)
-    )
-    latest_crawl_run = _latest_crawl_run(session, merchant_id)
-    catalog_run = _latest_successful_crawl_run(session, merchant_id) or latest_crawl_run
-    return templates.TemplateResponse(
-        request,
-        "merchant_detail.html",
-        {
-            "merchant": merchant,
-            "products": products,
-            "promos": promos,
-            "shipping_policy": shipping_policy,
-            "latest_crawl_run": latest_crawl_run,
-            "catalog_run": catalog_run,
-        },
-    )
-
-
-@app.post("/merchants/{merchant_id}/crawl")
-def crawl_merchant_route(merchant_id: int, background_tasks: BackgroundTasks, session: Session = Depends(get_session)):
+@app.post("/merchants/{merchant_id}/crawl-form")
+def crawl_merchant_form(
+    merchant_id: int,
+    background_tasks: BackgroundTasks,
+    session: Session = Depends(get_session),
+):
+    """Form-compatible endpoint to trigger a crawl."""
     merchant = session.get(Merchant, merchant_id)
     run, should_schedule = _enqueue_crawl(session, merchant)
     session.commit()
     if should_schedule:
         background_tasks.add_task(_background_crawl, merchant.id, run.id)
-    return RedirectResponse(url=f"/merchants/{merchant_id}", status_code=303)
+    return {"merchant_id": merchant_id, "run_id": run.id, "scheduled": should_schedule}
 
 
-@app.get("/merchants/{merchant_id}/status")
-def merchant_status(merchant_id: int, session: Session = Depends(get_session)) -> dict:
-    merchant = session.get(Merchant, merchant_id)
-    latest_crawl_run = _latest_crawl_run(session, merchant_id)
-    products_count = len(session.scalars(select(Product.id).where(Product.merchant_id == merchant_id, Product.is_active.is_(True))).all())
-    return {
-        "merchant_id": merchant_id,
-        "merchant_name": merchant.name if merchant else "",
-        "status": latest_crawl_run.status if latest_crawl_run else "idle",
-        "records_written": latest_crawl_run.records_written if latest_crawl_run else 0,
-        "error_summary": latest_crawl_run.error_summary if latest_crawl_run else "",
-        "products_count": products_count,
-    }
-
-
-@app.get("/discovery", response_class=HTMLResponse)
-def discovery_page(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
-    candidates = session.scalars(
-        select(MerchantCandidate)
-        .where(MerchantCandidate.status == "pending")
-        .order_by(MerchantCandidate.confidence.desc(), MerchantCandidate.discovered_at.desc())
-    ).all()
-    return templates.TemplateResponse(request, "discovery.html", {"candidates": candidates})
-
-
-@app.post("/discovery/run")
-def discovery_run(session: Session = Depends(get_session)):
+@app.post("/discovery/run-form")
+def discovery_run_form(session: Session = Depends(get_session)):
+    """Form-compatible endpoint to trigger discovery."""
     run_discovery(session)
     session.commit()
-    return RedirectResponse(url="/discovery", status_code=303)
+    return {"status": "ok"}
 
 
-@app.post("/discovery/{candidate_id}/promote")
-def discovery_promote(candidate_id: int, session: Session = Depends(get_session)):
+@app.post("/discovery/{candidate_id}/promote-form")
+def discovery_promote_form(candidate_id: int, session: Session = Depends(get_session)):
+    """Form-compatible endpoint to promote a candidate."""
     candidate = session.get(MerchantCandidate, candidate_id)
     merchant = promote_candidate(session, candidate)
     session.flush()
     crawl_merchant(session, merchant)
     session.commit()
-    return RedirectResponse(url=f"/merchants/{merchant.id}", status_code=303)
+    return {"merchant_id": merchant.id}
 
 
-@app.post("/discovery/{candidate_id}/reject")
-def discovery_reject(candidate_id: int, session: Session = Depends(get_session)):
+@app.post("/discovery/{candidate_id}/reject-form")
+def discovery_reject_form(candidate_id: int, session: Session = Depends(get_session)):
+    """Form-compatible endpoint to reject a candidate."""
     candidate = session.get(MerchantCandidate, candidate_id)
     candidate.status = "rejected"
     session.commit()
-    return RedirectResponse(url="/discovery", status_code=303)
+    return {"status": "rejected", "candidate_id": candidate_id}
 
 
-@app.get("/recommend", response_class=HTMLResponse)
-def recommend_page(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
-    candidates = build_recommendations(
-        session,
-        RecommendationRequest(shot_style="modern_58mm", quantity_mode="12-18 oz", bulk_allowed=False, allow_decaf=False),
-    )
-    return templates.TemplateResponse(
-        request,
-        "recommendation.html",
-        {
-            "candidates": candidates,
-            "selected": {"shot_style": "modern_58mm", "quantity_mode": "12-18 oz", "bulk_allowed": False, "allow_decaf": False},
-        },
-    )
+# ---------------------------------------------------------------------------
+# Production SPA serving — only active when frontend/dist exists
+# ---------------------------------------------------------------------------
 
+FRONTEND_DIST = Path(__file__).parents[4] / "frontend" / "dist"
 
-@app.post("/recommend", response_class=HTMLResponse)
-def recommend_action(
-    request: Request,
-    shot_style: str = Form("modern_58mm"),
-    quantity_mode: str = Form("12-18 oz"),
-    bulk_allowed: bool = Form(False),
-    allow_decaf: bool = Form(False),
-    session: Session = Depends(get_session),
-) -> HTMLResponse:
-    payload = RecommendationRequest(
-        shot_style=shot_style,  # type: ignore[arg-type]
-        quantity_mode=quantity_mode,  # type: ignore[arg-type]
-        bulk_allowed=bulk_allowed,
-        allow_decaf=allow_decaf,
-    )
-    candidates = build_recommendations(session, payload)
-    persist_recommendation_run(session, payload, candidates)
-    session.commit()
-    return templates.TemplateResponse(
-        request,
-        "recommendation.html",
-        {
-            "candidates": candidates,
-            "selected": payload.__dict__,
-        },
-    )
+if FRONTEND_DIST.exists():
+    # Serve compiled JS/CSS assets
+    assets_dir = FRONTEND_DIST / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="static-assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str) -> FileResponse:
+        """SPA catch-all: serve index.html for all non-API routes."""
+        if full_path.startswith("api/"):
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="API route not found")
+        # Serve an exact file if it exists (favicon, robots.txt, etc.)
+        file_path = FRONTEND_DIST / full_path
+        if file_path.is_file():
+            return FileResponse(str(file_path))
+        # Fall back to index.html for React Router
+        return FileResponse(str(FRONTEND_DIST / "index.html"))
