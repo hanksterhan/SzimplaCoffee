@@ -419,7 +419,24 @@ def _deal_score(
     promo_reasons: list[str],
     category_price_per_oz_baseline_cents: int | None,
 ) -> tuple[float, int, list[str]]:
+    # SC-55: Use subscription price as effective price when it saves >= 5%
+    effective_offer_price = offer.price_cents
+    if (
+        offer.subscription_price_cents
+        and offer.subscription_price_cents > 0
+        and offer.subscription_price_cents < offer.price_cents * 0.95
+    ):
+        savings_pct = round((1 - offer.subscription_price_cents / offer.price_cents) * 100)
+        effective_offer_price = offer.subscription_price_cents
+        promo_reasons = [f"subscribe & save {savings_pct}%"] + promo_reasons
+        promo_bonus = min(promo_bonus + savings_pct * 0.003, 0.2)
+
+    # Temporarily patch offer price for landed calculation
+    _original_price = offer.price_cents
+    offer.price_cents = effective_offer_price
     landed = _landed_price_cents(offer, shipping_policy)
+    offer.price_cents = _original_price  # restore to avoid side effects
+
     landed_price_per_oz_cents = _price_per_oz_cents(landed, variant.weight_grams)
     reasons: list[str] = []
 

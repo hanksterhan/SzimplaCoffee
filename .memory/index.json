@@ -1,6 +1,13 @@
 {
   "entries": [
     {
+      "id": "SC-55-subscription-pricing",
+      "path": ".memory/sprint-01/SC-55-subscription-pricing.md",
+      "ticket": "SC-55",
+      "title": "Subscription pricing as first-class recommendation dimension",
+      "date": "2026-03-15"
+    },
+    {
       "id": "SC-54-wait-recommendation-rationale",
       "path": ".memory/sprint-01/SC-54-wait-recommendation-rationale.md",
       "ticket": "SC-54",
