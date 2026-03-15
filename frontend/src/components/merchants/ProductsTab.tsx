@@ -183,21 +183,22 @@ export function ProductsTab({ merchantId }: ProductsTabProps) {
                     </div>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell className="max-w-48">
                   <a
                     href={p.product_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-medium hover:underline text-blue-600 text-sm"
+                    className="font-medium hover:underline text-blue-600 text-sm block truncate"
                     onClick={(e) => e.stopPropagation()}
+                    title={p.name}
                   >
                     {p.name}
                   </a>
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground max-w-32 truncate">
+                <TableCell className="text-sm text-muted-foreground max-w-24 truncate" title={p.origin_text || ""}>
                   {p.origin_text || "—"}
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground max-w-32 truncate">
+                <TableCell className="text-sm text-muted-foreground max-w-24 truncate" title={p.process_text || ""}>
                   {p.process_text || "—"}
                 </TableCell>
                 <TableCell>

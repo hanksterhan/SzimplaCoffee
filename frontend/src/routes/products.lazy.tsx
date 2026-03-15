@@ -40,7 +40,7 @@ function ProductCard({ product }: { product: ProductSummary }) {
 
   return (
     <div
-      className="rounded-lg border bg-card hover:shadow-md transition-all cursor-pointer overflow-hidden group"
+      className="rounded-lg border bg-card hover:shadow-md transition-all cursor-pointer overflow-hidden group flex flex-col"
       onClick={() =>
         navigate({
           to: "/products/$productId",
@@ -72,17 +72,17 @@ function ProductCard({ product }: { product: ProductSummary }) {
       </div>
 
       {/* Info */}
-      <div className="p-3 space-y-1.5">
+      <div className="p-3 space-y-1.5 flex-1 flex flex-col min-h-0">
         <p className="font-semibold text-sm leading-tight line-clamp-2">{product.name}</p>
 
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1 overflow-hidden max-h-6">
           {product.origin_text && (
-            <Badge variant="outline" className="text-xs px-1.5 py-0 h-5">
+            <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 max-w-[100px] truncate block">
               {product.origin_text}
             </Badge>
           )}
           {product.process_text && (
-            <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">
+            <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5 max-w-[100px] truncate block">
               {product.process_text}
             </Badge>
           )}

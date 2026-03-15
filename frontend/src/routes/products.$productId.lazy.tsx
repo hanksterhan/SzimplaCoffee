@@ -92,12 +92,39 @@ function buildVariantHistory(
   return Array.from(historyMap.values());
 }
 
-function MetaTag({ label, value }: { label: string; value: string }) {
+const KNOWN_COUNTRIES = [
+  "Ethiopia", "Kenya", "Colombia", "Guatemala", "Honduras", "Peru",
+  "Brazil", "Costa Rica", "Panama", "Bolivia", "Mexico", "Indonesia",
+  "Rwanda", "Burundi", "El Salvador", "Yemen", "Sumatra", "Java",
+  "Hawaii", "PNG", "Tanzania", "Uganda", "Nicaragua", "Ecuador",
+  "Dominican Republic", "Jamaica", "India", "Myanmar", "Laos", "Thailand",
+  "Congo", "Malawi", "Zambia",
+];
+
+function sanitizeOriginText(text: string): string {
+  if (!text) return "";
+  // Strip leading dots/punctuation
+  let cleaned = text.replace(/^[\s.,;:]+/, "").trim();
+  // If it looks like a paragraph (>50 chars), try to extract a country
+  if (cleaned.length > 50) {
+    for (const country of KNOWN_COUNTRIES) {
+      const match = cleaned.match(new RegExp(`\\b${country}\\b`, "i"));
+      if (match) return match[0];
+    }
+    // No country found — truncate to 40 chars
+    return cleaned.slice(0, 40) + "…";
+  }
+  return cleaned;
+}
+
+function MetaTag({ label, value, sanitize }: { label: string; value: string; sanitize?: boolean }) {
   if (!value) return null;
+  const display = sanitize ? sanitizeOriginText(value) : value;
+  if (!display) return null;
   return (
     <div className="text-sm">
       <span className="text-muted-foreground">{label}: </span>
-      <span className="font-medium">{value}</span>
+      <span className="font-medium">{display}</span>
     </div>
   );
 }
@@ -225,7 +252,7 @@ function ProductDetailPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
-            <MetaTag label="Origin" value={product.origin_text} />
+            <MetaTag label="Origin" value={product.origin_text} sanitize />
             <MetaTag label="Process" value={product.process_text} />
             <MetaTag label="Variety" value={product.variety_text} />
             <MetaTag label="Roast" value={product.roast_cues} />
