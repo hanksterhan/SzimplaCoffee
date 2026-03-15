@@ -13,6 +13,7 @@ from ..models import RecommendationRun
 from ..schemas.recommendations import RecommendationRunSchema
 from ..services.recommendations import (
     RecommendationRequest,
+    build_biggest_sales,
     build_recommendations,
     persist_recommendation_run,
 )
@@ -47,6 +48,26 @@ class RecommendationResultResponse(BaseModel):
     alternatives: list[RecommendationCandidateOut]
     wait_recommendation: bool
     run_id: int
+
+
+class BiggestSaleCandidateOut(BaseModel):
+    merchant_name: str
+    product_name: str
+    variant_label: str
+    product_url: str
+    image_url: str
+    weight_grams: Optional[int]
+    current_price_cents: int
+    landed_price_cents: int
+    landed_price_per_oz_cents: Optional[int]
+    compare_at_discount_percent: float
+    price_drop_7d_percent: float
+    price_drop_30d_percent: float
+    historical_low_cents: int
+    best_promo_label: Optional[str]
+    discounted_landed_price_cents: Optional[int]
+    score: float
+    reasons: list[str]
 
 
 @router.post("", response_model=RecommendationResultResponse, status_code=201)
@@ -91,6 +112,15 @@ def list_recommendations(
         .limit(limit)
     ).all()
     return [RecommendationRunSchema.model_validate(r) for r in runs]
+
+
+@router.get("/biggest-sales", response_model=list[BiggestSaleCandidateOut])
+def biggest_sales_today(
+    db: Session = Depends(get_session),
+    limit: int = Query(10, ge=1, le=50),
+) -> list[BiggestSaleCandidateOut]:
+    candidates = build_biggest_sales(db, limit=limit)
+    return [BiggestSaleCandidateOut(**asdict(candidate)) for candidate in candidates]
 
 
 @router.get("/{run_id}", response_model=RecommendationRunSchema)

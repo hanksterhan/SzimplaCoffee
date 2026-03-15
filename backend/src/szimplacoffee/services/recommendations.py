@@ -1,12 +1,24 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta
+from statistics import median
 from typing import Literal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import Merchant, MerchantPromo, OfferSnapshot, Product, ProductVariant, PurchaseHistory, RecommendationRun, ShippingPolicy
+from ..models import (
+    Merchant,
+    MerchantPromo,
+    OfferSnapshot,
+    Product,
+    ProductVariant,
+    PurchaseHistory,
+    RecommendationRun,
+    ShippingPolicy,
+    VariantDealFact,
+)
 
 
 QuantityMode = Literal["12-18 oz", "2 lb", "5 lb", "any"]
@@ -37,6 +49,27 @@ class RecommendationCandidate:
     pros: list[str]
 
 
+@dataclass
+class BiggestSaleCandidate:
+    merchant_name: str
+    product_name: str
+    variant_label: str
+    product_url: str
+    image_url: str
+    weight_grams: int | None
+    current_price_cents: int
+    landed_price_cents: int
+    landed_price_per_oz_cents: int | None
+    compare_at_discount_percent: float
+    price_drop_7d_percent: float
+    price_drop_30d_percent: float
+    historical_low_cents: int
+    best_promo_label: str | None
+    discounted_landed_price_cents: int | None
+    score: float
+    reasons: list[str]
+
+
 def _latest_offer(session: Session, variant_id: int) -> OfferSnapshot | None:
     return session.scalar(
         select(OfferSnapshot)
@@ -46,6 +79,14 @@ def _latest_offer(session: Session, variant_id: int) -> OfferSnapshot | None:
     )
 
 
+def _offer_history(session: Session, variant_id: int) -> list[OfferSnapshot]:
+    return session.scalars(
+        select(OfferSnapshot)
+        .where(OfferSnapshot.variant_id == variant_id)
+        .order_by(OfferSnapshot.observed_at.desc())
+    ).all()
+
+
 def _latest_shipping_policy(session: Session, merchant_id: int) -> ShippingPolicy | None:
     return session.scalar(
         select(ShippingPolicy)
@@ -53,6 +94,26 @@ def _latest_shipping_policy(session: Session, merchant_id: int) -> ShippingPolic
         .order_by(ShippingPolicy.observed_at.desc())
         .limit(1)
     )
+
+
+def _median_price(prices: list[int]) -> int | None:
+    if not prices:
+        return None
+    return int(round(median(prices)))
+
+
+def _historical_window_prices(
+    offers: list[OfferSnapshot],
+    *,
+    reference_offer: OfferSnapshot,
+    days: int,
+) -> list[int]:
+    window_start = reference_offer.observed_at - timedelta(days=days)
+    return [
+        offer.price_cents
+        for offer in offers
+        if window_start <= offer.observed_at < reference_offer.observed_at
+    ]
 
 
 def _merchant_quality_score(merchant: Merchant) -> float:
@@ -256,25 +317,6 @@ def _landed_price_cents(offer: OfferSnapshot, shipping_policy: ShippingPolicy | 
     return offer.price_cents + 800
 
 
-def _deal_score(offer: OfferSnapshot, variant: ProductVariant, shipping_policy: ShippingPolicy | None) -> tuple[float, int, list[str]]:
-    landed = _landed_price_cents(offer, shipping_policy)
-    reasons: list[str] = []
-    if shipping_policy and shipping_policy.free_shipping_threshold_cents and offer.price_cents >= shipping_policy.free_shipping_threshold_cents:
-        reasons.append("qualifies for free shipping")
-    if offer.compare_at_price_cents and offer.compare_at_price_cents > offer.price_cents:
-        reasons.append("current price is below compare-at price")
-    if not variant.weight_grams:
-        return 0.45, landed, reasons
-    cents_per_gram = landed / variant.weight_grams
-    if cents_per_gram <= 6:
-        return 1.0, landed, reasons
-    if cents_per_gram <= 8:
-        return 0.8, landed, reasons
-    if cents_per_gram <= 10:
-        return 0.6, landed, reasons
-    return 0.35, landed, reasons
-
-
 def _price_per_oz_cents(price_cents: int, weight_grams: int | None) -> int | None:
     if not weight_grams:
         return None
@@ -282,6 +324,142 @@ def _price_per_oz_cents(price_cents: int, weight_grams: int | None) -> int | Non
     if ounces <= 0:
         return None
     return int(round(price_cents / ounces))
+
+
+def _historical_discount_percent(baseline_cents: int | None, current_price_cents: int) -> float:
+    if not baseline_cents or baseline_cents <= 0 or current_price_cents >= baseline_cents:
+        return 0.0
+    return round(((baseline_cents - current_price_cents) / baseline_cents) * 100, 2)
+
+
+def _materialize_variant_deal_fact(
+    session: Session,
+    variant: ProductVariant,
+) -> VariantDealFact | None:
+    offers = _offer_history(session, variant.id)
+    if not offers:
+        return None
+
+    latest_offer = offers[0]
+    prices = [offer.price_cents for offer in offers]
+    baseline_7d = _median_price(_historical_window_prices(offers, reference_offer=latest_offer, days=7))
+    baseline_30d = _median_price(_historical_window_prices(offers, reference_offer=latest_offer, days=30))
+    compare_at_discount_percent = 0.0
+    if latest_offer.compare_at_price_cents and latest_offer.compare_at_price_cents > latest_offer.price_cents:
+        compare_at_discount_percent = round(
+            ((latest_offer.compare_at_price_cents - latest_offer.price_cents) / latest_offer.compare_at_price_cents) * 100,
+            2,
+        )
+
+    fact = session.scalar(
+        select(VariantDealFact).where(VariantDealFact.variant_id == variant.id)
+    )
+    if fact is None:
+        fact = VariantDealFact(variant_id=variant.id)
+        session.add(fact)
+
+    fact.offer_count = len(offers)
+    fact.distinct_offer_days = len({offer.observed_at.date() for offer in offers})
+    fact.current_price_cents = latest_offer.price_cents
+    fact.baseline_7d_cents = baseline_7d
+    fact.baseline_30d_cents = baseline_30d
+    fact.historical_low_cents = min(prices)
+    fact.historical_high_cents = max(prices)
+    fact.compare_at_discount_percent = compare_at_discount_percent
+    fact.price_drop_7d_percent = _historical_discount_percent(baseline_7d, latest_offer.price_cents)
+    fact.price_drop_30d_percent = _historical_discount_percent(baseline_30d, latest_offer.price_cents)
+    return fact
+
+
+def materialize_variant_deal_facts(session: Session) -> dict[int, VariantDealFact]:
+    facts: dict[int, VariantDealFact] = {}
+    variants = session.scalars(
+        select(ProductVariant)
+        .join(Product, ProductVariant.product_id == Product.id)
+        .where(Product.is_active.is_(True))
+    ).all()
+    for variant in variants:
+        fact = _materialize_variant_deal_fact(session, variant)
+        if fact is not None:
+            facts[variant.id] = fact
+    session.flush()
+    return facts
+
+
+def _catalog_price_per_oz_baseline_cents(session: Session) -> int | None:
+    price_points: list[int] = []
+    variants = session.scalars(
+        select(ProductVariant)
+        .join(Product, ProductVariant.product_id == Product.id)
+        .where(Product.is_active.is_(True), ProductVariant.is_whole_bean.is_(True), ProductVariant.is_available.is_(True))
+    ).all()
+    for variant in variants:
+        latest_offer = _latest_offer(session, variant.id)
+        if latest_offer is None or not latest_offer.is_available:
+            continue
+        shipping_policy = _latest_shipping_policy(session, variant.product.merchant_id)
+        landed_price = _landed_price_cents(latest_offer, shipping_policy)
+        price_per_oz = _price_per_oz_cents(landed_price, variant.weight_grams)
+        if price_per_oz is not None:
+            price_points.append(price_per_oz)
+    return _median_price(price_points)
+
+
+def _deal_score(
+    fact: VariantDealFact,
+    variant: ProductVariant,
+    offer: OfferSnapshot,
+    shipping_policy: ShippingPolicy | None,
+    *,
+    promo_bonus: float,
+    promo_reasons: list[str],
+    category_price_per_oz_baseline_cents: int | None,
+) -> tuple[float, int, list[str]]:
+    landed = _landed_price_cents(offer, shipping_policy)
+    landed_price_per_oz_cents = _price_per_oz_cents(landed, variant.weight_grams)
+    reasons: list[str] = []
+
+    if fact.price_drop_7d_percent >= 5:
+        reasons.append(f"current price is {fact.price_drop_7d_percent:.0f}% below the 7-day median")
+    if fact.price_drop_30d_percent >= 5:
+        reasons.append(f"current price is {fact.price_drop_30d_percent:.0f}% below the 30-day median")
+    if fact.compare_at_discount_percent >= 5:
+        reasons.append(f"current price is {fact.compare_at_discount_percent:.0f}% below compare-at")
+    if (
+        landed_price_per_oz_cents is not None
+        and category_price_per_oz_baseline_cents is not None
+        and landed_price_per_oz_cents <= category_price_per_oz_baseline_cents
+    ):
+        reasons.append("landed price per ounce is at or below the current catalog baseline")
+    if fact.current_price_cents <= fact.historical_low_cents:
+        reasons.append("matches the historical low price for this variant")
+    if shipping_policy and shipping_policy.free_shipping_threshold_cents and offer.price_cents >= shipping_policy.free_shipping_threshold_cents:
+        reasons.append("qualifies for free shipping")
+    if promo_reasons:
+        reasons.append(promo_reasons[0])
+
+    historical_signal = max(
+        fact.compare_at_discount_percent / 30,
+        fact.price_drop_7d_percent / 25,
+        fact.price_drop_30d_percent / 30,
+        1.0 if fact.current_price_cents <= fact.historical_low_cents else 0.0,
+    )
+    historical_score = max(0.2, min(historical_signal, 1.0))
+
+    price_per_oz_score = 0.45
+    if landed_price_per_oz_cents is not None and category_price_per_oz_baseline_cents is not None and category_price_per_oz_baseline_cents > 0:
+        ratio = landed_price_per_oz_cents / category_price_per_oz_baseline_cents
+        if ratio <= 0.85:
+            price_per_oz_score = 1.0
+        elif ratio <= 1.0:
+            price_per_oz_score = 0.8
+        elif ratio <= 1.1:
+            price_per_oz_score = 0.6
+        else:
+            price_per_oz_score = 0.35
+
+    total = min(1.0, (historical_score * 0.7) + (price_per_oz_score * 0.2) + promo_bonus)
+    return total, landed, reasons
 
 
 def _build_pros(
@@ -326,9 +504,75 @@ def _build_pros(
     return deduped
 
 
+def build_biggest_sales(session: Session, limit: int = 10) -> list[BiggestSaleCandidate]:
+    fact_by_variant = materialize_variant_deal_facts(session)
+    category_baseline = _catalog_price_per_oz_baseline_cents(session)
+    candidates: list[BiggestSaleCandidate] = []
+
+    products = session.scalars(select(Product).where(Product.is_active.is_(True)).order_by(Product.name.asc())).all()
+    for product in products:
+        merchant = product.merchant
+        merchant_quality = _merchant_quality_score(merchant)
+        if merchant_quality < 0.65:
+            continue
+
+        shipping_policy = _latest_shipping_policy(session, merchant.id)
+        promo_bonus, promo_reasons = _promo_bonus(session, merchant.id)
+        for variant in product.variants:
+            if not variant.is_whole_bean or not variant.is_available:
+                continue
+            offer = _latest_offer(session, variant.id)
+            if offer is None or not offer.is_available:
+                continue
+            fact = fact_by_variant.get(variant.id)
+            if fact is None:
+                continue
+
+            deal_score, landed, reasons = _deal_score(
+                fact,
+                variant,
+                offer,
+                shipping_policy,
+                promo_bonus=promo_bonus,
+                promo_reasons=promo_reasons,
+                category_price_per_oz_baseline_cents=category_baseline,
+            )
+            score = round((deal_score * 0.72) + (merchant_quality * 0.28), 4)
+            if score < 0.58:
+                continue
+
+            best_promo_label, discounted_landed_price_cents = _best_active_promo(session, merchant.id, landed, offer)
+            candidates.append(
+                BiggestSaleCandidate(
+                    merchant_name=merchant.name,
+                    product_name=product.name,
+                    variant_label=variant.label,
+                    product_url=product.product_url,
+                    image_url=product.image_url,
+                    weight_grams=variant.weight_grams,
+                    current_price_cents=offer.price_cents,
+                    landed_price_cents=landed,
+                    landed_price_per_oz_cents=_price_per_oz_cents(landed, variant.weight_grams),
+                    compare_at_discount_percent=fact.compare_at_discount_percent,
+                    price_drop_7d_percent=fact.price_drop_7d_percent,
+                    price_drop_30d_percent=fact.price_drop_30d_percent,
+                    historical_low_cents=fact.historical_low_cents,
+                    best_promo_label=best_promo_label,
+                    discounted_landed_price_cents=discounted_landed_price_cents,
+                    score=score,
+                    reasons=reasons[:4],
+                )
+            )
+
+    candidates.sort(key=lambda item: item.score, reverse=True)
+    return candidates[:limit]
+
+
 def build_recommendations(session: Session, request: RecommendationRequest) -> list[RecommendationCandidate]:
     candidates: list[RecommendationCandidate] = []
     prefs = _preference_profile(session)
+    fact_by_variant = materialize_variant_deal_facts(session)
+    category_baseline = _catalog_price_per_oz_baseline_cents(session)
     products = session.scalars(select(Product).where(Product.is_active.is_(True)).order_by(Product.name.asc())).all()
 
     for product in products:
@@ -348,10 +592,21 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
             offer = _latest_offer(session, variant.id)
             if offer is None or not offer.is_available:
                 continue
+            fact = fact_by_variant.get(variant.id)
+            if fact is None:
+                continue
 
             quantity_score = _quantity_score(variant.weight_grams, request.quantity_mode, request.bulk_allowed)
             espresso_score, espresso_reasons = _espresso_fit(product, request.shot_style)
-            deal_score, landed, deal_reasons = _deal_score(offer, variant, shipping_policy)
+            deal_score, landed, deal_reasons = _deal_score(
+                fact,
+                variant,
+                offer,
+                shipping_policy,
+                promo_bonus=promo_bonus,
+                promo_reasons=promo_reasons,
+                category_price_per_oz_baseline_cents=category_baseline,
+            )
             best_promo_label, discounted_landed_price_cents = _best_active_promo(session, merchant.id, landed, offer)
             freshness_score = merchant.quality_profile.freshness_transparency_score if merchant.quality_profile else 0.5
 

@@ -2,10 +2,10 @@ id: "SC-49"
 title: "Build historical deal facts and biggest-sales intelligence"
 type: "feature"
 priority: "p1"
-status: "draft"
+status: "done"
 owner: "h6nk-bot"
 created_at: "2026-03-15T07:00:00Z"
-updated_at: "2026-03-15T07:00:00Z"
+updated_at: "2026-03-15T20:52:42Z"
 labels:
   - "feature"
   - "integration"
@@ -32,17 +32,17 @@ acceptance_criteria:
     id: "AC-1"
     text: "Historical deal facts can be generated from offer snapshots without relying only on latest compare-at hints."
     verify: "cd backend && . .venv/bin/activate && pytest tests/test_recommendations.py -q"
-    status: "pending"
+    status: "passed"
   -
     id: "AC-2"
     text: "Deal scoring uses historical baselines plus current promo and price-per-ounce context."
     verify: "cd backend && . .venv/bin/activate && pytest tests/test_recommendations.py -q"
-    status: "pending"
+    status: "passed"
   -
     id: "AC-3"
     text: "A biggest-sales endpoint returns explainable deal candidates rooted in historical signals."
     verify: "cd backend && . .venv/bin/activate && pytest -q"
-    status: "pending"
+    status: "passed"
 verification_required:
   - "cd backend && . .venv/bin/activate && pytest tests/test_recommendations.py -q"
   - "cd backend && . .venv/bin/activate && pytest -q"
@@ -54,7 +54,7 @@ slices:
   -
     id: "S1"
     title: "Materialize historical price facts"
-    status: "pending"
+    status: "complete"
     depends_on: []
     files_create: []
     files_modify:
@@ -70,7 +70,7 @@ slices:
   -
     id: "S2"
     title: "Expose biggest-sales API with reasons"
-    status: "pending"
+    status: "complete"
     depends_on:
       - "S1"
     files_create: []
@@ -84,14 +84,24 @@ slices:
     evidence: []
     notes: "Responses should be explainable enough to power a daily dashboard."
 delivery:
-  branch: "feat/SC-49-deal-facts-and-sales-intelligence"
+  branch: "codex/sc-49-deal-facts-and-sales-intelligence"
   commits: []
   pr_url: ""
-  started_at: ""
-  completed_at: ""
+  started_at: "2026-03-15T20:48:52Z"
+  completed_at: "2026-03-15T20:52:42Z"
   verification:
-    required_passed: false
-    commands_run: []
-    evidence_refs: []
+    required_passed: true
+    commands_run:
+      - "cd backend && ../.venv/bin/pytest tests/test_recommendations.py -q"
+      - "cd backend && ../.venv/bin/ruff check src/szimplacoffee/services/recommendations.py src/szimplacoffee/api/recommendations.py src/szimplacoffee/models.py tests/test_recommendations.py"
+      - "cd backend && ../.venv/bin/pytest -q"
+      - "cd backend && ../.venv/bin/ruff check src tests"
+    evidence_refs:
+      - "pytest tests/test_recommendations.py: 18 passed in 0.52s"
+      - "ruff changed backend files: All checks passed!"
+      - "pytest full backend: 52 passed in 0.60s"
+      - "ruff full backend: All checks passed!"
 notes:
   - "Generated from .plans/next-steps-march15.md in strict-schema migration batch."
+  - "The repo does not currently have a local or remote stage branch, so delivery used main as the base branch and PR target."
+  - "Backend verification currently uses the repo-root .venv for pytest and ruff."

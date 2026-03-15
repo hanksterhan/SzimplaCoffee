@@ -1,6 +1,13 @@
 {
   "entries": [
     {
+      "id": "SC-49-deal-facts-and-sales-intelligence",
+      "path": ".memory/sprint-01/SC-49-deal-facts-and-sales-intelligence.md",
+      "ticket": "SC-49",
+      "title": "Deal facts and sales intelligence",
+      "date": "2026-03-15"
+    },
+    {
       "id": "SC-48-server-side-catalog-querying",
       "path": ".memory/sprint-01/SC-48-server-side-catalog-querying.md",
       "ticket": "SC-48",

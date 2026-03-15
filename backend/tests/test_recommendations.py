@@ -1,12 +1,34 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
+from sqlalchemy.pool import StaticPool
+
+from szimplacoffee.api.recommendations import router as recommendations_router
+from szimplacoffee.db import Base, get_session
 from szimplacoffee.services.discovery import _decode_bing_result_url
-from szimplacoffee.models import MerchantPromo, OfferSnapshot
+from szimplacoffee.models import (
+    Merchant,
+    MerchantPersonalProfile,
+    MerchantPromo,
+    MerchantQualityProfile,
+    OfferSnapshot,
+    Product,
+    ProductVariant,
+    VariantDealFact,
+)
 from szimplacoffee.services.recommendations import (
     RecommendationRequest,
     _build_pros,
     _discounted_price_cents,
     _espresso_fit,
+    build_biggest_sales,
+    materialize_variant_deal_facts,
     _price_per_oz_cents,
     _quantity_score,
 )
@@ -136,3 +158,222 @@ def test_build_pros_emits_buyer_facing_summary() -> None:
     assert "Bag size matches your current buying window" in pros
     assert "Strong delivered value for the amount of coffee" in pros
     assert len(pros) == 4
+
+
+def _seed_offer(session: Session, variant: ProductVariant, *, observed_at: datetime, price_cents: int, compare_at_price_cents: int | None = None) -> None:
+    session.add(
+        OfferSnapshot(
+            variant_id=variant.id,
+            observed_at=observed_at,
+            price_cents=price_cents,
+            compare_at_price_cents=compare_at_price_cents,
+            subscription_price_cents=None,
+            is_on_sale=bool(compare_at_price_cents and compare_at_price_cents > price_cents),
+            is_available=True,
+            source_url="https://example.com/product",
+        )
+    )
+
+
+@pytest.fixture()
+def deal_test_client():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    now = datetime.now(UTC)
+
+    with Session(engine) as session:
+        merchant = Merchant(
+            name="Alpha Coffee",
+            canonical_domain="alpha.example",
+            homepage_url="https://alpha.example",
+            platform_type="shopify",
+        )
+        session.add(merchant)
+        session.flush()
+        session.add(
+            MerchantQualityProfile(
+                merchant_id=merchant.id,
+                overall_quality_score=0.9,
+                freshness_transparency_score=0.88,
+                metadata_quality_score=0.86,
+            )
+        )
+        session.add(
+            MerchantPersonalProfile(
+                merchant_id=merchant.id,
+                personal_trust_score=0.84,
+                would_reorder=True,
+            )
+        )
+        session.add(
+            MerchantPromo(
+                merchant_id=merchant.id,
+                promo_key="sale10",
+                promo_type="percent_off",
+                title="Save 10%",
+                details="Spring sale",
+                code="SALE10",
+                estimated_value_cents=1000,
+                source_urls="https://alpha.example",
+                confidence=0.9,
+                is_active=True,
+            )
+        )
+
+        product = Product(
+            merchant_id=merchant.id,
+            external_product_id="wash-1",
+            name="Washed Colombia",
+            product_url="https://alpha.example/products/washed-colombia",
+            image_url="",
+            origin_text="Colombia",
+            origin_country="Colombia",
+            process_text="Washed",
+            process_family="washed",
+            roast_cues="medium-dark",
+            roast_level="medium-dark",
+            tasting_notes_text="citrus, caramel",
+            metadata_confidence=0.9,
+            metadata_source="parser",
+            product_category="coffee",
+            is_single_origin=True,
+            is_espresso_recommended=True,
+            is_active=True,
+            first_seen_at=now,
+            last_seen_at=now,
+        )
+        session.add(product)
+        session.flush()
+
+        variant = ProductVariant(
+            product_id=product.id,
+            external_variant_id="wash-1-12oz",
+            label="12 oz",
+            weight_grams=340,
+            is_whole_bean=True,
+            is_available=True,
+            first_seen_at=now,
+            last_seen_at=now,
+        )
+        session.add(variant)
+        session.flush()
+
+        _seed_offer(session, variant, observed_at=now, price_cents=1800, compare_at_price_cents=2400)
+        _seed_offer(session, variant, observed_at=now - timedelta(days=3), price_cents=2400)
+        _seed_offer(session, variant, observed_at=now - timedelta(days=10), price_cents=2600)
+        _seed_offer(session, variant, observed_at=now - timedelta(days=20), price_cents=2800)
+
+        second_product = Product(
+            merchant_id=merchant.id,
+            external_product_id="blend-1",
+            name="Daily Blend",
+            product_url="https://alpha.example/products/daily-blend",
+            image_url="",
+            origin_text="Brazil",
+            origin_country="Brazil",
+            process_text="Natural",
+            process_family="natural",
+            roast_cues="medium",
+            roast_level="medium",
+            tasting_notes_text="chocolate",
+            metadata_confidence=0.8,
+            metadata_source="parser",
+            product_category="coffee",
+            is_single_origin=False,
+            is_espresso_recommended=True,
+            is_active=True,
+            first_seen_at=now,
+            last_seen_at=now,
+        )
+        session.add(second_product)
+        session.flush()
+
+        second_variant = ProductVariant(
+            product_id=second_product.id,
+            external_variant_id="blend-1-12oz",
+            label="12 oz",
+            weight_grams=340,
+            is_whole_bean=True,
+            is_available=True,
+            first_seen_at=now,
+            last_seen_at=now,
+        )
+        session.add(second_variant)
+        session.flush()
+
+        _seed_offer(session, second_variant, observed_at=now, price_cents=2200)
+        _seed_offer(session, second_variant, observed_at=now - timedelta(days=3), price_cents=2200)
+        _seed_offer(session, second_variant, observed_at=now - timedelta(days=10), price_cents=2250)
+        session.commit()
+
+        seeded = {
+            "merchant_id": merchant.id,
+            "variant_id": variant.id,
+            "product_name": product.name,
+        }
+
+    app = FastAPI()
+    app.include_router(recommendations_router, prefix="/api/v1")
+
+    def override_get_session():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+
+    with TestClient(app) as client:
+        yield client, engine, seeded
+
+    app.dependency_overrides.clear()
+
+
+def test_materialize_variant_deal_facts_uses_offer_history(deal_test_client) -> None:
+    _client, engine, seeded = deal_test_client
+
+    with Session(engine) as session:
+        facts = materialize_variant_deal_facts(session)
+        fact = facts[seeded["variant_id"]]
+
+        assert fact.offer_count == 4
+        assert fact.baseline_7d_cents == 2400
+        assert fact.baseline_30d_cents == 2600
+        assert fact.historical_low_cents == 1800
+        assert fact.historical_high_cents == 2800
+        assert fact.compare_at_discount_percent == 25.0
+        assert fact.price_drop_7d_percent > 0
+        assert fact.price_drop_30d_percent > 0
+        assert session.scalar(select(VariantDealFact).where(VariantDealFact.variant_id == seeded["variant_id"])) is not None
+
+
+def test_build_biggest_sales_uses_history_promo_and_price_per_oz_context(deal_test_client) -> None:
+    _client, engine, seeded = deal_test_client
+
+    with Session(engine) as session:
+        candidates = build_biggest_sales(session, limit=5)
+
+    assert candidates
+    top = candidates[0]
+    assert top.product_name == seeded["product_name"]
+    assert top.best_promo_label == "10% off"
+    assert top.price_drop_7d_percent > 0
+    assert top.price_drop_30d_percent > 0
+    assert any("7-day median" in reason for reason in top.reasons)
+    assert any("catalog baseline" in reason for reason in top.reasons)
+
+
+def test_biggest_sales_endpoint_returns_explainable_candidates(deal_test_client) -> None:
+    client, _engine, seeded = deal_test_client
+
+    response = client.get("/api/v1/recommendations/biggest-sales", params={"limit": 3})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload
+    assert payload[0]["product_name"] == seeded["product_name"]
+    assert payload[0]["best_promo_label"] == "10% off"
+    assert payload[0]["score"] > 0.58
+    assert payload[0]["reasons"]
