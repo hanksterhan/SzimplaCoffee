@@ -23,6 +23,7 @@ class Merchant(Base):
     platform_type: Mapped[str] = mapped_column(String(50), default="unknown", index=True)
     country_code: Mapped[str] = mapped_column(String(8), default="US")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_watched: Mapped[bool] = mapped_column(Boolean, default=False, index=True)  # SC-52 watch list
     crawl_tier: Mapped[str] = mapped_column(String(1), default="B", index=True)
     trust_tier: Mapped[str] = mapped_column(String(32), default="candidate", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

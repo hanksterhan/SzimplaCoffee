@@ -258,6 +258,47 @@ def list_low_confidence_merchants(
     return [MerchantSummary.model_validate(m) for m in merchants]
 
 
+@router.get("/watchlist", response_model=list[MerchantSummary])
+def list_watchlist(
+    db: Session = Depends(get_session),
+) -> list[MerchantSummary]:
+    """SC-52: Return merchants on the watch list."""
+    merchants = db.scalars(
+        select(Merchant)
+        .where(Merchant.is_watched.is_(True), Merchant.is_active.is_(True))
+        .order_by(Merchant.name)
+    ).all()
+    return [MerchantSummary.model_validate(m) for m in merchants]
+
+
+@router.post("/{merchant_id}/watch", response_model=dict)
+def add_to_watchlist(
+    merchant_id: int,
+    db: Session = Depends(get_session),
+) -> dict:
+    """SC-52: Add a merchant to the watch list."""
+    merchant = db.get(Merchant, merchant_id)
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+    merchant.is_watched = True
+    db.commit()
+    return {"merchant_id": merchant_id, "is_watched": True}
+
+
+@router.delete("/{merchant_id}/watch", response_model=dict)
+def remove_from_watchlist(
+    merchant_id: int,
+    db: Session = Depends(get_session),
+) -> dict:
+    """SC-52: Remove a merchant from the watch list."""
+    merchant = db.get(Merchant, merchant_id)
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+    merchant.is_watched = False
+    db.commit()
+    return {"merchant_id": merchant_id, "is_watched": False}
+
+
 @router.get("/{merchant_id}/promos", response_model=list[MerchantPromoSchema])
 def list_merchant_promos(
     merchant_id: int,

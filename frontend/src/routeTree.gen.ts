@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WatchRouteImport } from './routes/watch'
+import { Route as TodayRouteImport } from './routes/today'
 import { Route as RecommendRouteImport } from './routes/recommend'
 import { Route as PurchasesRouteImport } from './routes/purchases'
 import { Route as ProductsRouteImport } from './routes/products'
@@ -19,6 +21,16 @@ import { Route as ProductsProductIdRouteImport } from './routes/products.$produc
 import { Route as MerchantsNewRouteImport } from './routes/merchants.new'
 import { Route as MerchantsMerchantIdRouteImport } from './routes/merchants.$merchantId'
 
+const WatchRoute = WatchRouteImport.update({
+  id: '/watch',
+  path: '/watch',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/watch.lazy').then((d) => d.Route))
+const TodayRoute = TodayRouteImport.update({
+  id: '/today',
+  path: '/today',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/today.lazy').then((d) => d.Route))
 const RecommendRoute = RecommendRouteImport.update({
   id: '/recommend',
   path: '/recommend',
@@ -76,6 +88,8 @@ export interface FileRoutesByFullPath {
   '/products': typeof ProductsRouteWithChildren
   '/purchases': typeof PurchasesRoute
   '/recommend': typeof RecommendRoute
+  '/today': typeof TodayRoute
+  '/watch': typeof WatchRoute
   '/merchants/$merchantId': typeof MerchantsMerchantIdRoute
   '/merchants/new': typeof MerchantsNewRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -87,6 +101,8 @@ export interface FileRoutesByTo {
   '/products': typeof ProductsRouteWithChildren
   '/purchases': typeof PurchasesRoute
   '/recommend': typeof RecommendRoute
+  '/today': typeof TodayRoute
+  '/watch': typeof WatchRoute
   '/merchants/$merchantId': typeof MerchantsMerchantIdRoute
   '/merchants/new': typeof MerchantsNewRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -99,6 +115,8 @@ export interface FileRoutesById {
   '/products': typeof ProductsRouteWithChildren
   '/purchases': typeof PurchasesRoute
   '/recommend': typeof RecommendRoute
+  '/today': typeof TodayRoute
+  '/watch': typeof WatchRoute
   '/merchants/$merchantId': typeof MerchantsMerchantIdRoute
   '/merchants/new': typeof MerchantsNewRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -112,6 +130,8 @@ export interface FileRouteTypes {
     | '/products'
     | '/purchases'
     | '/recommend'
+    | '/today'
+    | '/watch'
     | '/merchants/$merchantId'
     | '/merchants/new'
     | '/products/$productId'
@@ -123,6 +143,8 @@ export interface FileRouteTypes {
     | '/products'
     | '/purchases'
     | '/recommend'
+    | '/today'
+    | '/watch'
     | '/merchants/$merchantId'
     | '/merchants/new'
     | '/products/$productId'
@@ -134,6 +156,8 @@ export interface FileRouteTypes {
     | '/products'
     | '/purchases'
     | '/recommend'
+    | '/today'
+    | '/watch'
     | '/merchants/$merchantId'
     | '/merchants/new'
     | '/products/$productId'
@@ -146,10 +170,26 @@ export interface RootRouteChildren {
   ProductsRoute: typeof ProductsRouteWithChildren
   PurchasesRoute: typeof PurchasesRoute
   RecommendRoute: typeof RecommendRoute
+  TodayRoute: typeof TodayRoute
+  WatchRoute: typeof WatchRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/watch': {
+      id: '/watch'
+      path: '/watch'
+      fullPath: '/watch'
+      preLoaderRoute: typeof WatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/today': {
+      id: '/today'
+      path: '/today'
+      fullPath: '/today'
+      preLoaderRoute: typeof TodayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recommend': {
       id: '/recommend'
       path: '/recommend'
@@ -249,6 +289,8 @@ const rootRouteChildren: RootRouteChildren = {
   ProductsRoute: ProductsRouteWithChildren,
   PurchasesRoute: PurchasesRoute,
   RecommendRoute: RecommendRoute,
+  TodayRoute: TodayRoute,
+  WatchRoute: WatchRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
