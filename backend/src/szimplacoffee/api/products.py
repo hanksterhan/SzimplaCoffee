@@ -9,7 +9,14 @@ from sqlalchemy.orm import Session, selectinload
 from ..db import get_session
 from ..models import Merchant, OfferSnapshot, Product, ProductVariant
 from ..schemas.common import CursorPage, PaginatedResponse
+from pydantic import BaseModel
+
 from ..schemas.products import OfferSnapshotSchema, ProductDetail, ProductSummary
+
+
+class ProductMerchantOption(BaseModel):
+    merchant_id: int
+    merchant_name: str
 
 router = APIRouter(tags=["products"])
 
@@ -106,6 +113,22 @@ def _select_primary_variant(product: Product) -> tuple[ProductVariant, Any] | No
     whole_bean = [item for item in variants_with_offer if item[0].is_whole_bean and item[0].weight_grams]
     pool = whole_bean or variants_with_offer
     return min(pool, key=lambda item: item[1].price_cents)
+
+
+def _merchant_options_query(db: Session, category: str | None = None, q: str | None = None):
+    category = _normalize_query_default(category)
+    q = _normalize_query_default(q)
+
+    stmt = (
+        select(Merchant.id, Merchant.name)
+        .join(Product, Product.merchant_id == Merchant.id)
+        .where(Product.is_active.is_(True), Merchant.is_active.is_(True))
+    )
+    if q:
+        stmt = stmt.where(Product.name.ilike(f"%{q}%"))
+    stmt = _apply_category_filter(stmt, category)
+    stmt = stmt.distinct().order_by(Merchant.name)
+    return stmt
 
 
 def _product_summary_with_merchant(product: Product, merchant_name: str) -> ProductSummary:
@@ -216,6 +239,16 @@ def search_products(
         next_cursor=next_cursor,
         has_more=has_more,
     )
+
+
+@router.get("/products/merchant-options", response_model=list[ProductMerchantOption])
+def list_product_merchant_options(
+    db: Session = Depends(get_session),
+    category: str | None = Query("coffee"),
+    q: str | None = Query(None, description="Optional search term to narrow merchant options"),
+) -> list[ProductMerchantOption]:
+    rows = db.execute(_merchant_options_query(db, category=category, q=q)).all()
+    return [ProductMerchantOption(merchant_id=row[0], merchant_name=row[1]) for row in rows]
 
 
 @router.get("/products/{product_id}", response_model=ProductDetail)

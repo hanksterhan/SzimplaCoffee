@@ -7,6 +7,7 @@ export type ProductDetail = components["schemas"]["ProductDetail"];
 export type ProductVariantSchema = components["schemas"]["ProductVariantSchema"];
 export type OfferSnapshotSchema = components["schemas"]["OfferSnapshotSchema"];
 export type CursorPageProductSummary = components["schemas"]["CursorPage_ProductSummary_"];
+export type ProductMerchantOption = { merchant_id: number; merchant_name: string };
 
 export function useProductSearch(q: string, categories: string[] = ["coffee"]) {
   const categoryParam = categories.length > 0 ? categories.join(",") : "coffee";
@@ -24,6 +25,23 @@ export function useProductSearch(q: string, categories: string[] = ["coffee"]) {
     getNextPageParam: (lastPage) =>
       lastPage.has_more ? lastPage.next_cursor ?? undefined : undefined,
     staleTime: 30_000,
+  });
+}
+
+export function useProductMerchantOptions(q: string, categories: string[] = ["coffee"]) {
+  const categoryParam = categories.length > 0 ? categories.join(",") : "coffee";
+
+  return useQuery({
+    queryKey: ["products", "merchant-options", q, categoryParam],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("category", categoryParam);
+      if (q) params.set("q", q);
+      const response = await fetch(`/api/v1/products/merchant-options?${params.toString()}`);
+      if (!response.ok) throw new Error("Merchant options fetch failed");
+      return response.json() as Promise<ProductMerchantOption[]>;
+    },
+    staleTime: 60_000,
   });
 }
 

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   useProduct,
+  useProductMerchantOptions,
   useProductSearch,
   type ProductDetail,
   type ProductSummary,
@@ -348,11 +349,10 @@ function ProductsPage() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useProductSearch(debouncedQ, categories);
+  const { data: merchantOptionRows } = useProductMerchantOptions(debouncedQ, categories);
 
   const products = (data?.pages.flatMap((page) => page.items) ?? []) as ProductCardSummary[];
-  const merchantOptions = Array.from(
-    new Set(products.map((product) => product.merchant_name).filter(Boolean))
-  ).sort((a, b) => a.localeCompare(b));
+  const merchantOptions = (merchantOptionRows ?? []).map((row) => row.merchant_name);
 
   const filteredProducts = products.filter((product) => {
     if (selectedMerchants.length === 0) return true;
