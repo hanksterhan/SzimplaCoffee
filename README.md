@@ -147,6 +147,22 @@ SzimplaCoffee/
 
 **⌘K** (or Ctrl+K) opens the command palette for quick navigation.
 
+## Recurring Crawl Scheduling
+
+The backend runs a background crawl loop via APScheduler (every 15 minutes while the server is running). Per-merchant crawl cadence is controlled by crawl tier:
+
+| Tier | Auto-crawl interval |
+|------|---------------------|
+| A    | 6 hours             |
+| B    | 24 hours            |
+| C    | 7 days              |
+| D    | manual only         |
+
+Check crawl status: `GET /api/v1/crawl/schedule`  
+Trigger due crawls: `POST /api/v1/crawl/run-due`
+
+See `backend/README.md` for freshness expectations and history requirements.
+
 ## API
 
 The backend exposes a full REST API at `/api/v1/`. Interactive docs available at:

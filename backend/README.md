@@ -1,5 +1,47 @@
 # Backend Notes
 
+## Recurring crawl scheduling (SC-50)
+
+### How the scheduler works
+
+The backend uses [APScheduler](https://apscheduler.readthedocs.io/) to run a recurring crawl loop while the FastAPI server is running.
+
+- **Job frequency**: every 15 minutes (configurable).
+- **Per-merchant cadence**: each execution inspects *which* merchants are actually due based on their crawl tier before doing any network work.
+- **Tier thresholds** (defined in `services/scheduler.py`):
+  | Tier | Interval |
+  |------|----------|
+  | A    | 6 hours  |
+  | B    | 24 hours |
+  | C    | 7 days   |
+  | D    | manual only (never auto-scheduled) |
+- A merchant with no crawl history is always considered due.
+- Only `completed` crawl runs reset the freshness clock. A `failed` run does not.
+
+### Observing scheduler state
+
+The `/api/v1/crawl/schedule` endpoint returns current freshness status for every active merchant:
+
+```bash
+curl http://localhost:8000/api/v1/crawl/schedule | python3 -m json.tool
+```
+
+Status values: `fresh`, `approaching`, `overdue`, `never_crawled`, `manual`.
+
+Trigger an immediate scheduled crawl (all due merchants):
+
+```bash
+curl -X POST http://localhost:8000/api/v1/crawl/run-due
+```
+
+### How much history before daily-sales data is trustworthy
+
+- **Meaningful trends**: ≥7 days of consecutive crawls for Tier A/B merchants
+- **Sale detection (compare-at-price)**: available from the first crawl that captures a `compare_at_price`
+- **Pattern-based sale detection**: requires ≥14 days of offer history per variant
+
+Do not claim daily-deal accuracy before sufficient history has accrued. The scheduler accumulates this automatically once started.
+
 ## Normalized product metadata
 
 SC-46 introduces canonical product metadata fields alongside the existing free-text columns on `products`:

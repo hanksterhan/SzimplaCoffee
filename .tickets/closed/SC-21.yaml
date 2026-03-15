@@ -1,0 +1,108 @@
+id: "SC-21"
+title: "Dashboard page \u2014 metrics cards, merchant overview table, quick actions"
+type: "feature"
+priority: "p2"
+status: "done"
+owner: "h6nk-bot"
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "phase-2"
+  - "frontend"
+  - "dashboard"
+problem: "No dashboard page exists. Users need an at-a-glance view of the system state: merchant count, product count, last crawl, price stats, and quick actions."
+desired_outcome: "/ route renders a dashboard with stats cards (fetched from /api/v1/dashboard), a merchant summary table, and quick-action buttons. Data refreshes every 30 seconds."
+scope_in:
+  - "DashboardStats metrics cards: merchants, products, variants, offers, avg price"
+  - "Recent crawl activity summary (last 5 crawl runs across all merchants)"
+  - "Merchant overview table (name, platform, trust tier, product count, last crawl)"
+  - "Quick action buttons: Trigger all crawls, Run recommendations, Add merchant"
+  - "useDashboard() TanStack Query hook"
+scope_out:
+  - "Price history charts (SC-27)"
+  - "Detailed merchant view (SC-23)"
+dependencies:
+  blockers:
+    - "SC-16"
+    - "SC-17"
+    - "SC-20"
+  unblocks: []
+acceptance_criteria:
+  -
+    id: "AC-1"
+    text: "Dashboard page loads and shows correct merchant count (16)"
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-2"
+    text: "TypeScript compilation passes"
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-3"
+    text: "Skeleton loading state shown while data fetches"
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-4"
+    text: "Stats match DB: 910 products, 3207 variants, 9352 offers"
+    verify: "cd frontend && npm run build"
+    status: "pending"
+verification_required:
+  - "cd frontend && npm run build"
+  - "cd frontend && npm run build"
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-21-execution-plan.md"
+slices:
+  -
+    id: "S1"
+    title: "useDashboard hook + metrics cards"
+    status: "pending"
+    depends_on: []
+    files_create:
+      - "frontend/src/hooks/useDashboard.ts"
+      - "frontend/src/components/dashboard/StatsCard.tsx"
+      - "frontend/src/components/dashboard/MetricsGrid.tsx"
+    files_modify:
+      - "frontend/src/routes/index.tsx"
+    files_read_only:
+      - "frontend/src/api/client.ts"
+      - "frontend/src/components/ui/card.tsx"
+      - "frontend/src/components/ui/skeleton.tsx"
+    checks:
+      - "cd frontend && npx tsc --noEmit"
+    evidence: []
+    notes:
+  - "Delivered as part of initial monorepo build. Closed during grooming pass." "staleTime: 30_000 ms for dashboard query"
+  -
+    id: "S2"
+    title: "Merchant overview table + quick actions"
+    status: "pending"
+    depends_on:
+      - "S1"
+    files_create:
+      - "frontend/src/components/dashboard/MerchantOverviewTable.tsx"
+      - "frontend/src/components/dashboard/QuickActions.tsx"
+    files_modify:
+      - "frontend/src/routes/index.tsx"
+    files_read_only:
+      - "frontend/src/hooks/useDashboard.ts"
+      - "frontend/src/components/ui/table.tsx"
+      - "frontend/src/components/ui/badge.tsx"
+    checks:
+      - "cd frontend && npm run build"
+    evidence: []
+    notes: ""
+delivery:
+  branch: "feat/SC-21-dashboard-page"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: "2026-03-15T00:00:00Z"
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+notes:
+  - "Expected DB values: 16 merchants, 910 products, 3207 variants, 9352 offers, avg price ~$80"
+  - "Trusted merchants (Olympia Coffee, Camber Coffee) should be highlighted in table"
