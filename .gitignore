@@ -21,8 +21,8 @@ build/
 *.tsbuildinfo
 
 # Generated API types (regenerate with scripts/generate-api-types.sh)
+# schema.d.ts is committed so builds work on fresh clones
 frontend/openapi.json
-frontend/src/api/schema.d.ts
 
 # Misc
 instance/
