@@ -24,4 +24,34 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Core React runtime
+          "vendor-react": ["react", "react-dom"],
+          // TanStack Router + Query
+          "vendor-tanstack": [
+            "@tanstack/react-router",
+            "@tanstack/react-query",
+          ],
+          // Recharts (heavy, only used in charts)
+          "vendor-recharts": ["recharts"],
+          // UI components (radix + shadcn)
+          "vendor-ui": [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-select",
+            "@radix-ui/react-tabs",
+            "@radix-ui/react-tooltip",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-separator",
+          ],
+          // Command palette (cmdk)
+          "vendor-cmdk": ["cmdk"],
+          // Toast
+          "vendor-sonner": ["sonner"],
+        },
+      },
+    },
+  },
 });

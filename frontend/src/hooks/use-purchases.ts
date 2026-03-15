@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { api } from "@/api/client";
 import type { components } from "@/api/schema";
 
@@ -70,6 +71,10 @@ export function useAddPurchase() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["purchases"] });
+      toast.success("Purchase logged");
+    },
+    onError: (err: Error) => {
+      toast.error(`Something went wrong: ${err.message}`);
     },
   });
 }
@@ -87,6 +92,10 @@ export function useUpdatePurchase() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["purchases"] });
+      toast.success("Purchase updated");
+    },
+    onError: (err: Error) => {
+      toast.error(`Something went wrong: ${err.message}`);
     },
   });
 }
@@ -102,6 +111,10 @@ export function useDeletePurchase() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["purchases"] });
+      toast.success("Deleted successfully");
+    },
+    onError: (err: Error) => {
+      toast.error(`Something went wrong: ${err.message}`);
     },
   });
 }

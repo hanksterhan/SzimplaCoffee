@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { api } from "@/api/client";
 import type { components } from "@/api/schema";
 
@@ -50,6 +51,10 @@ export function usePromoteCandidate() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["discovery"] });
       qc.invalidateQueries({ queryKey: ["merchants"] });
+      toast.success("Candidate promoted to merchant");
+    },
+    onError: (err: Error) => {
+      toast.error(`Something went wrong: ${err.message}`);
     },
   });
 }
@@ -67,6 +72,10 @@ export function useRejectCandidate() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["discovery"] });
+      toast.success("Candidate rejected");
+    },
+    onError: (err: Error) => {
+      toast.error(`Something went wrong: ${err.message}`);
     },
   });
 }

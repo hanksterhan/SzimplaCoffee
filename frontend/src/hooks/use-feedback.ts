@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { api } from "@/api/client";
 import type { components } from "@/api/schema";
 
@@ -44,6 +45,10 @@ export function useAddFeedback() {
     onSuccess: (_data, { purchaseId }) => {
       qc.invalidateQueries({ queryKey: ["feedback", purchaseId] });
       qc.invalidateQueries({ queryKey: ["purchases"] });
+      toast.success("Feedback saved");
+    },
+    onError: (err: Error) => {
+      toast.error(`Something went wrong: ${err.message}`);
     },
   });
 }
@@ -70,6 +75,10 @@ export function useUpdateFeedback() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["feedback"] });
+      toast.success("Feedback updated");
+    },
+    onError: (err: Error) => {
+      toast.error(`Something went wrong: ${err.message}`);
     },
   });
 }
@@ -88,6 +97,10 @@ export function useDeleteFeedback() {
     onSuccess: (_data, { purchaseId }) => {
       qc.invalidateQueries({ queryKey: ["feedback", purchaseId] });
       qc.invalidateQueries({ queryKey: ["purchases"] });
+      toast.success("Deleted successfully");
+    },
+    onError: (err: Error) => {
+      toast.error(`Something went wrong: ${err.message}`);
     },
   });
 }

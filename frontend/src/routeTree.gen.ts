@@ -11,9 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as RecommendRouteImport } from './routes/recommend'
 import { Route as PurchasesRouteImport } from './routes/purchases'
+import { Route as ProductsRouteImport } from './routes/products'
 import { Route as MerchantsRouteImport } from './routes/merchants'
 import { Route as DiscoveryRouteImport } from './routes/discovery'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProductsProductIdRouteImport } from './routes/products.$productId'
 import { Route as MerchantsNewRouteImport } from './routes/merchants.new'
 import { Route as MerchantsMerchantIdRouteImport } from './routes/merchants.$merchantId'
 
@@ -21,27 +23,39 @@ const RecommendRoute = RecommendRouteImport.update({
   id: '/recommend',
   path: '/recommend',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/recommend.lazy').then((d) => d.Route))
 const PurchasesRoute = PurchasesRouteImport.update({
   id: '/purchases',
   path: '/purchases',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/purchases.lazy').then((d) => d.Route))
+const ProductsRoute = ProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/products.lazy').then((d) => d.Route))
 const MerchantsRoute = MerchantsRouteImport.update({
   id: '/merchants',
   path: '/merchants',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/merchants.lazy').then((d) => d.Route))
 const DiscoveryRoute = DiscoveryRouteImport.update({
   id: '/discovery',
   path: '/discovery',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/discovery.lazy').then((d) => d.Route))
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProductsProductIdRoute = ProductsProductIdRouteImport.update({
+  id: '/$productId',
+  path: '/$productId',
+  getParentRoute: () => ProductsRoute,
+} as any).lazy(() =>
+  import('./routes/products.$productId.lazy').then((d) => d.Route),
+)
 const MerchantsNewRoute = MerchantsNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -51,35 +65,43 @@ const MerchantsMerchantIdRoute = MerchantsMerchantIdRouteImport.update({
   id: '/$merchantId',
   path: '/$merchantId',
   getParentRoute: () => MerchantsRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/merchants.$merchantId.lazy').then((d) => d.Route),
+)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/discovery': typeof DiscoveryRoute
   '/merchants': typeof MerchantsRouteWithChildren
+  '/products': typeof ProductsRouteWithChildren
   '/purchases': typeof PurchasesRoute
   '/recommend': typeof RecommendRoute
   '/merchants/$merchantId': typeof MerchantsMerchantIdRoute
   '/merchants/new': typeof MerchantsNewRoute
+  '/products/$productId': typeof ProductsProductIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/discovery': typeof DiscoveryRoute
   '/merchants': typeof MerchantsRouteWithChildren
+  '/products': typeof ProductsRouteWithChildren
   '/purchases': typeof PurchasesRoute
   '/recommend': typeof RecommendRoute
   '/merchants/$merchantId': typeof MerchantsMerchantIdRoute
   '/merchants/new': typeof MerchantsNewRoute
+  '/products/$productId': typeof ProductsProductIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/discovery': typeof DiscoveryRoute
   '/merchants': typeof MerchantsRouteWithChildren
+  '/products': typeof ProductsRouteWithChildren
   '/purchases': typeof PurchasesRoute
   '/recommend': typeof RecommendRoute
   '/merchants/$merchantId': typeof MerchantsMerchantIdRoute
   '/merchants/new': typeof MerchantsNewRoute
+  '/products/$productId': typeof ProductsProductIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -87,34 +109,41 @@ export interface FileRouteTypes {
     | '/'
     | '/discovery'
     | '/merchants'
+    | '/products'
     | '/purchases'
     | '/recommend'
     | '/merchants/$merchantId'
     | '/merchants/new'
+    | '/products/$productId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/discovery'
     | '/merchants'
+    | '/products'
     | '/purchases'
     | '/recommend'
     | '/merchants/$merchantId'
     | '/merchants/new'
+    | '/products/$productId'
   id:
     | '__root__'
     | '/'
     | '/discovery'
     | '/merchants'
+    | '/products'
     | '/purchases'
     | '/recommend'
     | '/merchants/$merchantId'
     | '/merchants/new'
+    | '/products/$productId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DiscoveryRoute: typeof DiscoveryRoute
   MerchantsRoute: typeof MerchantsRouteWithChildren
+  ProductsRoute: typeof ProductsRouteWithChildren
   PurchasesRoute: typeof PurchasesRoute
   RecommendRoute: typeof RecommendRoute
 }
@@ -133,6 +162,13 @@ declare module '@tanstack/react-router' {
       path: '/purchases'
       fullPath: '/purchases'
       preLoaderRoute: typeof PurchasesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/products': {
+      id: '/products'
+      path: '/products'
+      fullPath: '/products'
+      preLoaderRoute: typeof ProductsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/merchants': {
@@ -155,6 +191,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/products/$productId': {
+      id: '/products/$productId'
+      path: '/$productId'
+      fullPath: '/products/$productId'
+      preLoaderRoute: typeof ProductsProductIdRouteImport
+      parentRoute: typeof ProductsRoute
     }
     '/merchants/new': {
       id: '/merchants/new'
@@ -187,10 +230,23 @@ const MerchantsRouteWithChildren = MerchantsRoute._addFileChildren(
   MerchantsRouteChildren,
 )
 
+interface ProductsRouteChildren {
+  ProductsProductIdRoute: typeof ProductsProductIdRoute
+}
+
+const ProductsRouteChildren: ProductsRouteChildren = {
+  ProductsProductIdRoute: ProductsProductIdRoute,
+}
+
+const ProductsRouteWithChildren = ProductsRoute._addFileChildren(
+  ProductsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DiscoveryRoute: DiscoveryRoute,
   MerchantsRoute: MerchantsRouteWithChildren,
+  ProductsRoute: ProductsRouteWithChildren,
   PurchasesRoute: PurchasesRoute,
   RecommendRoute: RecommendRoute,
 }

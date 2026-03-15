@@ -45,7 +45,7 @@ export function MerchantInfoCard({ merchant }: MerchantInfoCardProps) {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => triggerCrawl.mutate(merchant.id)}
+              onClick={() => triggerCrawl.mutate({ merchantId: merchant.id, merchantName: merchant.name })}
               disabled={triggerCrawl.isPending}
             >
               {triggerCrawl.isPending ? "Crawling…" : "🕷️ Trigger Crawl"}

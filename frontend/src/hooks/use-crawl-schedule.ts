@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export interface CrawlScheduleItem {
   merchant_id: number;
@@ -41,9 +42,13 @@ export function useRunDueCrawls() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: runDueCrawls,
-    onSuccess: () => {
+    onSuccess: (data) => {
       void queryClient.invalidateQueries({ queryKey: ["crawl"] });
       void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      toast.success(`Crawl started for ${data.triggered} merchant${data.triggered !== 1 ? "s" : ""}`);
+    },
+    onError: (err: Error) => {
+      toast.error(`Something went wrong: ${err.message}`);
     },
   });
 }

@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { api } from "@/api/client";
 
 interface MerchantsFilter {
@@ -132,6 +133,10 @@ export function useAddMerchant() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["merchants"] });
+      toast.success("Merchant added successfully");
+    },
+    onError: (err: Error) => {
+      toast.error(`Something went wrong: ${err.message}`);
     },
   });
 }
@@ -139,7 +144,7 @@ export function useAddMerchant() {
 export function useTriggerCrawl() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (merchantId: number) => {
+    mutationFn: async ({ merchantId, merchantName }: { merchantId: number; merchantName?: string }) => {
       const { data, error } = await api.POST(
         "/api/v1/merchants/{merchant_id}/crawl",
         {
@@ -147,12 +152,16 @@ export function useTriggerCrawl() {
         }
       );
       if (error) throw error;
-      return data;
+      return { data, merchantName };
     },
-    onSuccess: (_data, merchantId) => {
+    onSuccess: ({ merchantName }, { merchantId }) => {
       qc.invalidateQueries({ queryKey: ["merchants"] });
       qc.invalidateQueries({ queryKey: ["merchants", merchantId, "crawl-runs"] });
       qc.invalidateQueries({ queryKey: ["merchants", merchantId, "status"] });
+      toast.success(`Crawl started${merchantName ? ` for ${merchantName}` : ""}`);
+    },
+    onError: (err: Error) => {
+      toast.error(`Something went wrong: ${err.message}`);
     },
   });
 }

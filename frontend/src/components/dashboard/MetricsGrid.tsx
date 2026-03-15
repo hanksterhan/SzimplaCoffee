@@ -8,7 +8,7 @@ interface MetricsGridProps {
 
 export function MetricsGrid({ stats, loading }: MetricsGridProps) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
       <StatsCard
         title="Merchants"
         value={stats?.merchant_count ?? 0}
