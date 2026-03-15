@@ -13,3 +13,4 @@ Verification completed:
 - `cd backend && ../.venv/bin/ruff check src/szimplacoffee/services/recommendations.py src/szimplacoffee/api/recommendations.py src/szimplacoffee/models.py tests/test_recommendations.py`
 - `cd backend && ../.venv/bin/pytest -q`
 - `cd backend && ../.venv/bin/ruff check src tests`
+- draft PR opened at `https://github.com/hanksterhan/SzimplaCoffee/pull/6`

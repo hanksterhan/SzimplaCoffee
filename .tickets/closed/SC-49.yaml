@@ -85,10 +85,11 @@ slices:
     notes: "Responses should be explainable enough to power a daily dashboard."
 delivery:
   branch: "codex/sc-49-deal-facts-and-sales-intelligence"
-  commits: []
-  pr_url: ""
+  commits:
+    - "a77bde01015306f984e4763a8dfc3eb162fb5bd4"
+  pr_url: "https://github.com/hanksterhan/SzimplaCoffee/pull/6"
   started_at: "2026-03-15T20:48:52Z"
-  completed_at: "2026-03-15T20:52:42Z"
+  completed_at: "2026-03-15T20:53:40Z"
   verification:
     required_passed: true
     commands_run:
