@@ -1,5 +1,60 @@
 @import "tailwindcss";
 
+/* Coffee Theme — warm palette */
 :root {
   font-family: system-ui, sans-serif;
+
+  /* Core palette */
+  --background: 30 20% 98%;          /* cream white */
+  --foreground: 20 15% 10%;          /* dark roast text */
+
+  --primary: 20 60% 25%;             /* espresso brown */
+  --primary-foreground: 30 20% 98%;  /* cream on espresso */
+
+  --secondary: 30 30% 90%;           /* latte foam */
+  --secondary-foreground: 20 15% 20%;
+
+  --muted: 30 15% 92%;               /* light steam */
+  --muted-foreground: 20 10% 45%;
+
+  --accent: 25 70% 35%;              /* roasted caramel */
+  --accent-foreground: 30 20% 98%;
+
+  --destructive: 0 60% 45%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 30 20% 85%;              /* light brown border */
+  --input: 30 20% 85%;
+  --ring: 20 60% 25%;
+
+  --card: 30 20% 98%;
+  --card-foreground: 20 15% 10%;
+
+  --popover: 30 20% 98%;
+  --popover-foreground: 20 15% 10%;
+
+  --radius: 0.5rem;
+
+  /* Custom coffee tokens */
+  --coffee-espresso: #2C1810;
+  --coffee-americano: #4A2C1A;
+  --coffee-latte: #C8A882;
+  --coffee-cream: #FFF8F0;
+  --coffee-steam: #F5F0EB;
+  --coffee-roast: #6B3A2A;
+
+  /* Status colors */
+  --status-trusted: 142 50% 35%;     /* trusted = green */
+  --status-candidate: 45 80% 45%;    /* candidate = amber */
+  --status-pending: 200 60% 40%;     /* pending = blue */
+  --status-rejected: 0 60% 45%;      /* rejected = red */
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
