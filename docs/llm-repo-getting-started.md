@@ -32,14 +32,21 @@ The system is allowed to recommend waiting.
 
 ## What Exists Today
 
-- A real React SPA, not just a scaffold.
+- A full React SPA — not a scaffold.
 - JSON APIs under `/api/v1`.
 - Merchant discovery and promotion workflow.
 - Catalog browsing and product search.
-- Recommendation runs and recommendation history.
+- Recommendation runs and recommendation history — inventory-aware, subscription-aware, with "wait" rationale.
 - Purchase logging and brew feedback.
-- Crawl scheduling and crawl run history.
-- Persisted pricing and promo history.
+- **APScheduler**-driven recurring crawl scheduling — tiers A/B/C/D with automatic quality scoring after each crawl.
+- **Layered crawl strategy**: feed → structured page data → DOM extraction → agentic fallback.
+- Per-merchant crawl quality metrics persisted in the DB.
+- Persisted pricing and promo history (append-only).
+- **Deal facts** (`VariantDealFact`) tracking historical biggest-sale data per variant.
+- **Today view** — daily buying decision dashboard.
+- **Watch view** — merchant watch list and low-confidence merchant review queue.
+- **Merchant registry** with trust tiers and buying-view inclusion thresholds.
+- 60-merchant specialty roaster seed list at `SzimplaCoffee/brain/merchants/top-500-seed.md`.
 
 ## Backend Surface You Should Know
 
@@ -72,19 +79,21 @@ Important frontend areas:
 
 Current SPA routes:
 
-- `/`
-- `/merchants`
-- `/merchants/new`
-- `/merchants/$merchantId`
-- `/products`
-- `/products/$productId`
-- `/recommend`
-- `/discovery`
-- `/purchases`
+- `/` — dashboard
+- `/merchants` — merchant list
+- `/merchants/new` — add merchant
+- `/merchants/$merchantId` — merchant detail
+- `/products` — catalog with multi-select filters
+- `/products/$productId` — product detail
+- `/recommend` — recommendation console
+- `/discovery` — discovery pipeline
+- `/purchases` — purchase history + brew feedback
+- `/today` — daily buying decision view *(new)*
+- `/watch` — merchant watch list and review queue *(new)*
 
 ## Data Model Reality
 
-The current primary model surface includes 15 SQLAlchemy models:
+The current primary model surface includes **18 SQLAlchemy models**:
 
 - `Merchant`
 - `MerchantCandidate`
@@ -92,17 +101,20 @@ The current primary model surface includes 15 SQLAlchemy models:
 - `MerchantQualityProfile`
 - `MerchantPersonalProfile`
 - `ShippingPolicy`
+- `MerchantFieldPattern` *(per-field extraction patterns for crawlers)*
+- `ProductMetadataOverride` *(manual metadata corrections)*
 - `Product`
 - `ProductVariant`
 - `OfferSnapshot`
 - `PromoSnapshot`
 - `MerchantPromo`
+- `VariantDealFact` *(historical biggest-sale records per variant)*
 - `PurchaseHistory`
 - `BrewFeedback`
 - `CrawlRun`
 - `RecommendationRun`
 
-The most important data rule is this: offer and promo history are append-only observed snapshots. Do not rewrite that history to represent current state.
+The most important data rule: offer, promo, and deal history are **append-only observed snapshots**. Never rewrite `OfferSnapshot`, `PromoSnapshot`, or `VariantDealFact` to represent current state.
 
 ## How To Think About Changes
 
@@ -159,9 +171,13 @@ cd frontend && npm run gen:api
 - Updating backend response shapes without regenerating or adapting frontend API types.
 - Treating the frontend as a scaffold when it is already the primary UI.
 - Missing the purchase and brew feedback surface when changing recommendations.
-- Mutating historical snapshot tables instead of appending new observations.
-- Making ranking changes that ignore espresso style or bag size.
+- Mutating historical snapshot tables (`OfferSnapshot`, `PromoSnapshot`, `VariantDealFact`) instead of appending new observations.
+- Making ranking changes that ignore espresso style, bag size, subscription pricing, or inventory state.
 - Forgetting that the repo has a formal ticket, plan, and memory workflow.
+- Running `tsc -b` before `npm run build` — TanStack Router regenerates `routeTree.gen.ts` during Vite build, not standalone tsc.
+- Assuming the scheduler is manual — it starts automatically on app startup. Don't add redundant trigger logic.
+- Adding new crawl logic that bypasses the strategy layer order (feed → structured → DOM → agentic).
+- Changing recommendation scoring without preserving the quality-first intent documented in `north-star.md`.
 
 ## Source Of Truth Order
 

@@ -59,9 +59,10 @@ comprehensive-plan.md    # Architecture plan (read-only reference)
 
 - The primary UI is now a React SPA, not the earlier server-rendered shell.
 - FastAPI mounts `/api/v1`, preserves a few legacy form endpoints for compatibility, and serves `frontend/dist` in production.
-- The SPA currently covers dashboard, merchants, merchant detail, add merchant, products, product detail, recommendations, discovery, and purchases.
+- The SPA currently covers: dashboard, merchants, merchant detail, add merchant, products, product detail, recommendations, discovery, purchases, **Today** (daily buying decision view), and **Watch** (merchant watch list and review queue).
 - The frontend data layer uses generated API types in `frontend/src/api/schema.d.ts` and shared query hooks in `frontend/src/hooks/`.
 - The canonical backend package root is `backend/src/szimplacoffee`; the repository-root `src/` directory is not part of the runtime package layout.
+- The scheduler runs automatically on app startup — crawls execute on tier-based intervals without manual intervention.
 
 ## API Surface
 
@@ -118,11 +119,15 @@ comprehensive-plan.md    # Architecture plan (read-only reference)
 
 ## Conventions
 
-- **Crawler order:** API → static HTML → adaptive browser → full browser. Never default to browser.
-- **Snapshots over overwrites:** Price/promo data is append-only time-series. Don't mutate offer_snapshots.
+- **Crawler order:** feed/API → structured page data → DOM extraction → agentic fallback (last resort only, must record provenance).
+- **Snapshots over overwrites:** Price/promo data is append-only time-series. Never mutate `OfferSnapshot`, `PromoSnapshot`, or `VariantDealFact`.
 - **Quality > price:** Recommendations optimize for best buy above a quality threshold, not lowest price.
 - **Espresso-aware:** Shot style (58mm modern, 49mm lever, turbo, experimental) changes recommendation ranking.
 - **Bag size matters:** 12-18oz vs 2lb vs 5lb is a first-class recommendation dimension.
+- **Subscription pricing:** When a merchant offers subscription savings ≥ 5%, factor it into the recommendation score.
+- **Inventory-aware:** Accept `current_inventory_grams` in recommendation requests. Down-score bulk buys when stocked; recommend waiting when ≥ 900g on hand.
+- **Wait is valid:** Recommendations may explicitly advise waiting, with a score-threshold rationale explaining why no current option clears the bar.
+- **Merchant registry tiers:** A (crawl every 6h), B (24h), C (7d), D (excluded from recommendations). Quality scorer auto-runs after every successful crawl.
 
 ## Commands
 
@@ -136,22 +141,31 @@ cd backend && uvicorn szimplacoffee.main:app --reload
 # Frontend dev server
 cd frontend && npm run dev
 
-# Run CLI (from backend/)
-cd backend && szimpla merchant add <url>
-cd backend && szimpla crawl merchant <id>
-cd backend && szimpla recommend
+# Run CLI (from repo root, within backend venv)
+cd backend && . .venv/bin/activate
+szimpla bootstrap                   # Seed initial data
+szimpla add-merchant <url>          # Add and crawl a new merchant
+szimpla crawl-all                   # Crawl all active merchants
+szimpla discover                    # Run merchant discovery
+szimpla recommend                   # Generate a recommendation run
+szimpla backfill-metadata           # Re-run coffee parser over all products
+szimpla score-merchants             # Regenerate quality profiles for all merchants
+szimpla crawl-schedule              # Show scheduler state and next-run times
+szimpla run-scheduled-crawls        # Manually trigger scheduled crawl batch
 
 # Backend tests and lint (from backend/)
 cd backend && pytest tests/
 cd backend && ruff check src/ tests/
 
 # Frontend checks (from frontend/)
-cd frontend && npx tsc -b
-cd frontend && npm run build
+cd frontend && npm run build        # Runs Vite build (also regenerates routeTree.gen.ts)
+cd frontend && npx tsc -b           # Type-check only (run AFTER npm run build)
 
 # Regenerate frontend API types (backend must be running)
 cd frontend && npm run gen:api
 ```
+
+> **Note on tsc -b**: TanStack Router's Vite plugin regenerates `routeTree.gen.ts` during `vite build` but not standalone `tsc`. Always run `npm run build` before `tsc -b` in CI or verification steps.
 
 ## Agentic Engineering Pipeline
 
@@ -281,7 +295,20 @@ After any meaningful work session:
 ## Current State (as of 2026-03-15)
 
 - React SPA is the primary UI, with FastAPI serving the built app in production.
-- The backend exposes a broader `/api/v1` surface covering dashboard, merchants, products, recommendations, discovery, crawl scheduling, purchases, and brew feedback.
-- The SQLAlchemy model surface currently spans 15 primary tables, including crawl runs and persisted recommendation runs.
-- The local delivery system is active and should be treated as part of normal repo operation: `.tickets/`, `.plans/`, `.memory/`, and `SzimplaCoffee/brain/`.
-- Recommendation scoring, discovery review flow, purchase logging, and price history are already part of the implemented app surface.
+- The backend exposes `/api/v1` covering: dashboard, merchants, products, recommendations, discovery, crawl scheduling, purchases, and brew feedback.
+- **18 SQLAlchemy models** including `VariantDealFact`, `MerchantFieldPattern`, and `ProductMetadataOverride` added since initial build.
+- **APScheduler** wired into app startup; crawls run automatically on tier-based intervals without manual triggers.
+- **Layered crawl strategy** is explicit: feed → structured → DOM → agentic fallback. Per-merchant crawl quality metrics are persisted.
+- **Recommendation engine** is inventory-aware, subscription-aware, and can emit "wait" recommendations with rationale.
+- **Today and Watch views** added to SPA — the daily buying decision flow is exercisable from the UI.
+- **Merchant registry** tracks tier (A/B/C/D), trust score, and crawl cadence. Main buying views gate on trust + crawl-quality thresholds.
+- **60-merchant seed list** at `SzimplaCoffee/brain/merchants/top-500-seed.md` — URLs need verification before importing.
+- The local delivery system is active: `.tickets/`, `.plans/`, `.memory/`, and `SzimplaCoffee/brain/`.
+- 84 backend tests passing. 
+
+## Known Open Gaps (future tickets)
+
+- **SC-45** (draft): Correct catalog search truth and stock semantics.
+- **SC-57** (candidate): Notion import for personal purchase history — requires Notion API integration.
+- **SC-58** (candidate): Personal wallet / Shop Cash credit tracking — requires per-merchant scraping.
+, purchase logging, and price history are already part of the implemented app surface.
