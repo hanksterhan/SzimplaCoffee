@@ -1,26 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+VENV="$REPO_ROOT/.venv"
 
-echo "🏗️  Building SzimplaCoffee for production..."
+# Ensure venv exists
+if [ ! -d "$VENV" ]; then
+  echo "Creating virtual environment..."
+  python3 -m venv "$VENV"
+  source "$VENV/bin/activate"
+  echo "Installing backend dependencies..."
+  cd "$REPO_ROOT/backend" && pip install -e . && cd "$REPO_ROOT"
+else
+  source "$VENV/bin/activate"
+fi
 
-# 1. Build the React frontend
-echo ""
-echo "📦 Building React frontend..."
+# Build frontend
+echo "Building frontend..."
 cd "$REPO_ROOT/frontend"
-npm ci --silent
+npm ci
 npm run build
-echo "✓ Frontend built → frontend/dist/"
 
-# 2. Summary
 echo ""
-echo "✅ Build complete!"
+echo "☕ Build complete!"
+echo "   Frontend: $REPO_ROOT/frontend/dist/"
 echo ""
-echo "To start the production server:"
-echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""
-echo "  cd $REPO_ROOT/backend"
-echo "  uvicorn szimplacoffee.main:app --host 0.0.0.0 --port 8000"
-echo ""
-echo "  App will be available at http://localhost:8000"
-echo "  API docs at http://localhost:8000/docs"
+echo "Start with:"
+echo "   source .venv/bin/activate"
+echo "   cd backend && uvicorn szimplacoffee.main:app --port 8000"

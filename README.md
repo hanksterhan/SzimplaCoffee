@@ -38,9 +38,13 @@ SzimplaCoffee answers one question with high confidence: **"What coffee should I
 git clone https://github.com/hanksterhan/SzimplaCoffee.git
 cd SzimplaCoffee
 
+# Create and activate Python virtual environment
+python3 -m venv .venv
+source .venv/bin/activate    # On Windows: .venv\Scripts\activate
+
 # Install backend dependencies
 cd backend
-pip install -e .        # or: uv sync
+pip install -e .
 cd ..
 
 # Install frontend dependencies and build
@@ -55,6 +59,7 @@ cd ..
 ### Production Mode (single port)
 
 ```bash
+source .venv/bin/activate
 cd backend
 uvicorn szimplacoffee.main:app --port 8000
 ```
@@ -65,6 +70,7 @@ Open **http://localhost:8000** — FastAPI serves the React frontend and API on 
 
 ```bash
 # Terminal 1: Backend with auto-reload
+source .venv/bin/activate
 cd backend
 uvicorn szimplacoffee.main:app --reload --port 8000
 
