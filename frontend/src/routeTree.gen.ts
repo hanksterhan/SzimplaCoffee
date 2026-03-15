@@ -13,6 +13,8 @@ import { Route as RecommendRouteImport } from './routes/recommend'
 import { Route as MerchantsRouteImport } from './routes/merchants'
 import { Route as DiscoveryRouteImport } from './routes/discovery'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MerchantsNewRouteImport } from './routes/merchants.new'
+import { Route as MerchantsMerchantIdRouteImport } from './routes/merchants.$merchantId'
 
 const RecommendRoute = RecommendRouteImport.update({
   id: '/recommend',
@@ -34,38 +36,73 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MerchantsNewRoute = MerchantsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => MerchantsRoute,
+} as any)
+const MerchantsMerchantIdRoute = MerchantsMerchantIdRouteImport.update({
+  id: '/$merchantId',
+  path: '/$merchantId',
+  getParentRoute: () => MerchantsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/discovery': typeof DiscoveryRoute
-  '/merchants': typeof MerchantsRoute
+  '/merchants': typeof MerchantsRouteWithChildren
   '/recommend': typeof RecommendRoute
+  '/merchants/$merchantId': typeof MerchantsMerchantIdRoute
+  '/merchants/new': typeof MerchantsNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/discovery': typeof DiscoveryRoute
-  '/merchants': typeof MerchantsRoute
+  '/merchants': typeof MerchantsRouteWithChildren
   '/recommend': typeof RecommendRoute
+  '/merchants/$merchantId': typeof MerchantsMerchantIdRoute
+  '/merchants/new': typeof MerchantsNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/discovery': typeof DiscoveryRoute
-  '/merchants': typeof MerchantsRoute
+  '/merchants': typeof MerchantsRouteWithChildren
   '/recommend': typeof RecommendRoute
+  '/merchants/$merchantId': typeof MerchantsMerchantIdRoute
+  '/merchants/new': typeof MerchantsNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/discovery' | '/merchants' | '/recommend'
+  fullPaths:
+    | '/'
+    | '/discovery'
+    | '/merchants'
+    | '/recommend'
+    | '/merchants/$merchantId'
+    | '/merchants/new'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/discovery' | '/merchants' | '/recommend'
-  id: '__root__' | '/' | '/discovery' | '/merchants' | '/recommend'
+  to:
+    | '/'
+    | '/discovery'
+    | '/merchants'
+    | '/recommend'
+    | '/merchants/$merchantId'
+    | '/merchants/new'
+  id:
+    | '__root__'
+    | '/'
+    | '/discovery'
+    | '/merchants'
+    | '/recommend'
+    | '/merchants/$merchantId'
+    | '/merchants/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DiscoveryRoute: typeof DiscoveryRoute
-  MerchantsRoute: typeof MerchantsRoute
+  MerchantsRoute: typeof MerchantsRouteWithChildren
   RecommendRoute: typeof RecommendRoute
 }
 
@@ -99,13 +136,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/merchants/new': {
+      id: '/merchants/new'
+      path: '/new'
+      fullPath: '/merchants/new'
+      preLoaderRoute: typeof MerchantsNewRouteImport
+      parentRoute: typeof MerchantsRoute
+    }
+    '/merchants/$merchantId': {
+      id: '/merchants/$merchantId'
+      path: '/$merchantId'
+      fullPath: '/merchants/$merchantId'
+      preLoaderRoute: typeof MerchantsMerchantIdRouteImport
+      parentRoute: typeof MerchantsRoute
+    }
   }
 }
+
+interface MerchantsRouteChildren {
+  MerchantsMerchantIdRoute: typeof MerchantsMerchantIdRoute
+  MerchantsNewRoute: typeof MerchantsNewRoute
+}
+
+const MerchantsRouteChildren: MerchantsRouteChildren = {
+  MerchantsMerchantIdRoute: MerchantsMerchantIdRoute,
+  MerchantsNewRoute: MerchantsNewRoute,
+}
+
+const MerchantsRouteWithChildren = MerchantsRoute._addFileChildren(
+  MerchantsRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DiscoveryRoute: DiscoveryRoute,
-  MerchantsRoute: MerchantsRoute,
+  MerchantsRoute: MerchantsRouteWithChildren,
   RecommendRoute: RecommendRoute,
 }
 export const routeTree = rootRouteImport

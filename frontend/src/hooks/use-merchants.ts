@@ -1,13 +1,158 @@
-import { useQuery } from "@tanstack/react-query";
-import { api } from "../api/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/api/client";
 
-export function useMerchants() {
+interface MerchantsFilter {
+  platform_type?: string;
+  trust_tier?: string;
+  is_active?: boolean;
+  page?: number;
+  page_size?: number;
+}
+
+export function useMerchants(filters: MerchantsFilter = {}) {
   return useQuery({
-    queryKey: ["merchants"],
+    queryKey: ["merchants", filters],
     queryFn: async () => {
-      const { data, error } = await api.GET("/api/v1/merchants");
+      const { data, error } = await api.GET("/api/v1/merchants", {
+        params: {
+          query: {
+            platform_type: filters.platform_type,
+            trust_tier: filters.trust_tier,
+            is_active: filters.is_active,
+            page: filters.page ?? 1,
+            page_size: filters.page_size ?? 25,
+          },
+        },
+      });
       if (error) throw error;
       return data;
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useMerchant(id: number) {
+  return useQuery({
+    queryKey: ["merchants", id],
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/v1/merchants/{merchant_id}", {
+        params: { path: { merchant_id: id } },
+      });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id && id > 0,
+  });
+}
+
+export function useMerchantProducts(merchantId: number, pageSize = 50) {
+  return useQuery({
+    queryKey: ["merchants", merchantId, "products"],
+    queryFn: async () => {
+      const { data, error } = await api.GET(
+        "/api/v1/merchants/{merchant_id}/products",
+        {
+          params: {
+            path: { merchant_id: merchantId },
+            query: { page_size: pageSize },
+          },
+        }
+      );
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!merchantId && merchantId > 0,
+  });
+}
+
+export function useMerchantCrawlRuns(merchantId: number) {
+  return useQuery({
+    queryKey: ["merchants", merchantId, "crawl-runs"],
+    queryFn: async () => {
+      const { data, error } = await api.GET(
+        "/api/v1/merchants/{merchant_id}/crawl-runs",
+        {
+          params: { path: { merchant_id: merchantId } },
+        }
+      );
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!merchantId && merchantId > 0,
+  });
+}
+
+export function useMerchantPromos(merchantId: number) {
+  return useQuery({
+    queryKey: ["merchants", merchantId, "promos"],
+    queryFn: async () => {
+      const { data, error } = await api.GET(
+        "/api/v1/merchants/{merchant_id}/promos",
+        {
+          params: { path: { merchant_id: merchantId } },
+        }
+      );
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!merchantId && merchantId > 0,
+  });
+}
+
+export function useMerchantStatus(merchantId: number) {
+  return useQuery({
+    queryKey: ["merchants", merchantId, "status"],
+    queryFn: async () => {
+      const { data, error } = await api.GET(
+        "/api/v1/merchants/{merchant_id}/status",
+        {
+          params: { path: { merchant_id: merchantId } },
+        }
+      );
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!merchantId && merchantId > 0,
+    refetchInterval: 5_000,
+  });
+}
+
+export function useAddMerchant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { url: string; trust_tier?: string }) => {
+      const { data, error } = await api.POST("/api/v1/merchants", {
+        body: {
+          url: payload.url,
+          trust_tier: payload.trust_tier ?? "candidate",
+        },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["merchants"] });
+    },
+  });
+}
+
+export function useTriggerCrawl() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (merchantId: number) => {
+      const { data, error } = await api.POST(
+        "/api/v1/merchants/{merchant_id}/crawl",
+        {
+          params: { path: { merchant_id: merchantId } },
+        }
+      );
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_data, merchantId) => {
+      qc.invalidateQueries({ queryKey: ["merchants"] });
+      qc.invalidateQueries({ queryKey: ["merchants", merchantId, "crawl-runs"] });
+      qc.invalidateQueries({ queryKey: ["merchants", merchantId, "status"] });
     },
   });
 }
