@@ -27,6 +27,17 @@ from ..models import (
 )
 from .coffee_parser import parse_coffee_metadata
 
+# ---------------------------------------------------------------------------
+# Crawl strategy layer constants
+# The crawl pipeline tries layers in order: feed → structured → dom → agentic
+# Each dimension (catalog, promo, shipping, metadata) tracks its best layer.
+# ---------------------------------------------------------------------------
+STRATEGY_FEED = "feed"           # JSON API / product feed (highest fidelity)
+STRATEGY_STRUCTURED = "structured"  # Structured data: JSON-LD, microdata
+STRATEGY_DOM = "dom"             # DOM extraction (WooCommerce variations form, etc.)
+STRATEGY_AGENTIC = "agentic"     # Heuristic crawl across product detail pages
+STRATEGY_NONE = "none"           # Not attempted or yielded no useful data
+
 USER_AGENT = "SzimplaCoffeeBot/0.1 (+local-first research utility)"
 _STRUCTURED_METADATA_FIELDS = (
     "origin_text",
@@ -55,6 +66,35 @@ class CrawlSummary:
     adapter_name: str
     records_written: int
     confidence: float
+    # Strategy layer used for each extraction dimension
+    catalog_strategy: str = STRATEGY_NONE
+    promo_strategy: str = STRATEGY_NONE
+    shipping_strategy: str = STRATEGY_NONE
+    metadata_strategy: str = STRATEGY_NONE
+
+    @property
+    def crawl_quality_score(self) -> float:
+        """Derive a [0–1] quality score from strategy layers and confidence."""
+        layer_scores = {
+            STRATEGY_FEED: 1.0,
+            STRATEGY_STRUCTURED: 0.85,
+            STRATEGY_DOM: 0.70,
+            STRATEGY_AGENTIC: 0.55,
+            STRATEGY_NONE: 0.0,
+        }
+        catalog_score = layer_scores.get(self.catalog_strategy, 0.0)
+        # Weight: catalog 50%, metadata 30%, promo 10%, shipping 10%
+        metadata_score = layer_scores.get(self.metadata_strategy, 0.0)
+        promo_score = layer_scores.get(self.promo_strategy, 0.0)
+        shipping_score = layer_scores.get(self.shipping_strategy, 0.0)
+        composite = (
+            0.50 * catalog_score
+            + 0.30 * metadata_score
+            + 0.10 * promo_score
+            + 0.10 * shipping_score
+        )
+        # Blend with confidence (confidence comes from adapter fidelity)
+        return round(0.60 * composite + 0.40 * self.confidence, 3)
 
 
 @dataclass
@@ -868,6 +908,20 @@ def crawl_merchant(session: Session, merchant: Merchant, run: CrawlRun | None = 
         run.adapter_name = summary.adapter_name
         run.confidence = summary.confidence
         run.records_written = summary.records_written
+        run.catalog_strategy = summary.catalog_strategy
+        run.promo_strategy = summary.promo_strategy
+        run.shipping_strategy = summary.shipping_strategy
+        run.metadata_strategy = summary.metadata_strategy
+        run.crawl_quality_score = summary.crawl_quality_score
+
+        # SC-32: auto-update quality profile after successful crawl
+        try:
+            from .quality_scorer import score_merchant as _score_merchant
+
+            _score_merchant(session, merchant)
+        except Exception:
+            pass  # scoring failure must not break the crawl result
+
         return summary
     except Exception as exc:
         run.finished_at = _utcnow()
@@ -922,7 +976,17 @@ def _crawl_shopify(session: Session, merchant: Merchant) -> CrawlSummary:
                 confidence=0.72,
             )
             _flush_promos(session, merchant, promo_buffer)
-            return agentic_summary if agentic_summary.records_written else CrawlSummary(adapter_name="shopify", records_written=0, confidence=0.35)
+            if agentic_summary.records_written:
+                return agentic_summary
+            return CrawlSummary(
+                adapter_name="shopify",
+                records_written=0,
+                confidence=0.35,
+                catalog_strategy=STRATEGY_NONE,
+                promo_strategy=STRATEGY_DOM,
+                shipping_strategy=STRATEGY_DOM,
+                metadata_strategy=STRATEGY_NONE,
+            )
 
         _mark_existing_products_inactive(session, merchant)
 
@@ -996,7 +1060,15 @@ def _crawl_shopify(session: Session, merchant: Merchant) -> CrawlSummary:
                 records_written += 1
 
     _flush_promos(session, merchant, promo_buffer)
-    return CrawlSummary(adapter_name=adapter_name, records_written=records_written, confidence=0.95)
+    return CrawlSummary(
+        adapter_name=adapter_name,
+        records_written=records_written,
+        confidence=0.95,
+        catalog_strategy=STRATEGY_FEED,
+        promo_strategy=STRATEGY_DOM,
+        shipping_strategy=STRATEGY_DOM,
+        metadata_strategy=STRATEGY_STRUCTURED,
+    )
 
 
 def _price_range_to_variant_prices(labels: list[str], min_cents: int | None, max_cents: int | None) -> list[int]:
@@ -1199,7 +1271,15 @@ def _crawl_agentic_catalog(
 ) -> CrawlSummary:
     product_links = _extract_product_links(landing_url, landing_html)
     if not product_links:
-        return CrawlSummary(adapter_name="agentic_catalog", records_written=0, confidence=confidence * 0.75)
+        return CrawlSummary(
+            adapter_name="agentic_catalog",
+            records_written=0,
+            confidence=confidence * 0.75,
+            catalog_strategy=STRATEGY_NONE,
+            promo_strategy=STRATEGY_NONE,
+            shipping_strategy=STRATEGY_NONE,
+            metadata_strategy=STRATEGY_NONE,
+        )
 
     records_written = 0
     _mark_existing_products_inactive(session, merchant)
@@ -1294,7 +1374,15 @@ def _crawl_agentic_catalog(
             )
             records_written += 1
 
-    return CrawlSummary(adapter_name="agentic_catalog", records_written=records_written, confidence=confidence)
+    return CrawlSummary(
+        adapter_name="agentic_catalog",
+        records_written=records_written,
+        confidence=confidence,
+        catalog_strategy=STRATEGY_AGENTIC,
+        promo_strategy=STRATEGY_DOM,
+        shipping_strategy=STRATEGY_DOM,
+        metadata_strategy=STRATEGY_STRUCTURED,
+    )
 
 
 def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
@@ -1459,7 +1547,15 @@ def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
             page += 1
 
     _flush_promos(session, merchant, promo_buffer)
-    return CrawlSummary(adapter_name="woocommerce", records_written=records_written, confidence=0.8)
+    return CrawlSummary(
+        adapter_name="woocommerce",
+        records_written=records_written,
+        confidence=0.8,
+        catalog_strategy=STRATEGY_FEED,
+        promo_strategy=STRATEGY_DOM,
+        shipping_strategy=STRATEGY_DOM,
+        metadata_strategy=STRATEGY_DOM,
+    )
 
 
 def _crawl_generic(session: Session, merchant: Merchant) -> CrawlSummary:
@@ -1482,4 +1578,12 @@ def _crawl_generic(session: Session, merchant: Merchant) -> CrawlSummary:
     _flush_promos(session, merchant, promo_buffer)
     if summary.records_written:
         return summary
-    return CrawlSummary(adapter_name="generic", records_written=0, confidence=0.4)
+    return CrawlSummary(
+        adapter_name="generic",
+        records_written=0,
+        confidence=0.4,
+        catalog_strategy=STRATEGY_NONE,
+        promo_strategy=STRATEGY_DOM,
+        shipping_strategy=STRATEGY_DOM,
+        metadata_strategy=STRATEGY_NONE,
+    )
