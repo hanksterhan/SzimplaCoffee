@@ -1,6 +1,13 @@
 {
   "entries": [
     {
+      "id": "SC-31-32-33-cli-gaps",
+      "path": ".memory/sprint-01/SC-31-32-33-cli-gaps.md",
+      "ticket": "SC-31,SC-32,SC-33",
+      "title": "CLI commands for metadata backfill, quality scoring, and crawl scheduling",
+      "date": "2026-03-15"
+    },
+    {
       "id": "SC-50-recurring-crawl-scheduling",
       "path": ".memory/sprint-01/SC-50-recurring-crawl-scheduling.md",
       "ticket": "SC-50",

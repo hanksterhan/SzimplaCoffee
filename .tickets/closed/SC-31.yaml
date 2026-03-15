@@ -2,7 +2,7 @@ id: "SC-31"
 title: "Wire metadata parser into crawl pipeline + backfill existing products"
 type: "feature"
 priority: "p0"
-status: "ready"
+status: "done"
 owner: "h6nk-bot"
 created_at: "2026-03-14T00:00:00Z"
 updated_at: "2026-03-15T07:00:00Z"
@@ -72,7 +72,8 @@ slices:
     checks:
       - "cd backend && python -c 'from szimplacoffee.services.crawlers import crawl_merchant; print(\"OK\")'"
     evidence: []
-    notes: "Call parse_coffee_metadata(body_html) after product creation/update. Map fields to Product model columns."
+    notes:
+  - "CLI backfill-metadata + parser wired into Shopify/WooCommerce adapters. Delivered across commits 1eccdb7 (services/pipeline) and c8cf74e (CLI subcommand). Auto quality scoring post-crawl added." "Call parse_coffee_metadata(body_html) after product creation/update. Map fields to Product model columns."
     files_create: []
   -
     id: "S2"
@@ -122,9 +123,9 @@ slices:
 delivery:
   branch: "feat/SC-31-parser-integration"
   commits: []
-  pr_url: ""
+  pr_url: "https://github.com/hanksterhan/SzimplaCoffee/pull/8"
   started_at: ""
-  completed_at: ""
+  completed_at: "2026-03-15T00:00:00Z"
   verification:
     required_passed: false
     commands_run: []
