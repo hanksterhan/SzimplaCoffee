@@ -1,6 +1,15 @@
+from datetime import datetime, timedelta, UTC
+from types import SimpleNamespace
+
 from fastapi import Query
 
-from szimplacoffee.api.products import _parse_categories, _coffee_like_merch_clause, _normalize_query_default
+from szimplacoffee.api.products import (
+    _coffee_like_merch_clause,
+    _normalize_query_default,
+    _parse_categories,
+    _select_primary_variant,
+    _variant_latest_offer,
+)
 from szimplacoffee.models import Product
 
 
@@ -33,3 +42,30 @@ def test_coffee_like_merch_clause_has_expected_guardrails():
     assert "subscription" in clause
     assert "tee" in clause
     assert Product.__tablename__ in clause
+
+
+def test_variant_latest_offer_falls_back_to_latest_offer_in_offers_list():
+    older = SimpleNamespace(observed_at=datetime.now(UTC) - timedelta(days=1), price_cents=2000)
+    newer = SimpleNamespace(observed_at=datetime.now(UTC), price_cents=1800)
+    variant = SimpleNamespace(offers=[older, newer])
+
+    assert _variant_latest_offer(variant) is newer
+
+
+def test_select_primary_variant_uses_offer_fallback_and_prefers_whole_bean():
+    now = datetime.now(UTC)
+    variant_merch = SimpleNamespace(
+        is_whole_bean=False,
+        weight_grams=None,
+        offers=[SimpleNamespace(observed_at=now, price_cents=1200)],
+    )
+    variant_bean = SimpleNamespace(
+        is_whole_bean=True,
+        weight_grams=340,
+        offers=[SimpleNamespace(observed_at=now, price_cents=1800)],
+    )
+    product = SimpleNamespace(variants=[variant_merch, variant_bean])
+
+    variant, latest_offer = _select_primary_variant(product)
+    assert variant is variant_bean
+    assert latest_offer.price_cents == 1800

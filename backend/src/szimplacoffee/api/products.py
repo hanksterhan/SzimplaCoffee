@@ -82,14 +82,30 @@ def _apply_category_filter(stmt, category: str | None):
     return stmt.where(or_(*clauses))
 
 
-def _select_primary_variant(product: Product) -> ProductVariant | None:
-    variants = [v for v in product.variants if v.latest_offer]
-    if not variants:
+def _variant_latest_offer(variant: ProductVariant):
+    latest_offer = getattr(variant, "latest_offer", None)
+    if latest_offer is not None:
+        return latest_offer
+    offers = getattr(variant, "offers", None) or []
+    if not offers:
+        return None
+    return max(offers, key=lambda offer: offer.observed_at)
+
+
+
+def _select_primary_variant(product: Product) -> tuple[ProductVariant, Any] | None:
+    variants_with_offer = []
+    for variant in product.variants:
+        latest_offer = _variant_latest_offer(variant)
+        if latest_offer is not None:
+            variants_with_offer.append((variant, latest_offer))
+
+    if not variants_with_offer:
         return None
 
-    whole_bean = [v for v in variants if v.is_whole_bean and v.weight_grams]
-    pool = whole_bean or variants
-    return min(pool, key=lambda v: v.latest_offer.price_cents if v.latest_offer else 10**12)
+    whole_bean = [item for item in variants_with_offer if item[0].is_whole_bean and item[0].weight_grams]
+    pool = whole_bean or variants_with_offer
+    return min(pool, key=lambda item: item[1].price_cents)
 
 
 def _product_summary_with_merchant(product: Product, merchant_name: str) -> ProductSummary:
@@ -97,10 +113,11 @@ def _product_summary_with_merchant(product: Product, merchant_name: str) -> Prod
     summary = ProductSummary.model_validate(product)
     summary.merchant_name = merchant_name
     primary_variant = _select_primary_variant(product)
-    if primary_variant and primary_variant.latest_offer:
-        summary.latest_price_cents = primary_variant.latest_offer.price_cents
-        summary.primary_weight_grams = primary_variant.weight_grams
-        summary.primary_is_whole_bean = primary_variant.is_whole_bean
+    if primary_variant:
+        variant, latest_offer = primary_variant
+        summary.latest_price_cents = latest_offer.price_cents
+        summary.primary_weight_grams = variant.weight_grams
+        summary.primary_is_whole_bean = variant.is_whole_bean
     return summary
 
 
