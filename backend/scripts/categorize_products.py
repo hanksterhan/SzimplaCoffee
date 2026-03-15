@@ -19,8 +19,23 @@ RULES = [
     ("gift", [r"gift", r"subscription", r"pre-?paid"]),
     ("instant", [r"instant"]),
     ("cold_brew", [r"cold.?brew", r"concentrate"]),
-    ("merch", [r"\btee\b", r"\bshirt", r"hoodie", r"beanie", r"\bhat\b", r"tote", r"sticker", r"candle", r"\bpin\b", r"poster", r"mug\b", r"tumbler"]),
-    ("equipment", [r"dripper", r"grinder", r"brewer", r"kettle", r"scale", r"chemex", r"aeropress", r"filter paper", r"v60"]),
+    ("merch", [
+        r"\btee\b", r"\bshirt", r"hoodie", r"beanie", r"\bhat\b", r"tote",
+        r"sticker", r"candle", r"\bpin\b", r"poster", r"mug\b", r"tumbler",
+        r"\bbib\b", r"magnet", r"patch\b", r"keychain", r"apron",
+        r"honey\b", r"syrup",
+    ]),
+    ("equipment", [
+        r"dripper", r"grinder", r"brewer", r"kettle", r"scale", r"chemex",
+        r"aeropress", r"filter paper", r"v60", r"espresso machine",
+        r"glass straw", r"straw", r"coffee mill", r"mill\b", r"tamper",
+        r"frother", r"frothing", r"funnel", r"disc\b", r"puck screen",
+        r"espresso tool", r"scoop", r"dosing", r"wdt", r"distribution",
+        r"portafilter", r"basket\b", r"shower screen", r"group head",
+        r"knock box", r"milk pitcher", r"pitcher\b",
+        r"mineral packet", r"mineral", r"water filter",
+        r"extraction", r"espresso series",
+    ]),
     ("tea", [r"\btea\b", r"\bchai\b", r"chocolate box", r"cocoa"]),
 ]
 

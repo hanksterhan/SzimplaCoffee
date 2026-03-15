@@ -74,6 +74,9 @@ function ProductCard({ product }: { product: ProductSummary }) {
       {/* Info */}
       <div className="p-3 space-y-1.5 flex-1 flex flex-col min-h-0">
         <p className="font-semibold text-sm leading-tight line-clamp-2">{product.name}</p>
+        {product.merchant_name && (
+          <p className="text-xs text-muted-foreground/70 truncate">{product.merchant_name}</p>
+        )}
 
         <div className="flex flex-wrap gap-1 overflow-hidden max-h-6">
           {product.origin_text && (

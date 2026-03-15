@@ -5,11 +5,18 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from ..db import get_session
-from ..models import OfferSnapshot, Product, ProductVariant
+from ..models import Merchant, OfferSnapshot, Product, ProductVariant
 from ..schemas.common import PaginatedResponse
 from ..schemas.products import OfferSnapshotSchema, ProductDetail, ProductSummary
 
 router = APIRouter(tags=["products"])
+
+
+def _product_summary_with_merchant(product: Product, merchant_name: str) -> ProductSummary:
+    """Build a ProductSummary and inject merchant_name (not an ORM attribute)."""
+    summary = ProductSummary.model_validate(product)
+    summary.merchant_name = merchant_name
+    return summary
 
 
 @router.get("/merchants/{merchant_id}/products", response_model=PaginatedResponse[ProductSummary])
@@ -22,6 +29,8 @@ def list_products_for_merchant(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
 ) -> PaginatedResponse[ProductSummary]:
+    merchant = db.get(Merchant, merchant_id)
+    merchant_name = merchant.name if merchant else ""
     q = select(Product).where(Product.merchant_id == merchant_id)
     if is_active is not None:
         q = q.where(Product.is_active == is_active)
@@ -32,7 +41,7 @@ def list_products_for_merchant(
     total = len(db.scalars(q).all())
     items = db.scalars(q.offset((page - 1) * page_size).limit(page_size)).all()
     return PaginatedResponse(
-        items=[ProductSummary.model_validate(p) for p in items],
+        items=[_product_summary_with_merchant(p, merchant_name) for p in items],
         total=total,
         page=page,
         page_size=page_size,
@@ -50,7 +59,7 @@ def search_products(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
 ) -> PaginatedResponse[ProductSummary]:
-    stmt = select(Product)
+    stmt = select(Product).join(Merchant, Product.merchant_id == Merchant.id)
     if is_active is not None:
         stmt = stmt.where(Product.is_active == is_active)
     else:
@@ -63,8 +72,14 @@ def search_products(
         stmt = stmt.where(Product.product_category == category)
     total = len(db.scalars(stmt).all())
     items = db.scalars(stmt.offset((page - 1) * page_size).limit(page_size)).all()
+    # Build merchant name lookup for the result set
+    merchant_ids = {p.merchant_id for p in items}
+    merchants = {
+        m.id: m.name
+        for m in db.scalars(select(Merchant).where(Merchant.id.in_(merchant_ids))).all()
+    }
     return PaginatedResponse(
-        items=[ProductSummary.model_validate(p) for p in items],
+        items=[_product_summary_with_merchant(p, merchants.get(p.merchant_id, "")) for p in items],
         total=total,
         page=page,
         page_size=page_size,

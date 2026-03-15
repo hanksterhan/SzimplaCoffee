@@ -40,6 +40,7 @@ class ProductSummary(BaseModel):
 
     id: int
     merchant_id: int
+    merchant_name: str = ""
     name: str
     product_url: str
     image_url: str

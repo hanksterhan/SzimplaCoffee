@@ -983,6 +983,11 @@ export interface components {
             id: number;
             /** Merchant Id */
             merchant_id: number;
+            /**
+             * Merchant Name
+             * @default
+             */
+            merchant_name: string;
             /** Name */
             name: string;
             /** Product Url */
@@ -1029,6 +1034,11 @@ export interface components {
             id: number;
             /** Merchant Id */
             merchant_id: number;
+            /**
+             * Merchant Name
+             * @default
+             */
+            merchant_name: string;
             /** Name */
             name: string;
             /** Product Url */
