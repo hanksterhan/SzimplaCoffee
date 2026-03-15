@@ -1,0 +1,96 @@
+id: SC-16
+title: "Create /api/v1/dashboard endpoint (aggregate metrics)"
+type: feature
+priority: p0
+status: open
+owner: h6nk-bot
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-14T00:00:00Z"
+labels: [phase-0, api, dashboard]
+
+problem: "The dashboard page needs a single endpoint to fetch all key metrics in one call instead of multiple round trips."
+desired_outcome: "GET /api/v1/dashboard returns a DashboardStats object with merchant counts, product counts, crawl status, price stats, and recent activity."
+
+scope_in:
+  - "GET /api/v1/dashboard — aggregate metrics in single response"
+  - "Merchant stats: total, by platform, by trust_tier, active vs inactive"
+  - "Product stats: total active, total variants, espresso_recommended count"
+  - "Offer stats: total snapshots, avg price, price range, last crawl date"
+  - "Crawl stats: runs last 7 days, success rate, last run per merchant"
+  - "Promo stats: active promos count, merchants with active promos"
+scope_out:
+  - "Dashboard UI (SC-21)"
+  - "Real-time updates (future)"
+
+dependencies:
+  blockers: [SC-11]
+  unblocks: [SC-21]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "GET /api/v1/dashboard returns 200 with DashboardStats"
+    verify: "cd backend && pytest tests/test_api_dashboard.py::test_dashboard -v"
+    status: pending
+  - id: AC-2
+    text: "Response includes merchant_count=16, product_count=910, variant_count=3207"
+    verify: "cd backend && pytest tests/test_api_dashboard.py::test_dashboard_counts -v"
+    status: pending
+  - id: AC-3
+    text: "Response time < 500ms (single aggregation query)"
+    verify: "cd backend && pytest tests/test_api_dashboard.py::test_dashboard_performance -v"
+    status: pending
+
+verification_required:
+  - "cd backend && ruff check src/szimplacoffee/api/dashboard.py"
+  - "cd backend && pytest tests/test_api_dashboard.py -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-16-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Dashboard router + DashboardStats schema"
+    status: pending
+    depends_on: []
+    files_create:
+      - "backend/src/szimplacoffee/api/dashboard.py"
+    files_modify:
+      - "backend/src/szimplacoffee/schemas/__init__.py"
+      - "backend/src/szimplacoffee/main.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/db.py"
+    checks:
+      - "cd backend && python -c 'from szimplacoffee.api.dashboard import router'"
+    evidence: []
+    notes: "Use SQLAlchemy aggregate functions (func.count, func.avg) for efficiency"
+
+  - id: S2
+    title: "Dashboard tests"
+    status: pending
+    depends_on: [S1]
+    files_create:
+      - "backend/tests/test_api_dashboard.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/api/dashboard.py"
+    checks:
+      - "cd backend && pytest tests/test_api_dashboard.py -v"
+    evidence: []
+    notes: ""
+
+delivery:
+  branch: "feat/SC-16-dashboard-api"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "DB ground truth: 16 merchants, 910 products, 3207 variants, 9352 offer snapshots"
+  - "201 promo snapshots, 37 merchant promos, 321 shipping policies"
+  - "55 crawl runs, 7 recommendation runs"
+  - "Avg offer price ~$80, range $0-$1732.80"

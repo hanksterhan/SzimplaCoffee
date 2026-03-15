@@ -1,0 +1,124 @@
+id: SC-18
+title: "Initialize Vite + React + TypeScript project with TanStack Router, TanStack Query, Tailwind CSS v4"
+type: feature
+priority: p1
+status: open
+owner: h6nk-bot
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-14T00:00:00Z"
+labels: [phase-1, frontend, scaffold, react, vite]
+
+problem: "No React frontend exists. We need a properly scaffolded Vite + React + TypeScript project with routing and data fetching libraries configured."
+desired_outcome: "frontend/ is a working Vite React app with TanStack Router (file-based routing), TanStack Query for server state, and Tailwind CSS v4. npm run dev starts the dev server."
+
+scope_in:
+  - "Initialize Vite React TypeScript project in frontend/"
+  - "Install and configure TanStack Router with file-based routing"
+  - "Install and configure TanStack Query (QueryClientProvider)"
+  - "Install and configure Tailwind CSS v4"
+  - "Configure Vite proxy: /api/* → http://localhost:8000"
+  - "Create route tree: /, /merchants, /products, /recommendations, /discovery"
+  - "Basic index route renders 'SzimplaCoffee' placeholder"
+scope_out:
+  - "shadcn/ui components (SC-19)"
+  - "App shell layout (SC-20)"
+  - "Actual page content (SC-21+)"
+
+dependencies:
+  blockers: [SC-10]
+  unblocks: [SC-17, SC-19, SC-20]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "npm run dev starts Vite server on port 5173"
+    verify: "cd frontend && npm run dev -- --port 5173 & sleep 3 && curl -s http://localhost:5173 | grep -i szimplacoffee"
+    status: pending
+  - id: AC-2
+    text: "TypeScript compilation passes"
+    verify: "cd frontend && npx tsc --noEmit"
+    status: pending
+  - id: AC-3
+    text: "TanStack Router generates route tree without errors"
+    verify: "cd frontend && npm run build 2>&1 | grep -v error"
+    status: pending
+  - id: AC-4
+    text: "Tailwind CSS is loaded (check built CSS for utility classes)"
+    verify: "cd frontend && npm run build && grep -r 'tailwind' dist/"
+    status: pending
+
+verification_required:
+  - "cd frontend && npx tsc --noEmit"
+  - "cd frontend && npm run build"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-18-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Vite + React + TypeScript base"
+    status: pending
+    depends_on: []
+    files_create:
+      - "frontend/package.json"
+      - "frontend/vite.config.ts"
+      - "frontend/tsconfig.json"
+      - "frontend/index.html"
+      - "frontend/src/main.tsx"
+      - "frontend/src/App.tsx"
+    files_read_only: []
+    checks:
+      - "cd frontend && npm install && npx tsc --noEmit"
+    evidence: []
+    notes: "Use npm create vite@latest or manually create — manual preferred for control"
+
+  - id: S2
+    title: "TanStack Router + TanStack Query setup"
+    status: pending
+    depends_on: [S1]
+    files_create:
+      - "frontend/src/routes/__root.tsx"
+      - "frontend/src/routes/index.tsx"
+      - "frontend/src/routes/merchants.tsx"
+      - "frontend/src/routes/products.tsx"
+      - "frontend/src/routes/recommendations.tsx"
+      - "frontend/src/routes/discovery.tsx"
+      - "frontend/src/routeTree.gen.ts"
+    files_modify:
+      - "frontend/src/main.tsx"
+      - "frontend/vite.config.ts"
+    files_read_only: []
+    checks:
+      - "cd frontend && npm run build"
+    evidence: []
+    notes: "TanStack Router v1 with @tanstack/router-vite-plugin for auto route tree generation"
+
+  - id: S3
+    title: "Tailwind CSS v4 + Vite proxy"
+    status: pending
+    depends_on: [S1]
+    files_create:
+      - "frontend/src/index.css"
+    files_modify:
+      - "frontend/vite.config.ts"
+      - "frontend/package.json"
+    files_read_only: []
+    checks:
+      - "cd frontend && npm run build && ls dist/assets/*.css"
+    evidence: []
+    notes: "Tailwind v4 uses @import 'tailwindcss' in CSS — no tailwind.config.js needed"
+
+delivery:
+  branch: "feat/SC-18-react-scaffold"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Vite proxy: /api -> http://localhost:8000 so frontend can call /api/v1/merchants without CORS issues"
+  - "TanStack Router v1 requires @tanstack/router-vite-plugin for route tree auto-generation"
+  - "Node.js v22+ available on this machine"

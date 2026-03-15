@@ -1,0 +1,82 @@
+id: SC-28
+title: "Remove Jinja templates, static/, and old HTML routes from backend"
+type: chore
+priority: p3
+status: open
+owner: h6nk-bot
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-14T00:00:00Z"
+labels: [phase-4, cleanup, backend]
+
+problem: "After React frontend is live, the old Jinja2 templates and static CSS files are dead weight. HTML routes in main.py should be removed to keep the backend clean."
+desired_outcome: "backend/ no longer has templates/ or static/ directories. main.py only has API routes and static file serving for the React build. jinja2 and aiofiles removed from dependencies."
+
+scope_in:
+  - "Delete backend/src/szimplacoffee/templates/"
+  - "Delete backend/src/szimplacoffee/static/"
+  - "Remove Jinja2 template routes from main.py (keep /api/v1/* routes)"
+  - "Remove jinja2 and aiofiles from pyproject.toml"
+  - "Verify no remaining imports of Jinja2Templating"
+scope_out:
+  - "Static file serving for React build (that's SC-29)"
+
+dependencies:
+  blockers: [SC-21, SC-22, SC-23, SC-24, SC-25, SC-26]
+  unblocks: [SC-29]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "templates/ and static/ directories no longer exist"
+    verify: "test ! -d backend/src/szimplacoffee/templates && test ! -d backend/src/szimplacoffee/static"
+    status: pending
+  - id: AC-2
+    text: "All API endpoints still work after template removal"
+    verify: "cd backend && pytest tests/ -v"
+    status: pending
+  - id: AC-3
+    text: "ruff check passes"
+    verify: "cd backend && ruff check src/"
+    status: pending
+  - id: AC-4
+    text: "No jinja2 import in main.py"
+    verify: "grep -r 'jinja\\|Jinja' backend/src/ && echo 'found' || echo 'clean'"
+    status: pending
+
+verification_required:
+  - "cd backend && ruff check src/ tests/"
+  - "cd backend && pytest tests/ -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-28-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Remove Jinja2 routes and template files"
+    status: pending
+    depends_on: []
+    files_modify:
+      - "backend/src/szimplacoffee/main.py"
+      - "backend/pyproject.toml"
+    files_read_only:
+      - "backend/src/szimplacoffee/templates/"
+      - "backend/src/szimplacoffee/static/"
+    checks:
+      - "cd backend && ruff check src/"
+      - "cd backend && pytest tests/ -v"
+    evidence: []
+    notes: "Delete templates/ and static/ directories. Remove Jinja2 mount and StaticFiles mount from main.py."
+
+delivery:
+  branch: "feat/SC-28-remove-templates"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Do this AFTER all React pages are live (SC-21..26) so nothing breaks for users"
+  - "Keep pyproject.toml fastapi and uvicorn — only remove jinja2, aiofiles if present"

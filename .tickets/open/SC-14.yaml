@@ -1,0 +1,92 @@
+id: SC-14
+title: "Create /api/v1/recommendations endpoints"
+type: feature
+priority: p0
+status: open
+owner: h6nk-bot
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-14T00:00:00Z"
+labels: [phase-0, api, recommendations]
+
+problem: "The recommendation engine exists in services/recommendations.py but is only accessible via CLI. The frontend needs to trigger recommendations and view results."
+desired_outcome: "POST /api/v1/recommendations runs the scoring engine and returns ranked results. GET endpoints return run history. Async execution with polling."
+
+scope_in:
+  - "POST /api/v1/recommendations — submit recommendation request (shot_style, bag_size, budget_cents)"
+  - "GET /api/v1/recommendations/{run_id} — get recommendation results"
+  - "GET /api/v1/recommendations — list recent recommendation runs (last 20)"
+scope_out:
+  - "Recommendation UI (SC-25)"
+  - "Purchase history integration (separate concern)"
+
+dependencies:
+  blockers: [SC-11]
+  unblocks: [SC-25]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "POST /api/v1/recommendations returns run_id and top result"
+    verify: "cd backend && pytest tests/test_api_recommendations.py::test_create_recommendation -v"
+    status: pending
+  - id: AC-2
+    text: "GET /api/v1/recommendations/{id} returns full RecommendationRunSchema"
+    verify: "cd backend && pytest tests/test_api_recommendations.py::test_get_recommendation -v"
+    status: pending
+  - id: AC-3
+    text: "GET /api/v1/recommendations returns list of recent runs"
+    verify: "cd backend && pytest tests/test_api_recommendations.py::test_list_recommendations -v"
+    status: pending
+
+verification_required:
+  - "cd backend && ruff check src/szimplacoffee/api/recommendations.py"
+  - "cd backend && pytest tests/test_api_recommendations.py -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-14-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Recommendations router"
+    status: pending
+    depends_on: []
+    files_create:
+      - "backend/src/szimplacoffee/api/recommendations.py"
+    files_modify:
+      - "backend/src/szimplacoffee/main.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/services/recommendations.py"
+      - "backend/src/szimplacoffee/schemas/recommendations.py"
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && python -c 'from szimplacoffee.api.recommendations import router'"
+    evidence: []
+    notes: "7 recommendation runs in DB — use these as reference for response shape"
+
+  - id: S2
+    title: "Recommendation API tests"
+    status: pending
+    depends_on: [S1]
+    files_create:
+      - "backend/tests/test_api_recommendations.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/api/recommendations.py"
+    checks:
+      - "cd backend && pytest tests/test_api_recommendations.py -v"
+    evidence: []
+    notes: ""
+
+delivery:
+  branch: "feat/SC-14-recommendations-api"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "7 existing recommendation runs in DB from prior CLI usage"
+  - "request_json shape: {shot_style, bag_size_grams, budget_cents, trust_tier_filter}"
+  - "top_result_json shape: {product_id, variant_id, merchant_id, score, rationale, price_cents}"

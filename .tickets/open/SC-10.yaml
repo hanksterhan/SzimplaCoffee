@@ -1,0 +1,108 @@
+id: SC-10
+title: "Restructure repo into backend/frontend monorepo layout"
+type: chore
+priority: p0
+status: open
+owner: h6nk-bot
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-14T00:00:00Z"
+labels: [phase-0, infrastructure, monorepo]
+
+problem: "The existing codebase is a flat Python project. We need a monorepo layout with backend/ and frontend/ directories to support the React rewrite while keeping the Python backend intact."
+desired_outcome: "Repo has backend/ (Python) and frontend/ (future React) directories. All existing Python code still works. A dev script starts both services."
+
+scope_in:
+  - "Move src/, tests/, pyproject.toml into backend/"
+  - "Create frontend/ directory scaffold (empty, ready for SC-18)"
+  - "Create scripts/dev.sh that starts both backend and frontend"
+  - "Update .gitignore, CLAUDE.md paths"
+  - "Verify all existing tests still pass after move"
+scope_out:
+  - "Any actual React code (SC-18)"
+  - "Any API changes (SC-11+)"
+
+dependencies:
+  blockers: []
+  unblocks: [SC-11, SC-12, SC-13, SC-14, SC-15, SC-16, SC-17, SC-18]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "backend/src/szimplacoffee/ contains all existing Python modules"
+    verify: "ls backend/src/szimplacoffee/models.py"
+    status: pending
+  - id: AC-2
+    text: "pytest passes from backend/ directory"
+    verify: "cd backend && pytest tests/ -v"
+    status: pending
+  - id: AC-3
+    text: "ruff passes on backend/"
+    verify: "ruff check backend/src/ backend/tests/"
+    status: pending
+  - id: AC-4
+    text: "frontend/ directory exists as scaffold"
+    verify: "ls frontend/"
+    status: pending
+  - id: AC-5
+    text: "scripts/dev.sh is executable and starts backend on port 8000"
+    verify: "bash -n scripts/dev.sh && grep '8000' scripts/dev.sh"
+    status: pending
+
+verification_required:
+  - "cd backend && ruff check src/ tests/"
+  - "cd backend && pytest tests/ -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-10-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Move Python code into backend/"
+    status: pending
+    depends_on: []
+    files_create:
+      - "backend/pyproject.toml"
+      - "backend/src/szimplacoffee/__init__.py"
+    files_modify:
+      - "backend/src/szimplacoffee/main.py"
+      - "backend/src/szimplacoffee/db.py"
+      - "backend/src/szimplacoffee/config.py"
+    files_read_only:
+      - "src/szimplacoffee/models.py"
+      - "src/szimplacoffee/services/crawlers.py"
+      - "pyproject.toml"
+    checks:
+      - "cd backend && python -c 'from szimplacoffee.models import Merchant; print(\"OK\")'"
+    evidence: []
+    notes: "Move all files under src/ and tests/ into backend/. Update pyproject.toml paths."
+
+  - id: S2
+    title: "Create frontend scaffold and dev script"
+    status: pending
+    depends_on: [S1]
+    files_create:
+      - "frontend/.gitkeep"
+      - "scripts/dev.sh"
+    files_modify:
+      - ".gitignore"
+      - "CLAUDE.md"
+    files_read_only:
+      - "backend/src/szimplacoffee/main.py"
+    checks:
+      - "bash -n scripts/dev.sh"
+    evidence: []
+    notes: "dev.sh starts uvicorn on port 8000 (backend) and vite dev on port 5173 (frontend, once created)"
+
+delivery:
+  branch: "feat/SC-10-monorepo-layout"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Existing DB file szimplacoffee.db stays at repo root or moves to backend/ — keep it accessible"
+  - "Config.py DATABASE_URL may need updating after move"

@@ -1,0 +1,98 @@
+id: SC-13
+title: "Create /api/v1/products endpoints"
+type: feature
+priority: p0
+status: open
+owner: h6nk-bot
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-14T00:00:00Z"
+labels: [phase-0, api, products]
+
+problem: "No JSON API for products. The frontend needs product lists per merchant, product detail with variants and offer history."
+desired_outcome: "RESTful /api/v1/products routes return paginated product lists and full detail including variants with their latest offers and price history."
+
+scope_in:
+  - "GET /api/v1/merchants/{id}/products — paginated product list for merchant"
+  - "GET /api/v1/products/{id} — product detail with variants and latest offer per variant"
+  - "GET /api/v1/products/{id}/variants/{variant_id}/offers — offer history for a variant"
+  - "GET /api/v1/products — global product search/filter (name, is_espresso_recommended, weight_grams)"
+scope_out:
+  - "Product creation/update (crawlers handle this)"
+  - "Price history chart rendering (SC-27)"
+
+dependencies:
+  blockers: [SC-11]
+  unblocks: [SC-23, SC-27]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "GET /api/v1/merchants/1/products returns paginated products for merchant"
+    verify: "cd backend && pytest tests/test_api_products.py::test_list_products_for_merchant -v"
+    status: pending
+  - id: AC-2
+    text: "GET /api/v1/products/{id} returns ProductDetail with variants and latest offers"
+    verify: "cd backend && pytest tests/test_api_products.py::test_product_detail -v"
+    status: pending
+  - id: AC-3
+    text: "GET /api/v1/products/{id}/variants/{vid}/offers returns list[OfferSnapshotSchema]"
+    verify: "cd backend && pytest tests/test_api_products.py::test_offer_history -v"
+    status: pending
+  - id: AC-4
+    text: "ruff passes"
+    verify: "cd backend && ruff check src/szimplacoffee/api/products.py"
+    status: pending
+
+verification_required:
+  - "cd backend && ruff check src/szimplacoffee/api/"
+  - "cd backend && pytest tests/test_api_products.py -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-13-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Products router (list + detail)"
+    status: pending
+    depends_on: []
+    files_create:
+      - "backend/src/szimplacoffee/api/products.py"
+    files_modify:
+      - "backend/src/szimplacoffee/main.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/schemas/products.py"
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && python -c 'from szimplacoffee.api.products import router'"
+    evidence: []
+    notes: "910 products, 3207 variants, 9352 offer snapshots in DB"
+
+  - id: S2
+    title: "Offer history endpoint + product tests"
+    status: pending
+    depends_on: [S1]
+    files_create:
+      - "backend/tests/test_api_products.py"
+    files_modify:
+      - "backend/src/szimplacoffee/api/products.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && pytest tests/test_api_products.py -v"
+    evidence: []
+    notes: "All 9352 offer snapshots are from 2026-03-09 (single crawl day)"
+
+delivery:
+  branch: "feat/SC-13-products-api"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Weight distribution: 340g (12oz) and 2268g (5lb) most common — expose weight_grams as filter"
+  - "Price range: $0-$1732.80 (avg $80) — price_cents filter as min/max query params"
+  - "origin_text, process_text, tasting_notes_text are mostly empty — do NOT hide them, just return as empty string"

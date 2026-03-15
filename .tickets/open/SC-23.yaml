@@ -1,0 +1,103 @@
+id: SC-23
+title: "Merchant detail page — info, products, variants, price history, crawl runs, promos"
+type: feature
+priority: p2
+status: open
+owner: h6nk-bot
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-14T00:00:00Z"
+labels: [phase-2, frontend, merchants, products]
+
+problem: "No merchant detail view. Users need to see all products, variants, pricing, crawl history, and promos for a specific merchant."
+desired_outcome: "/merchants/:id shows merchant info card, quality profile scores, tabbed sections for Products/Crawl Runs/Promos, and links to individual product detail."
+
+scope_in:
+  - "Merchant info card: name, domain, platform, trust tier, quality scores"
+  - "Products tab: paginated product list with variant count and latest price"
+  - "Crawl runs tab: list of crawl runs with status, duration, records written"
+  - "Promos tab: active promos with type, title, code, estimated value"
+  - "Shipping info: free shipping threshold display"
+  - "useMerchant(id), useMerchantProducts(id), useCrawlRuns(id), useMerchantPromos(id) hooks"
+scope_out:
+  - "Price history charts (SC-27)"
+  - "Product detail (separate route)"
+
+dependencies:
+  blockers: [SC-12, SC-13, SC-17, SC-22]
+  unblocks: [SC-27]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Route /merchants/1 renders merchant detail without errors"
+    verify: "manual: navigate to /merchants/1, no console errors"
+    status: pending
+  - id: AC-2
+    text: "Products tab shows products with variant count and price"
+    verify: "manual: click Products tab, verify products listed with prices"
+    status: pending
+  - id: AC-3
+    text: "TypeScript compilation passes"
+    verify: "cd frontend && npx tsc --noEmit"
+    status: pending
+
+verification_required:
+  - "cd frontend && npx tsc --noEmit"
+  - "cd frontend && npm run build"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-23-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Merchant detail route + info card"
+    status: pending
+    depends_on: []
+    files_create:
+      - "frontend/src/routes/merchants.$id.tsx"
+      - "frontend/src/hooks/useMerchant.ts"
+      - "frontend/src/components/merchants/MerchantInfoCard.tsx"
+      - "frontend/src/components/merchants/QualityScores.tsx"
+    files_read_only:
+      - "frontend/src/api/client.ts"
+      - "frontend/src/components/ui/card.tsx"
+      - "frontend/src/components/ui/tabs.tsx"
+    checks:
+      - "cd frontend && npx tsc --noEmit"
+    evidence: []
+    notes: ""
+
+  - id: S2
+    title: "Products + Crawl Runs + Promos tabs"
+    status: pending
+    depends_on: [S1]
+    files_create:
+      - "frontend/src/hooks/useMerchantProducts.ts"
+      - "frontend/src/hooks/useCrawlRuns.ts"
+      - "frontend/src/components/merchants/ProductsTab.tsx"
+      - "frontend/src/components/merchants/CrawlRunsTab.tsx"
+      - "frontend/src/components/merchants/PromosTab.tsx"
+    files_modify:
+      - "frontend/src/routes/merchants.$id.tsx"
+    files_read_only:
+      - "frontend/src/components/ui/table.tsx"
+    checks:
+      - "cd frontend && npm run build"
+    evidence: []
+    notes: ""
+
+delivery:
+  branch: "feat/SC-23-merchant-detail"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Each merchant has ~56 products avg (910 / 16)"
+  - "55 crawl runs total across all merchants"
+  - "37 active merchant promos across merchants"
+  - "Quality profile scores are 0.0-1.0 floats — render as progress bars"
