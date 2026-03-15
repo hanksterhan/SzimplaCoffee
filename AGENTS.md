@@ -61,6 +61,7 @@ comprehensive-plan.md    # Architecture plan (read-only reference)
 - FastAPI mounts `/api/v1`, preserves a few legacy form endpoints for compatibility, and serves `frontend/dist` in production.
 - The SPA currently covers dashboard, merchants, merchant detail, add merchant, products, product detail, recommendations, discovery, and purchases.
 - The frontend data layer uses generated API types in `frontend/src/api/schema.d.ts` and shared query hooks in `frontend/src/hooks/`.
+- The canonical backend package root is `backend/src/szimplacoffee`; the repository-root `src/` directory is not part of the runtime package layout.
 
 ## API Surface
 
