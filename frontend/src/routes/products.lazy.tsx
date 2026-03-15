@@ -1,6 +1,6 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { ExternalLink } from "lucide-react";
+import { Check, ChevronDown, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   useProduct,
   useProductSearch,
@@ -102,11 +110,7 @@ function ProductCard({ product, onClick }: { product: ProductCardSummary; onClic
   return (
     <button
       type="button"
-      onClick={() => {
-        console.log("[products-debug] card click", { productId: product.id, name: product.name });
-        onClick();
-      }}
-      data-testid={`product-card-${product.id}`}
+      onClick={onClick}
       className="text-left rounded-lg border bg-card hover:shadow-md transition-all overflow-hidden group flex flex-col w-full"
     >
       <div className="aspect-square bg-muted relative overflow-hidden">
@@ -323,15 +327,16 @@ function ProductsPage() {
 
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useProductSearch(debouncedQ, categories);
 
-  useEffect(() => {
-    console.log("[products-debug] selectedProductId changed", selectedProductId);
-  }, [selectedProductId]);
-
   const products = (data?.pages.flatMap((page) => page.items) ?? []) as ProductCardSummary[];
   const totalLoaded = products.length;
   const selectedLabels = categories.includes("all")
     ? ["🌐 All Categories"]
     : CATEGORY_OPTIONS.filter((option) => categories.includes(option.value)).map((option) => option.label);
+  const categoryMenuLabel = categories.includes("all")
+    ? "All categories"
+    : selectedLabels.length > 0
+      ? `${selectedLabels.length} selected`
+      : "Select categories";
 
   const handleLoadMore = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -366,21 +371,39 @@ function ProductsPage() {
             />
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {CATEGORY_OPTIONS.map((option) => {
-              const active = categories.includes(option.value) || (option.value === "all" && categories.includes("all"));
-              return (
-                <Button
-                  key={option.value}
-                  type="button"
-                  size="sm"
-                  variant={active ? "default" : "outline"}
-                  onClick={() => setCategories((current) => toggleCategory(current, option.value))}
-                >
-                  {option.label}
+          <div className="flex flex-wrap gap-2 items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  Categories
+                  <span className="text-muted-foreground">{categoryMenuLabel}</span>
+                  <ChevronDown className="h-4 w-4" />
                 </Button>
-              );
-            })}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-72">
+                <DropdownMenuLabel>Filter product categories</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {CATEGORY_OPTIONS.map((option) => {
+                  const checked = categories.includes(option.value) || (option.value === "all" && categories.includes("all"));
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={option.value}
+                      checked={checked}
+                      onCheckedChange={() => setCategories((current) => toggleCategory(current, option.value))}
+                      onSelect={(event) => event.preventDefault()}
+                    >
+                      <div className="flex items-center justify-between w-full gap-3">
+                        <span>{option.label}</span>
+                        {checked && <Check className="h-4 w-4 text-green-600" />}
+                      </div>
+                    </DropdownMenuCheckboxItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {selectedLabels.map((label) => (
+              <Badge key={label} variant="secondary">{label}</Badge>
+            ))}
             {inputValue && (
               <Button
                 variant="outline"
@@ -394,12 +417,6 @@ function ProductsPage() {
               </Button>
             )}
           </div>
-        </div>
-
-        <div className="rounded-md border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950 space-y-1">
-          <div><span className="font-semibold">products debug</span></div>
-          <div data-testid="products-debug-state">selectedProductId: {selectedProductId ?? "null"}</div>
-          <div data-testid="products-debug-count">loadedProducts: {totalLoaded}</div>
         </div>
 
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -416,11 +433,7 @@ function ProductsPage() {
               </>
             )}
           </p>
-          <div className="flex flex-wrap gap-1">
-            {selectedLabels.map((label) => (
-              <Badge key={label} variant="secondary">{label}</Badge>
-            ))}
-          </div>
+          <div className="flex flex-wrap gap-1" />
         </div>
 
         {isLoading ? (
@@ -465,17 +478,8 @@ function ProductsPage() {
         )}
       </div>
 
-      <Dialog
-        open={selectedProductId !== null}
-        onOpenChange={(open) => {
-          console.log("[products-debug] dialog onOpenChange", { open, selectedProductId });
-          if (!open) setSelectedProductId(null);
-        }}
-      >
-        <DialogContent className="max-w-3xl" data-testid="product-quickview-dialog">
-          <div className="rounded border border-dashed border-blue-300 bg-blue-50 px-3 py-2 text-xs text-blue-950">
-            dialog mounted • selectedProductId: {selectedProductId ?? "null"}
-          </div>
+      <Dialog open={selectedProductId !== null} onOpenChange={(open) => !open && setSelectedProductId(null)}>
+        <DialogContent className="max-w-3xl">
           <ProductQuickView productId={selectedProductId} />
         </DialogContent>
       </Dialog>
