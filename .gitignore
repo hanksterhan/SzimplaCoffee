@@ -8,6 +8,7 @@ __pycache__/
 /src/
 
 # SQLite
+data/szimplacoffee.db
 data/szimplacoffee.db-shm
 data/szimplacoffee.db-wal
 szimplacoffee.db-shm
