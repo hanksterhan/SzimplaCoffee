@@ -94,7 +94,11 @@ function ProductCard({ product, onClick }: { product: ProductCardSummary; onClic
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        console.log("[products-debug] card click", { productId: product.id, name: product.name });
+        onClick();
+      }}
+      data-testid={`product-card-${product.id}`}
       className="text-left rounded-lg border bg-card hover:shadow-md transition-all overflow-hidden group flex flex-col w-full"
     >
       <div className="aspect-square bg-muted relative overflow-hidden">
@@ -295,6 +299,10 @@ function ProductsPage() {
 
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useProductSearch(debouncedQ, categories);
 
+  useEffect(() => {
+    console.log("[products-debug] selectedProductId changed", selectedProductId);
+  }, [selectedProductId]);
+
   const products = (data?.pages.flatMap((page) => page.items) ?? []) as ProductCardSummary[];
   const totalLoaded = products.length;
   const selectedLabels = categories.includes("all")
@@ -364,6 +372,12 @@ function ProductsPage() {
           </div>
         </div>
 
+        <div className="rounded-md border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950 space-y-1">
+          <div><span className="font-semibold">products debug</span></div>
+          <div data-testid="products-debug-state">selectedProductId: {selectedProductId ?? "null"}</div>
+          <div data-testid="products-debug-count">loadedProducts: {totalLoaded}</div>
+        </div>
+
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <p className="text-sm text-muted-foreground">
             {isLoading ? (
@@ -427,8 +441,17 @@ function ProductsPage() {
         )}
       </div>
 
-      <Dialog open={selectedProductId !== null} onOpenChange={(open) => !open && setSelectedProductId(null)}>
-        <DialogContent className="max-w-3xl">
+      <Dialog
+        open={selectedProductId !== null}
+        onOpenChange={(open) => {
+          console.log("[products-debug] dialog onOpenChange", { open, selectedProductId });
+          if (!open) setSelectedProductId(null);
+        }}
+      >
+        <DialogContent className="max-w-3xl" data-testid="product-quickview-dialog">
+          <div className="rounded border border-dashed border-blue-300 bg-blue-50 px-3 py-2 text-xs text-blue-950">
+            dialog mounted • selectedProductId: {selectedProductId ?? "null"}
+          </div>
           <ProductQuickView productId={selectedProductId} />
         </DialogContent>
       </Dialog>
