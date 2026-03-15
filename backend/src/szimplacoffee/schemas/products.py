@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, computed_field
@@ -51,6 +52,8 @@ class ProductSummary(BaseModel):
     is_single_origin: bool
     is_espresso_recommended: bool
     is_active: bool
+    availability_status: Literal["in_stock", "out_of_stock", "unknown"] = "unknown"
+    availability_label: str = "Availability unknown"
     latest_price_cents: Optional[int] = None
     latest_compare_at_price_cents: Optional[int] = None
     latest_discount_percent: Optional[int] = None

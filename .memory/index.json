@@ -1,6 +1,13 @@
 {
   "entries": [
     {
+      "id": "SC-45-catalog-search-stock-truth",
+      "path": ".memory/sprint-01/SC-45-catalog-search-stock-truth.md",
+      "ticket": "SC-45",
+      "title": "Catalog search and stock truth",
+      "date": "2026-03-15"
+    },
+    {
       "id": "SC-44-backend-test-stability-package-root",
       "path": ".memory/sprint-01/SC-44-backend-test-stability-package-root.md",
       "ticket": "SC-44",

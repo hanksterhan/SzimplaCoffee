@@ -1008,6 +1008,25 @@ export interface components {
             /** Is Active */
             is_active: boolean;
             /**
+             * Availability Status
+             * @default unknown
+             */
+            availability_status: "in_stock" | "out_of_stock" | "unknown";
+            /**
+             * Availability Label
+             * @default Availability unknown
+             */
+            availability_label: string;
+            latest_price_cents?: number | null;
+            latest_compare_at_price_cents?: number | null;
+            latest_discount_percent?: number | null;
+            primary_weight_grams?: number | null;
+            /**
+             * Primary Is Whole Bean
+             * @default false
+             */
+            primary_is_whole_bean: boolean;
+            /**
              * First Seen At
              * Format: date-time
              */
@@ -1058,6 +1077,25 @@ export interface components {
             is_espresso_recommended: boolean;
             /** Is Active */
             is_active: boolean;
+            /**
+             * Availability Status
+             * @default unknown
+             */
+            availability_status: "in_stock" | "out_of_stock" | "unknown";
+            /**
+             * Availability Label
+             * @default Availability unknown
+             */
+            availability_label: string;
+            latest_price_cents?: number | null;
+            latest_compare_at_price_cents?: number | null;
+            latest_discount_percent?: number | null;
+            primary_weight_grams?: number | null;
+            /**
+             * Primary Is Whole Bean
+             * @default false
+             */
+            primary_is_whole_bean: boolean;
             /**
              * First Seen At
              * Format: date-time

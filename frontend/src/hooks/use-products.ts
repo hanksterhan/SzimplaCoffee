@@ -15,9 +15,13 @@ export function useProductSearch(q: string, categories: string[] = ["coffee"]) {
   return useInfiniteQuery({
     queryKey: ["products", "search", q, categoryParam],
     queryFn: async ({ pageParam }) => {
-      const response = await fetch(
-        `/api/v1/products/search?q=${encodeURIComponent(q)}&category=${encodeURIComponent(categoryParam)}&limit=24${pageParam ? `&cursor=${pageParam}` : ""}`
-      );
+      const params = new URLSearchParams();
+      params.set("category", categoryParam);
+      params.set("limit", "24");
+      const trimmedQuery = q.trim();
+      if (trimmedQuery) params.set("q", trimmedQuery);
+      if (pageParam) params.set("cursor", String(pageParam));
+      const response = await fetch(`/api/v1/products/search?${params.toString()}`);
       if (!response.ok) throw new Error("Search failed");
       return response.json() as Promise<CursorPageProductSummary>;
     },
