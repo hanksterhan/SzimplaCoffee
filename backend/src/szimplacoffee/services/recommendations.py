@@ -19,10 +19,14 @@ from ..models import (
     ShippingPolicy,
     VariantDealFact,
 )
+from .discovery import meets_buying_threshold
 
 
 QuantityMode = Literal["12-18 oz", "2 lb", "5 lb", "any"]
 ShotStyle = Literal["modern_58mm", "cremina_49mm", "turbo", "experimental"]
+
+# SC-54: Score threshold below which the system recommends waiting
+WAIT_SCORE_THRESHOLD = 0.30
 
 
 @dataclass
@@ -31,6 +35,8 @@ class RecommendationRequest:
     quantity_mode: QuantityMode
     bulk_allowed: bool
     allow_decaf: bool = False
+    # SC-56: Optional personal inventory in grams (0 = unknown)
+    current_inventory_grams: int = 0
 
 
 @dataclass
@@ -164,12 +170,33 @@ def _quantity_target(quantity_mode: QuantityMode) -> tuple[int, int]:
     return mapping[quantity_mode]
 
 
-def _quantity_score(weight_grams: int | None, quantity_mode: QuantityMode, bulk_allowed: bool) -> float:
+def _quantity_score(
+    weight_grams: int | None,
+    quantity_mode: QuantityMode,
+    bulk_allowed: bool,
+    current_inventory_grams: int = 0,
+) -> float:
+    """SC-56: Factor in personal inventory when scoring bag size fit.
+
+    If the user already has >= 1lb on hand, down-score large bulk buys.
+    If the user has >= 2lb, down-score anything over 12oz.
+    """
     if quantity_mode == "any":
         return 0.8
     if weight_grams is None:
         return 0.4
     lower, upper = _quantity_target(quantity_mode)
+
+    # SC-56: Inventory penalty for over-stocking
+    if current_inventory_grams >= 900:  # >= 2lb on hand
+        # Strong penalty for large bags — buying more bulk when already stocked is wasteful
+        if weight_grams > 510:  # > 18oz
+            return 0.15
+    elif current_inventory_grams >= 450:  # >= 1lb on hand
+        # Modest penalty for very large bags
+        if weight_grams > 1100:  # > ~2.5lb
+            return 0.25
+
     if lower <= weight_grams <= upper:
         return 1.0
     if not bulk_allowed and weight_grams > upper:
@@ -415,7 +442,24 @@ def _deal_score(
     promo_reasons: list[str],
     category_price_per_oz_baseline_cents: int | None,
 ) -> tuple[float, int, list[str]]:
+    # SC-55: Use subscription price as effective price when it saves >= 5%
+    effective_offer_price = offer.price_cents
+    if (
+        offer.subscription_price_cents
+        and offer.subscription_price_cents > 0
+        and offer.subscription_price_cents < offer.price_cents * 0.95
+    ):
+        savings_pct = round((1 - offer.subscription_price_cents / offer.price_cents) * 100)
+        effective_offer_price = offer.subscription_price_cents
+        promo_reasons = [f"subscribe & save {savings_pct}%"] + promo_reasons
+        promo_bonus = min(promo_bonus + savings_pct * 0.003, 0.2)
+
+    # Temporarily patch offer price for landed calculation
+    _original_price = offer.price_cents
+    offer.price_cents = effective_offer_price
     landed = _landed_price_cents(offer, shipping_policy)
+    offer.price_cents = _original_price  # restore to avoid side effects
+
     landed_price_per_oz_cents = _price_per_oz_cents(landed, variant.weight_grams)
     reasons: list[str] = []
 
@@ -512,6 +556,9 @@ def build_biggest_sales(session: Session, limit: int = 10) -> list[BiggestSaleCa
     products = session.scalars(select(Product).where(Product.is_active.is_(True)).order_by(Product.name.asc())).all()
     for product in products:
         merchant = product.merchant
+        # SC-53: exclude merchants below buying threshold
+        if not meets_buying_threshold(merchant):
+            continue
         merchant_quality = _merchant_quality_score(merchant)
         if merchant_quality < 0.65:
             continue
@@ -577,6 +624,9 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
 
     for product in products:
         merchant = product.merchant
+        # SC-53: exclude merchants below buying threshold from recommendations
+        if not meets_buying_threshold(merchant):
+            continue
         merchant_score = _merchant_score_with_shot_style(merchant, request.shot_style)
         shipping_policy = _latest_shipping_policy(session, merchant.id)
         history_score, history_reasons = _history_fit(product, merchant, prefs, request.allow_decaf)
@@ -596,7 +646,7 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
             if fact is None:
                 continue
 
-            quantity_score = _quantity_score(variant.weight_grams, request.quantity_mode, request.bulk_allowed)
+            quantity_score = _quantity_score(variant.weight_grams, request.quantity_mode, request.bulk_allowed, request.current_inventory_grams)
             espresso_score, espresso_reasons = _espresso_fit(product, request.shot_style)
             deal_score, landed, deal_reasons = _deal_score(
                 fact,
@@ -659,6 +709,30 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
         if len(selected) >= 5:
             break
     return selected
+
+
+def build_wait_assessment(
+    candidates: list[RecommendationCandidate],
+    no_candidates: bool = False,
+    current_inventory_grams: int = 0,
+) -> tuple[bool, str | None]:
+    """SC-54/SC-56: Determine if the system should recommend waiting, and why.
+
+    Returns (wait_recommendation, wait_rationale).
+    """
+    # SC-56: Inventory-based wait signal
+    if current_inventory_grams >= 900:  # >= 2lb on hand
+        grams_lbs = current_inventory_grams / 453.6
+        return True, f"You have ~{grams_lbs:.1f}lb on hand — top up when you're below 1lb."
+
+    if no_candidates:
+        return True, "No coffee meets the current filters — try broadening your criteria or check back after the next crawl cycle."
+    if not candidates:
+        return True, "No matching options found right now."
+    top_score = candidates[0].score
+    if top_score < WAIT_SCORE_THRESHOLD:
+        return True, f"The best current option scores {top_score:.0%} — below the quality threshold. Check back after merchants are refreshed."
+    return False, None
 
 
 def persist_recommendation_run(session: Session, request: RecommendationRequest, candidates: list[RecommendationCandidate]) -> None:
