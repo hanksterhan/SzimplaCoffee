@@ -206,6 +206,7 @@ class ProductVariant(Base):
 
     product: Mapped[Product] = relationship(back_populates="variants")
     offers: Mapped[list["OfferSnapshot"]] = relationship(back_populates="variant", cascade="all, delete-orphan")
+    deal_fact: Mapped[Optional["VariantDealFact"]] = relationship(back_populates="variant", uselist=False, cascade="all, delete-orphan")
 
 
 class OfferSnapshot(Base):
@@ -323,3 +324,23 @@ class RecommendationRun(Base):
     alternatives_json: Mapped[str] = mapped_column(Text, default="")
     wait_recommendation: Mapped[bool] = mapped_column(Boolean, default=False)
     model_version: Mapped[str] = mapped_column(String(32), default="v1")
+
+
+class VariantDealFact(Base):
+    __tablename__ = "variant_deal_facts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    variant_id: Mapped[int] = mapped_column(ForeignKey("product_variants.id"), unique=True, index=True)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    offer_count: Mapped[int] = mapped_column(Integer, default=0)
+    distinct_offer_days: Mapped[int] = mapped_column(Integer, default=0)
+    current_price_cents: Mapped[int] = mapped_column(Integer, default=0)
+    baseline_7d_cents: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    baseline_30d_cents: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    historical_low_cents: Mapped[int] = mapped_column(Integer, default=0)
+    historical_high_cents: Mapped[int] = mapped_column(Integer, default=0)
+    compare_at_discount_percent: Mapped[float] = mapped_column(Float, default=0.0)
+    price_drop_7d_percent: Mapped[float] = mapped_column(Float, default=0.0)
+    price_drop_30d_percent: Mapped[float] = mapped_column(Float, default=0.0)
+
+    variant: Mapped[ProductVariant] = relationship(back_populates="deal_fact")
