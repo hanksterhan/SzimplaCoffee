@@ -5,6 +5,7 @@ from fastapi import Query
 
 from szimplacoffee.api.products import (
     _coffee_like_merch_clause,
+    _derive_product_availability,
     _normalize_query_default,
     _parse_categories,
     _select_primary_variant,
@@ -69,3 +70,41 @@ def test_select_primary_variant_uses_offer_fallback_and_prefers_whole_bean():
     variant, latest_offer = _select_primary_variant(product)
     assert variant is variant_bean
     assert latest_offer.price_cents == 1800
+
+
+def test_derive_product_availability_reports_in_stock_when_any_variant_is_available():
+    product = SimpleNamespace(
+        variants=[
+            SimpleNamespace(is_available=False, offers=[]),
+            SimpleNamespace(
+                is_available=True,
+                offers=[SimpleNamespace(observed_at=datetime.now(UTC), is_available=True)],
+            ),
+        ]
+    )
+
+    assert _derive_product_availability(product) == ("in_stock", "In stock")
+
+
+def test_derive_product_availability_reports_out_of_stock_when_all_variants_are_unavailable():
+    now = datetime.now(UTC)
+    product = SimpleNamespace(
+        variants=[
+            SimpleNamespace(
+                is_available=False,
+                offers=[SimpleNamespace(observed_at=now, is_available=False)],
+            ),
+            SimpleNamespace(
+                is_available=True,
+                offers=[SimpleNamespace(observed_at=now, is_available=False)],
+            ),
+        ]
+    )
+
+    assert _derive_product_availability(product) == ("out_of_stock", "Out of stock")
+
+
+def test_derive_product_availability_reports_unknown_without_variants():
+    product = SimpleNamespace(variants=[])
+
+    assert _derive_product_availability(product) == ("unknown", "Availability unknown")

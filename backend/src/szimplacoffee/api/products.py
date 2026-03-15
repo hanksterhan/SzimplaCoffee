@@ -99,6 +99,18 @@ def _variant_latest_offer(variant: ProductVariant):
     return max(offers, key=lambda offer: offer.observed_at)
 
 
+def _derive_product_availability(product: Product) -> tuple[str, str]:
+    if not product.variants:
+        return ("unknown", "Availability unknown")
+
+    for variant in product.variants:
+        latest_offer = _variant_latest_offer(variant)
+        offer_available = True if latest_offer is None else latest_offer.is_available
+        if variant.is_available and offer_available:
+            return ("in_stock", "In stock")
+
+    return ("out_of_stock", "Out of stock")
+
 
 def _select_primary_variant(product: Product) -> tuple[ProductVariant, Any] | None:
     variants_with_offer = []
@@ -135,6 +147,9 @@ def _product_summary_with_merchant(product: Product, merchant_name: str) -> Prod
     """Build a ProductSummary and inject merchant_name + derived card metadata."""
     summary = ProductSummary.model_validate(product)
     summary.merchant_name = merchant_name
+    availability_status, availability_label = _derive_product_availability(product)
+    summary.availability_status = availability_status
+    summary.availability_label = availability_label
     primary_variant = _select_primary_variant(product)
     if primary_variant:
         variant, latest_offer = primary_variant

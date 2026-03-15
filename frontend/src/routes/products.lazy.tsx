@@ -43,6 +43,8 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 type ProductCardSummary = ProductSummary & {
+  availability_status?: "in_stock" | "out_of_stock" | "unknown";
+  availability_label?: string;
   latest_price_cents?: number | null;
   latest_compare_at_price_cents?: number | null;
   latest_discount_percent?: number | null;
@@ -124,6 +126,27 @@ function toggleMerchant(current: string[], value: string) {
   return next;
 }
 
+function availabilityTone(status: ProductCardSummary["availability_status"]) {
+  switch (status) {
+    case "in_stock":
+      return "text-green-600";
+    case "out_of_stock":
+      return "text-rose-600";
+    default:
+      return "text-muted-foreground";
+  }
+}
+
+function availabilityLabel(product: Pick<ProductCardSummary, "availability_label" | "availability_status">) {
+  return product.availability_label ?? (
+    product.availability_status === "in_stock"
+      ? "In stock"
+      : product.availability_status === "out_of_stock"
+        ? "Out of stock"
+        : "Availability unknown"
+  );
+}
+
 function ProductCard({ product, onClick }: { product: ProductCardSummary; onClick: () => void }) {
   const weightLabel = formatWeight(product.primary_weight_grams);
   const pricePerOzLabel = formatPricePerOz(product.latest_price_cents, product.primary_weight_grams);
@@ -179,8 +202,8 @@ function ProductCard({ product, onClick }: { product: ProductCardSummary; onClic
               <p className="text-sm text-muted-foreground">Price unavailable</p>
             )}
           </div>
-          <span className={`text-[11px] whitespace-nowrap ${product.is_active ? "text-green-600" : "text-muted-foreground"}`}>
-            {product.is_active ? "● In stock" : "● Unavailable"}
+          <span className={`text-[11px] whitespace-nowrap ${availabilityTone(product.availability_status)}`}>
+            {`● ${availabilityLabel(product)}`}
           </span>
         </div>
       </div>
@@ -272,8 +295,8 @@ function ProductQuickView({ productId }: { productId: number | null }) {
                   : ""}
               </span>
             )}
-            <span className={product.is_active ? "text-green-600" : "text-muted-foreground"}>
-              {product.is_active ? "● In stock" : "● Unavailable"}
+            <span className={availabilityTone(product.availability_status)}>
+              {`● ${availabilityLabel(product)}`}
             </span>
           </div>
         </div>
@@ -416,7 +439,7 @@ function ProductsPage() {
         <div>
           <h1 className="text-2xl font-bold">📦 Products</h1>
           <p className="text-muted-foreground text-sm">
-            Browse specialty coffee products
+            Browse catalog listings with latest observed prices and variant availability.
           </p>
         </div>
 
@@ -427,10 +450,13 @@ function ProductsPage() {
               ref={inputRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Search by name, origin, process, tasting notes…"
+              placeholder="Search product names"
               className="pl-8"
             />
           </div>
+          <p className="text-xs text-muted-foreground">
+            Search matches product names only. Use category and merchant filters to narrow the catalog.
+          </p>
 
           <div className="flex flex-wrap gap-2 items-center">
             <DropdownMenu>
@@ -569,7 +595,7 @@ function ProductsPage() {
               {debouncedQ ? "No products match your search" : "No products yet"}
             </p>
             <p className="text-sm mt-1">
-              {debouncedQ ? "Try different search terms or category combinations" : "Add merchants and run crawls to populate the catalog"}
+              {debouncedQ ? "Try another product name or adjust the category and merchant filters" : "Add merchants and run crawls to populate the catalog"}
             </p>
           </div>
         ) : (
