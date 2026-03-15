@@ -1,0 +1,95 @@
+id: SC-40
+title: "Responsive mobile layout for key pages"
+type: feature
+priority: p2
+status: open
+owner: h6nk-bot
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-14T00:00:00Z"
+labels: [sprint-2c, ux, ui, responsive]
+
+problem: "No responsive layout. Pages break on mobile screens. Single-user app but likely used on phone while browsing coffee shops or ordering from couch."
+desired_outcome: "Key pages (dashboard, recommendations, merchants list, products list) are usable on mobile (375px+). Sidebar collapses to hamburger menu. Tables become card layouts on small screens."
+
+scope_in:
+  - "Collapsible sidebar → hamburger menu on mobile"
+  - "Dashboard: stack cards vertically on mobile"
+  - "Recommendations: full-width result cards on mobile"
+  - "Merchants list: card layout instead of table on mobile"
+  - "Products list: responsive grid (3-col → 2-col → 1-col)"
+  - "Forms: full-width inputs on mobile"
+  - "Touch-friendly tap targets (min 44px)"
+scope_out:
+  - "PWA / installable app"
+  - "Offline support"
+  - "Native mobile app"
+  - "Tablet-specific layouts"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Dashboard is usable at 375px width"
+    verify: "Resize browser to 375px, verify all content visible and interactive"
+    status: pending
+  - id: AC-2
+    text: "Sidebar collapses to hamburger menu on mobile"
+    verify: "At 375px, sidebar hidden, hamburger menu works"
+    status: pending
+  - id: AC-3
+    text: "Recommendation page works on mobile"
+    verify: "At 375px, can configure and view recommendations"
+    status: pending
+
+verification_required:
+  - "Visual: test all pages at 375px width"
+  - "Visual: test sidebar hamburger menu"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-40-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Responsive sidebar with hamburger menu"
+    status: pending
+    depends_on: []
+    files_modify:
+      - "frontend/src/components/layout/"
+      - "frontend/src/routes/__root.tsx"
+    files_read_only: []
+    checks:
+      - "Visual: sidebar collapses at md breakpoint"
+    evidence: []
+    notes: "Use Tailwind's responsive prefixes. Sheet component from shadcn for mobile nav."
+
+  - id: S2
+    title: "Responsive page layouts"
+    status: pending
+    depends_on: [S1]
+    files_modify:
+      - "frontend/src/routes/index.tsx"
+      - "frontend/src/routes/recommend.tsx"
+      - "frontend/src/routes/merchants.tsx"
+    files_read_only: []
+    checks:
+      - "Visual: all pages readable at 375px"
+    evidence: []
+    notes: "Focus on readability over pixel-perfection"
+
+delivery:
+  branch: "feat/SC-40-responsive-layout"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Tailwind's responsive system makes this mostly about adding sm: and md: prefixes"
+  - "Test with Chrome DevTools device emulation"
+  - "Priority order: recommendations > dashboard > merchants > products"

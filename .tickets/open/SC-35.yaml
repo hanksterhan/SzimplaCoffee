@@ -1,0 +1,96 @@
+id: SC-35
+title: "Brew feedback form — rate coffees and record espresso outcomes"
+type: feature
+priority: p1
+status: open
+owner: h6nk-bot
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-14T00:00:00Z"
+labels: [sprint-2b, feedback-loop, ui, recommendation-engine]
+
+problem: "The brew_feedback table has 3 records but no UI to add more. The north star says the system should learn from 'how it performed' and 'whether we would buy it again.' Without this, the recommendation engine cannot improve over time."
+desired_outcome: "A brew feedback form linked to purchases. Users can rate coffees (1-10), record which shot styles worked, note flavor impressions, and indicate reorder intent. This data feeds _preference_profile() and _history_fit() to improve recommendations."
+
+scope_in:
+  - "New route: /purchases/{id}/feedback"
+  - "Form fields: rating (1-10), shot_style used, would_reorder (bool), flavor_notes (freetext), dial_in_difficulty (1-5), notes"
+  - "Link from purchase history to 'Add Feedback' action"
+  - "API endpoint: POST /api/v1/purchases/{id}/feedback"
+  - "API endpoint: GET /api/v1/purchases/{id}/feedback"
+  - "Display existing feedback on purchase detail"
+  - "Update _preference_profile() to weight by brew feedback ratings"
+scope_out:
+  - "Shot recipe logging (dose, yield, time)"
+  - "Photo uploads"
+  - "Comparing feedback across coffees"
+  - "Aggregate analytics dashboard"
+
+dependencies:
+  blockers: [SC-34]
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "User can submit brew feedback for a purchase"
+    verify: "Navigate to feedback form, submit rating + notes, verify in DB"
+    status: pending
+  - id: AC-2
+    text: "Feedback influences recommendation preference profile"
+    verify: "Add high-rating feedback, verify merchant appears in liked_merchants set"
+    status: pending
+  - id: AC-3
+    text: "Existing feedback displays on purchase view"
+    verify: "View purchase with feedback, verify rating and notes shown"
+    status: pending
+
+verification_required:
+  - "Submit feedback via UI"
+  - "curl http://localhost:8000/api/v1/purchases/1/feedback"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-35-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Feedback API endpoints"
+    status: pending
+    depends_on: []
+    files_modify:
+      - "backend/src/szimplacoffee/api/purchases.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "curl -X POST http://localhost:8000/api/v1/purchases/1/feedback -H 'Content-Type: application/json' -d '{\"rating\": 8}'"
+    evidence: []
+    notes: "Verify BrewFeedback model exists and has all needed fields"
+
+  - id: S2
+    title: "Feedback form UI component"
+    status: pending
+    depends_on: [S1]
+    files_create:
+      - "frontend/src/routes/purchases.$purchaseId.feedback.tsx"
+      - "frontend/src/components/purchases/"
+    files_modify:
+      - "frontend/src/hooks/use-purchases.ts"
+    files_read_only: []
+    checks:
+      - "Navigate to /purchases/1/feedback — form renders"
+    evidence: []
+    notes: "Star rating or slider for 1-10. Shot style dropdown. Would-reorder toggle."
+
+delivery:
+  branch: "feat/SC-35-brew-feedback"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "This closes the learning loop. Purchase + Feedback = the system gets smarter."
+  - "Consider a quick feedback mode: just rating + would_reorder, 2 clicks."
+  - "The _preference_profile function already reads brew_feedback — it just needs more data."

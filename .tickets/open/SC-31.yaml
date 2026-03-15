@@ -1,0 +1,126 @@
+id: SC-31
+title: "Wire metadata parser into crawl pipeline + backfill existing products"
+type: feature
+priority: p0
+status: open
+owner: h6nk-bot
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-14T00:00:00Z"
+labels: [sprint-2a, data-quality, crawl-pipeline, recommendation-engine]
+
+problem: "The metadata parser (SC-30) exists but isn't called during crawling. 910 products sit with empty origin/process/tasting_notes fields. The crawl pipeline stores body_html but never extracts structured data from it."
+desired_outcome: "Every crawl run automatically extracts coffee metadata and populates origin_text, process_text, tasting_notes_text, is_single_origin, and is_espresso_recommended on products. A one-time backfill command processes all existing products. After backfill, >50% of products should have origin_text populated."
+
+scope_in:
+  - "Integrate metadata_parser into Shopify crawl adapter (crawlers.py)"
+  - "Integrate metadata_parser into WooCommerce crawl adapter (crawlers.py)"
+  - "Add CLI command: szimplacoffee backfill-metadata — processes all existing products"
+  - "Add API endpoint: POST /api/v1/products/backfill-metadata"
+  - "Add new model fields if needed (roast_level, altitude_text, varietal_text)"
+  - "Log extraction stats per crawl run (products parsed, fields filled)"
+scope_out:
+  - "Parser improvements (that's SC-30 iteration)"
+  - "UI for viewing extracted metadata (covered by SC-38)"
+  - "Re-crawling merchants for fresh data (that's SC-33)"
+
+dependencies:
+  blockers: [SC-30]
+  unblocks: [SC-32, SC-37, SC-38]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Crawling a Shopify merchant populates origin_text on products with descriptions containing origin info"
+    verify: "Run crawl on test merchant, check DB for non-empty origin_text"
+    status: pending
+  - id: AC-2
+    text: "Backfill command processes all 910 products and populates metadata"
+    verify: "python -m szimplacoffee.cli backfill-metadata && check stats output"
+    status: pending
+  - id: AC-3
+    text: ">50% of products have non-empty origin_text after backfill"
+    verify: "SQL: SELECT COUNT(*) FROM products WHERE origin_text != ''"
+    status: pending
+  - id: AC-4
+    text: ">40% of products have non-empty process_text after backfill"
+    verify: "SQL: SELECT COUNT(*) FROM products WHERE process_text != ''"
+    status: pending
+
+verification_required:
+  - "python -m szimplacoffee.cli backfill-metadata"
+  - "SELECT COUNT(*) FROM products WHERE origin_text != ''"
+  - "SELECT COUNT(*) FROM products WHERE process_text != ''"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-31-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Integrate parser into Shopify crawl adapter"
+    status: pending
+    depends_on: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/crawlers.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/services/metadata_parser.py"
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && python -c 'from szimplacoffee.services.crawlers import crawl_merchant; print(\"OK\")'"
+    evidence: []
+    notes: "Call parse_coffee_metadata(body_html) after product creation/update. Map fields to Product model columns."
+
+  - id: S2
+    title: "Integrate parser into WooCommerce crawl adapter"
+    status: pending
+    depends_on: [S1]
+    files_modify:
+      - "backend/src/szimplacoffee/services/crawlers.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/services/metadata_parser.py"
+    checks:
+      - "cd backend && python -c 'from szimplacoffee.services.crawlers import crawl_merchant; print(\"OK\")'"
+    evidence: []
+    notes: ""
+
+  - id: S3
+    title: "Backfill CLI command + API endpoint"
+    status: pending
+    depends_on: [S1]
+    files_modify:
+      - "backend/src/szimplacoffee/cli.py"
+      - "backend/src/szimplacoffee/api/products.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/services/metadata_parser.py"
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && python -c 'from szimplacoffee.cli import app; print(\"OK\")'"
+    evidence: []
+    notes: "Backfill iterates all products, reads body_html from crawl cache or re-fetches, runs parser, updates fields."
+
+  - id: S4
+    title: "Add model fields for roast_level, altitude_text, varietal_text if not present"
+    status: pending
+    depends_on: []
+    files_modify:
+      - "backend/src/szimplacoffee/models.py"
+    files_read_only: []
+    checks:
+      - "cd backend && python -c 'from szimplacoffee.models import Product; print(\"OK\")'"
+    evidence: []
+    notes: "Check if these columns already exist. Add Alembic migration or direct ALTER TABLE."
+
+delivery:
+  branch: "feat/SC-31-parser-integration"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "The body_html field on Shopify products contains the raw description. This is the primary input for the parser."
+  - "For WooCommerce, the description field serves the same purpose."
+  - "Backfill needs to handle products where body_html was never stored — may need to re-fetch product pages."
+  - "Log a summary: 'Backfilled 910 products: 520 with origin, 380 with process, 650 with tasting notes'"

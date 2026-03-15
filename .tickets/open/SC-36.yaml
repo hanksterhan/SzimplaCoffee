@@ -1,0 +1,96 @@
+id: SC-36
+title: "Purchase history viewer — browse, edit, and delete past purchases"
+type: feature
+priority: p2
+status: open
+owner: h6nk-bot
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-14T00:00:00Z"
+labels: [sprint-2b, feedback-loop, ui]
+
+problem: "No way to view, edit, or manage purchase history from the UI. Users can't see what they've bought, correct errors, or track spending patterns."
+desired_outcome: "A /purchases page listing all purchases with merchant, product, date, price, and feedback status. Users can edit and delete entries. Quick stats (total spent, bags this month, favorite merchants)."
+
+scope_in:
+  - "New route: /purchases — list view with sorting and filtering"
+  - "Purchase detail view with feedback display"
+  - "Edit purchase form (same as create, pre-filled)"
+  - "Delete purchase with confirmation"
+  - "API endpoints: PUT /api/v1/purchases/{id}, DELETE /api/v1/purchases/{id}"
+  - "Summary stats at top of page"
+  - "Nav link in sidebar"
+scope_out:
+  - "Export to CSV"
+  - "Spending analytics or charts"
+  - "Inventory tracking"
+
+dependencies:
+  blockers: [SC-34]
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "/purchases page lists all purchases"
+    verify: "Navigate to /purchases, verify list renders with correct data"
+    status: pending
+  - id: AC-2
+    text: "User can edit a purchase"
+    verify: "Edit a purchase price, verify update persists"
+    status: pending
+  - id: AC-3
+    text: "User can delete a purchase with confirmation"
+    verify: "Delete a purchase, confirm it's removed from list"
+    status: pending
+
+verification_required:
+  - "Navigate to /purchases"
+  - "Edit a purchase via UI"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-36-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Purchase list page with summary stats"
+    status: pending
+    depends_on: []
+    files_create:
+      - "frontend/src/routes/purchases.tsx"
+      - "frontend/src/routes/purchases.$purchaseId.tsx"
+    files_modify:
+      - "frontend/src/hooks/use-purchases.ts"
+      - "frontend/src/components/layout/"
+    files_read_only: []
+    checks:
+      - "Navigate to /purchases — list renders"
+    evidence: []
+    notes: ""
+
+  - id: S2
+    title: "Edit and delete API + UI"
+    status: pending
+    depends_on: [S1]
+    files_modify:
+      - "backend/src/szimplacoffee/api/purchases.py"
+      - "frontend/src/routes/purchases.$purchaseId.tsx"
+    files_read_only: []
+    checks:
+      - "curl -X PUT http://localhost:8000/api/v1/purchases/1"
+      - "curl -X DELETE http://localhost:8000/api/v1/purchases/1"
+    evidence: []
+    notes: ""
+
+delivery:
+  branch: "feat/SC-36-purchase-viewer"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Keep it simple — table view with date/merchant/product/price/feedback-status columns"
+  - "Feedback status: ✅ rated, ⏳ pending — clicking 'pending' navigates to feedback form"

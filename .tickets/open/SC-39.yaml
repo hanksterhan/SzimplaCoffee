@@ -1,0 +1,93 @@
+id: SC-39
+title: "Toast notification system for async operations"
+type: feature
+priority: p2
+status: open
+owner: h6nk-bot
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-14T00:00:00Z"
+labels: [sprint-2c, ux, ui]
+
+problem: "No feedback when async operations complete. Triggering a crawl, saving a purchase, or promoting a candidate gives no visual confirmation. Users don't know if their action succeeded."
+desired_outcome: "A global toast notification system using shadcn/ui Sonner or Toast. All mutations (crawl trigger, purchase save, feedback submit, candidate promote/reject) show success/error toasts."
+
+scope_in:
+  - "Install and configure shadcn/ui Sonner (toast) component"
+  - "Add toast provider to root layout"
+  - "Add success toasts to: crawl trigger, merchant create, purchase save, feedback submit, candidate promote/reject"
+  - "Add error toasts for failed API calls"
+  - "Loading state on mutation buttons (spinner/disabled while pending)"
+scope_out:
+  - "Push notifications"
+  - "Notification history/inbox"
+  - "Sound effects"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Triggering a crawl shows a success toast"
+    verify: "Click 'Crawl' on a merchant, verify toast appears"
+    status: pending
+  - id: AC-2
+    text: "Failed API calls show error toasts"
+    verify: "Simulate network error, verify error toast appears"
+    status: pending
+  - id: AC-3
+    text: "Mutation buttons show loading state while pending"
+    verify: "Click any mutation button, verify spinner/disabled state during request"
+    status: pending
+
+verification_required:
+  - "Visual: trigger crawl, verify toast"
+  - "Visual: save purchase, verify toast"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-39-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Toast infrastructure setup"
+    status: pending
+    depends_on: []
+    files_modify:
+      - "frontend/src/routes/__root.tsx"
+    files_create: []
+    files_read_only: []
+    checks:
+      - "cd frontend && npx shadcn@latest add sonner"
+    evidence: []
+    notes: "Add Toaster component to root layout"
+
+  - id: S2
+    title: "Wire toasts to all existing mutations"
+    status: pending
+    depends_on: [S1]
+    files_modify:
+      - "frontend/src/routes/merchants.$merchantId.tsx"
+      - "frontend/src/routes/merchants.new.tsx"
+      - "frontend/src/routes/discovery.tsx"
+      - "frontend/src/routes/recommend.tsx"
+    files_read_only: []
+    checks:
+      - "Visual: test each mutation shows appropriate toast"
+    evidence: []
+    notes: "Wrap useMutation onSuccess/onError callbacks with toast calls"
+
+delivery:
+  branch: "feat/SC-39-toast-notifications"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Sonner is the recommended toast lib for shadcn/ui — simple API, good defaults"
+  - "Keep toast messages concise: 'Crawl started for Olympia Coffee' not 'The crawl operation has been successfully initiated...'"
+  - "Consider different toast types: success (green), error (red), info (neutral)"
