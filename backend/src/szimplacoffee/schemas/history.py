@@ -1,36 +1,115 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
 
-class PurchaseHistorySchema(BaseModel):
+# ── BrewFeedback ────────────────────────────────────────────────────────────
+
+class BrewFeedbackCreate(BaseModel):
+    shot_style: str
+    grinder: str = "Timemore Sculptor 078S"
+    basket: str = ""
+    rating: float
+    would_rebuy: bool = True
+    difficulty_score: float = 3.0
+    notes: str = ""
+
+
+class BrewFeedbackUpdate(BaseModel):
+    shot_style: Optional[str] = None
+    grinder: Optional[str] = None
+    basket: Optional[str] = None
+    rating: Optional[float] = None
+    would_rebuy: Optional[bool] = None
+    difficulty_score: Optional[float] = None
+    notes: Optional[str] = None
+
+
+class BrewFeedbackOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    purchase_id: int
+    shot_style: str
+    grinder: str
+    basket: str
+    rating: float
+    would_rebuy: bool
+    difficulty_score: float
+    notes: str
+
+
+# ── PurchaseHistory ──────────────────────────────────────────────────────────
+
+class PurchaseCreate(BaseModel):
+    merchant_id: int
+    product_name: str
+    origin_text: str = ""
+    process_text: str = ""
+    price_cents: int
+    weight_grams: int
+    purchased_at: Optional[datetime] = None
+    source_system: str = "manual"
+    source_ref: str = ""
+
+
+class PurchaseUpdate(BaseModel):
+    merchant_id: Optional[int] = None
+    product_name: Optional[str] = None
+    origin_text: Optional[str] = None
+    process_text: Optional[str] = None
+    price_cents: Optional[int] = None
+    weight_grams: Optional[int] = None
+    purchased_at: Optional[datetime] = None
+    source_system: Optional[str] = None
+    source_ref: Optional[str] = None
+
+
+class PurchaseSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     merchant_id: int
-    product_variant_id: Optional[int]
-    purchased_at: datetime
+    product_name: str
+    origin_text: str
+    process_text: str
     price_cents: int
-    quantity: int
-    notes: Optional[str]
-    rating: Optional[int]
-    created_at: datetime
+    weight_grams: int
+    purchased_at: datetime
+    source_system: str
+    source_ref: str
+    feedback_count: int = 0
 
 
-class BrewFeedbackSchema(BaseModel):
+class PurchaseDetail(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    purchase_history_id: Optional[int]
-    product_variant_id: Optional[int]
-    brewed_at: datetime
-    brew_method: Optional[str]
-    dose_grams: Optional[float]
-    yield_grams: Optional[float]
-    brew_time_seconds: Optional[int]
-    grind_setting: Optional[str]
-    tasting_notes: Optional[str]
-    overall_score: Optional[int]
-    would_buy_again: Optional[bool]
-    created_at: datetime
+    merchant_id: int
+    product_name: str
+    origin_text: str
+    process_text: str
+    price_cents: int
+    weight_grams: int
+    purchased_at: datetime
+    source_system: str
+    source_ref: str
+    brew_feedback: list[BrewFeedbackOut] = []
+
+
+# ── Stats ────────────────────────────────────────────────────────────────────
+
+class PurchaseStats(BaseModel):
+    total_purchases: int
+    total_spent_cents: int
+    avg_price_per_lb_cents: float
+    favorite_merchant_id: Optional[int]
+    favorite_merchant_name: Optional[str]
+
+
+# ── Backward-compat aliases (used by schemas/__init__.py) ─────────────────────
+PurchaseHistorySchema = PurchaseSummary
+BrewFeedbackSchema = BrewFeedbackOut

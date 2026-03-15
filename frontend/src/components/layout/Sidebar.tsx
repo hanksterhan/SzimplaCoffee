@@ -1,12 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 
-const NAV_ITEMS = [
+const NAV_ITEMS: Array<{ to: string; label: string; icon: string }> = [
   { to: "/", label: "Dashboard", icon: "☕" },
   { to: "/merchants", label: "Merchants", icon: "🏪" },
   { to: "/recommend", label: "Recommendations", icon: "🎯" },
   { to: "/discovery", label: "Discovery", icon: "🔍" },
-] as const;
+  { to: "/purchases", label: "Purchases", icon: "🛒" },
+];
 
 export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
   return (
