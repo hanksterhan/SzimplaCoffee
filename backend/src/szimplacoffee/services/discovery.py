@@ -15,6 +15,48 @@ from ..models import Merchant, MerchantCandidate, MerchantQualityProfile, Mercha
 from .platforms import PlatformDetection, detect_platform, extract_domain, recommended_crawl_tier
 
 
+# ---------------------------------------------------------------------------
+# SC-53: Merchant registry tiers and inclusion thresholds
+# ---------------------------------------------------------------------------
+
+# Trust tiers for merchant registry
+TRUST_TIER_TRUSTED = "trusted"
+TRUST_TIER_VERIFIED = "verified"
+TRUST_TIER_CANDIDATE = "candidate"
+TRUST_TIER_REJECTED = "rejected"
+
+# Crawl tiers for crawl frequency
+CRAWL_TIER_A = "A"  # High-value: crawled every 6h
+CRAWL_TIER_B = "B"  # Promising: crawled every 24h
+CRAWL_TIER_C = "C"  # Long-tail: crawled every 7d
+CRAWL_TIER_D = "D"  # Excluded: not auto-crawled
+
+# Minimum trust tiers included in buying views (recommendations / Today)
+BUYING_VIEW_TRUSTED_TIERS = {TRUST_TIER_TRUSTED, TRUST_TIER_VERIFIED}
+
+# Trust tiers allowed in discovery and catalog browsing (not restricted)
+CATALOG_VIEW_TIERS = {TRUST_TIER_TRUSTED, TRUST_TIER_VERIFIED, TRUST_TIER_CANDIDATE}
+
+# Minimum quality score a merchant needs for inclusion in buying recommendations
+BUYING_QUALITY_FLOOR = 0.4  # overall_quality_score
+
+# Crawl quality floor for "reliable data" badge
+CRAWL_QUALITY_RELIABLE_FLOOR = 0.7
+
+
+def meets_buying_threshold(merchant: Merchant) -> bool:
+    """Return True if a merchant is eligible to appear in buying recommendations."""
+    if not merchant.is_active:
+        return False
+    if merchant.trust_tier not in CATALOG_VIEW_TIERS:
+        return False
+    if merchant.crawl_tier == CRAWL_TIER_D:
+        return False
+    if merchant.quality_profile:
+        return merchant.quality_profile.overall_quality_score >= BUYING_QUALITY_FLOOR
+    return True  # no profile yet → assume eligible (optimistic for new merchants)
+
+
 DISCOVERY_QUERIES = [
     "specialty coffee roaster united states",
     "single origin coffee roaster usa",

@@ -1,6 +1,13 @@
 {
   "entries": [
     {
+      "id": "SC-53-top-500-merchant-registry",
+      "path": ".memory/sprint-01/SC-53-top-500-merchant-registry.md",
+      "ticket": "SC-53",
+      "title": "Top-500 merchant registry with trust thresholds",
+      "date": "2026-03-15"
+    },
+    {
       "id": "SC-52-daily-utility-views",
       "path": ".memory/sprint-01/SC-52-daily-utility-views.md",
       "ticket": "SC-52",

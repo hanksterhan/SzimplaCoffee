@@ -15,6 +15,7 @@ from ..models import MerchantPromo
 from ..services.crawlers import crawl_merchant
 from ..services.platforms import detect_platform, recommended_crawl_tier
 from ..services.quality_scorer import score_merchant
+from ..services.discovery import meets_buying_threshold, BUYING_QUALITY_FLOOR, BUYING_VIEW_TRUSTED_TIERS, CATALOG_VIEW_TIERS
 
 router = APIRouter(prefix="/merchants", tags=["merchants"])
 
@@ -256,6 +257,31 @@ def list_low_confidence_merchants(
         .limit(page_size)
     ).all()
     return [MerchantSummary.model_validate(m) for m in merchants]
+
+
+@router.get("/registry-summary", response_model=dict)
+def get_registry_summary(
+    db: Session = Depends(get_session),
+) -> dict:
+    """SC-53: Registry health summary — tier distribution, buying-eligible count."""
+    all_merchants = db.scalars(select(Merchant).where(Merchant.is_active.is_(True))).all()
+    tier_dist: dict[str, int] = {}
+    trust_dist: dict[str, int] = {}
+    buying_eligible = 0
+    for m in all_merchants:
+        tier_dist[m.crawl_tier] = tier_dist.get(m.crawl_tier, 0) + 1
+        trust_dist[m.trust_tier] = trust_dist.get(m.trust_tier, 0) + 1
+        if meets_buying_threshold(m):
+            buying_eligible += 1
+    return {
+        "total_active": len(all_merchants),
+        "buying_eligible": buying_eligible,
+        "crawl_tier_distribution": tier_dist,
+        "trust_tier_distribution": trust_dist,
+        "buying_quality_floor": BUYING_QUALITY_FLOOR,
+        "buying_trust_tiers": sorted(BUYING_VIEW_TRUSTED_TIERS),
+        "catalog_trust_tiers": sorted(CATALOG_VIEW_TIERS),
+    }
 
 
 @router.get("/watchlist", response_model=list[MerchantSummary])

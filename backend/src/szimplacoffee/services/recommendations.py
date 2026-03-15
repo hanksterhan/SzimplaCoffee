@@ -19,6 +19,7 @@ from ..models import (
     ShippingPolicy,
     VariantDealFact,
 )
+from .discovery import meets_buying_threshold
 
 
 QuantityMode = Literal["12-18 oz", "2 lb", "5 lb", "any"]
@@ -512,6 +513,9 @@ def build_biggest_sales(session: Session, limit: int = 10) -> list[BiggestSaleCa
     products = session.scalars(select(Product).where(Product.is_active.is_(True)).order_by(Product.name.asc())).all()
     for product in products:
         merchant = product.merchant
+        # SC-53: exclude merchants below buying threshold
+        if not meets_buying_threshold(merchant):
+            continue
         merchant_quality = _merchant_quality_score(merchant)
         if merchant_quality < 0.65:
             continue
@@ -577,6 +581,9 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
 
     for product in products:
         merchant = product.merchant
+        # SC-53: exclude merchants below buying threshold from recommendations
+        if not meets_buying_threshold(merchant):
+            continue
         merchant_score = _merchant_score_with_shot_style(merchant, request.shot_style)
         shipping_policy = _latest_shipping_policy(session, merchant.id)
         history_score, history_reasons = _history_fit(product, merchant, prefs, request.allow_decaf)

@@ -209,6 +209,37 @@ The recommendation engine uses weighted scoring across 8 dimensions:
 - `deal_score` — current price vs. history, promos, bulk value
 - `inventory_fit_score` — bag size match to requested quantity
 
+## Merchant Registry and Top-500 Rollout Policy
+
+SzimplaCoffee maintains a deliberate merchant registry with trust tiers and crawl cadences.
+
+### Trust Tiers
+| Tier | Value | Crawl Cadence | Appears in Buying Views |
+|------|-------|---------------|------------------------|
+| A | `trusted` / `verified` | Every 6h | Yes |
+| B | `candidate` | Every 24h | Yes (if quality floor met) |
+| C | `candidate` | Every 7d | Catalog only |
+| D | `rejected` | Never auto-crawled | No |
+
+### Inclusion Threshold for Buying Views
+- `trust_tier` ∈ {trusted, verified, candidate}
+- `crawl_tier` ≠ D
+- `overall_quality_score ≥ 0.4` (when a quality profile exists)
+
+### API Endpoints
+- `GET /api/v1/merchants/registry-summary` — tier distribution and buying-eligible count
+- `GET /api/v1/merchants/low-confidence` — merchants needing crawl quality review
+- `GET /api/v1/merchants/watchlist` — personal watch list
+- `GET /api/v1/merchants/{id}/crawl-quality` — per-merchant crawl strategy and quality score
+
+### Coverage Growth Path
+1. Add Tier A/B merchants from `SzimplaCoffee/brain/merchants/top-500-seed.md`
+2. Crawl and review quality automatically
+3. Promote candidates to trusted after verified orders or strong crawl quality
+4. Reject merchants with persistent failures or no espresso relevance
+
+See `SzimplaCoffee/brain/backlog/now-next-later.md` for current priorities.
+
 ## Contributing
 
 This is a personal tool, but the architecture supports extension. Key conventions:
