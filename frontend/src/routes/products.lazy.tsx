@@ -524,12 +524,6 @@ function ProductsPage() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {selectedMerchants.slice(0, 3).map((merchant) => (
-              <Badge key={merchant} variant="secondary">{merchant}</Badge>
-            ))}
-            {selectedMerchants.length > 3 && (
-              <Badge variant="secondary">+{selectedMerchants.length - 3} merchants</Badge>
-            )}
             {inputValue && (
               <Button
                 variant="outline"
