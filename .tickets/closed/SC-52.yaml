@@ -2,10 +2,10 @@ id: "SC-52"
 title: "Build daily utility views for Today, Explorer, Watch, and Review Queue"
 type: "feature"
 priority: "p1"
-status: "draft"
+status: "done"
 owner: "h6nk-bot"
 created_at: "2026-03-15T07:00:00Z"
-updated_at: "2026-03-15T07:00:00Z"
+updated_at: "2026-03-15T17:00:00Z"
 labels:
   - "feature"
   - "e2e"
@@ -34,17 +34,17 @@ acceptance_criteria:
     id: "AC-1"
     text: "A Today dashboard answers daily buying questions using backend-truthful deal and freshness data."
     verify: "cd frontend && npm run build"
-    status: "pending"
+    status: "complete"
   -
     id: "AC-2"
     text: "Explorer, Watch, and Review surfaces render the new backend state without regressing the current catalog experience."
     verify: "cd frontend && npm run build"
-    status: "pending"
+    status: "complete"
   -
     id: "AC-3"
     text: "The main daily decision flow can be exercised from the app surface without ad hoc DB inspection."
     verify: "bash -lc \"cd backend && . .venv/bin/activate && pytest -q && cd ../frontend && npm run build\""
-    status: "pending"
+    status: "complete"
 verification_required:
   - "cd backend && . .venv/bin/activate && pytest -q"
   - "cd frontend && npm run build"
@@ -56,45 +56,63 @@ slices:
   -
     id: "S1"
     title: "Build Today dashboard and utility endpoints"
-    status: "pending"
+    status: "complete"
     depends_on: []
-    files_create: []
+    files_create:
+      - "frontend/src/routes/today.tsx"
+      - "frontend/src/routes/today.lazy.tsx"
+      - "frontend/src/hooks/use-today.ts"
     files_modify:
       - "backend/src/szimplacoffee/api/recommendations.py"
-      - "frontend/src/routes/"
-      - "frontend/src/hooks/"
+      - "frontend/src/routeTree.gen.ts"
+      - "frontend/src/components/layout/Sidebar.tsx"
     files_read_only:
       - "backend/src/szimplacoffee/services/recommendations.py"
     checks:
       - "cd frontend && npm run build"
-    evidence: []
+    evidence:
+      - "GET /api/v1/recommendations/today endpoint returns top pick + alternatives + notable sales"
+      - "/today route renders with shot style and bag size selectors"
+      - "Frontend build passes (tsc -b and vite build)"
     notes: "Optimize for what should I buy today first."
   -
     id: "S2"
     title: "Add watch and review surfaces for crawl and metadata trust"
-    status: "pending"
+    status: "complete"
     depends_on:
       - "S1"
-    files_create: []
+    files_create:
+      - "frontend/src/routes/watch.tsx"
+      - "frontend/src/routes/watch.lazy.tsx"
+      - "frontend/src/hooks/use-watchlist.ts"
     files_modify:
-      - "frontend/src/routes/"
-      - "frontend/src/components/"
       - "backend/src/szimplacoffee/api/merchants.py"
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/schemas/merchants.py"
     files_read_only:
       - "backend/src/szimplacoffee/services/crawlers.py"
     checks:
       - "cd frontend && npm run build"
-    evidence: []
+    evidence:
+      - "is_watched field on Merchant model"
+      - "GET /watchlist, POST/DELETE /{id}/watch endpoints"
+      - "/watch route with Watchlist and Review Queue tabs"
+      - "72 backend tests pass"
     notes: "Keep the review queue actionable rather than purely informational."
 delivery:
   branch: "feat/SC-52-daily-utility-views"
   commits: []
   pr_url: ""
-  started_at: ""
-  completed_at: ""
+  started_at: "2026-03-15T16:40:00Z"
+  completed_at: "2026-03-15T17:00:00Z"
   verification:
-    required_passed: false
-    commands_run: []
-    evidence_refs: []
+    required_passed: true
+    commands_run:
+      - "pytest -q  # 72 passed"
+      - "uvx ruff check src tests  # All checks passed"
+      - "npx vite build  # built in 4.86s"
+      - "npx tsc -b  # no errors"
+    evidence_refs:
+      - ".memory/sprint-01/SC-52-daily-utility-views.md"
 notes:
   - "Generated from .plans/next-steps-march15.md in strict-schema migration batch."
