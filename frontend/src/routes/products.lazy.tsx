@@ -453,10 +453,7 @@ function ProductsPage() {
                       onCheckedChange={() => setCategories((current) => toggleCategory(current, option.value))}
                       onSelect={(event) => event.preventDefault()}
                     >
-                      <div className="flex items-center justify-between w-full gap-3">
-                        <span>{option.label}</span>
-                        {checked && <Check className="h-4 w-4 text-green-600" />}
-                      </div>
+                      <span>{option.label}</span>
                     </DropdownMenuCheckboxItem>
                   );
                 })}
@@ -486,10 +483,7 @@ function ProductsPage() {
                         onCheckedChange={() => setSelectedMerchants((current) => toggleMerchant(current, merchant))}
                         onSelect={(event) => event.preventDefault()}
                       >
-                        <div className="flex items-center justify-between w-full gap-3">
-                          <span className="truncate">{merchant}</span>
-                          {checked && <Check className="h-4 w-4 text-green-600" />}
-                        </div>
+                        <span className="truncate">{merchant}</span>
                       </DropdownMenuCheckboxItem>
                     );
                   })
