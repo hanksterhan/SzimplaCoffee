@@ -10,11 +10,12 @@ Use this file as the primary instruction file for agentic coding work in this re
 
 ## Tech Stack
 
-- **Backend:** Python 3.12+ / FastAPI / Jinja2 / HTMX
+- **Backend:** Python 3.12+ / FastAPI / SQLAlchemy 2 / Pydantic schemas / SPA asset serving
+- **Frontend:** React 19 / Vite / TanStack Router / TanStack Query / Tailwind CSS v4 / shadcn/ui
 - **Data:** SQLite + WAL + FTS5 / SQLAlchemy 2 / Alembic
-- **Crawling:** Crawlee for Python (BeautifulSoup → Adaptive Playwright → full browser fallback)
+- **Crawling:** Adapter-based crawling and discovery, Shopify / WooCommerce / static HTML first
 - **Scheduling:** APScheduler
-- **Tooling:** uv, ruff, pytest
+- **Tooling:** uv, ruff, pytest, npm, TypeScript
 - **CLI:** `szimpla` entrypoint via `backend/src/szimplacoffee/cli.py`
 
 ## Project Layout
@@ -23,29 +24,61 @@ Use this file as the primary instruction file for agentic coding work in this re
 backend/                 # Python backend (FastAPI)
   pyproject.toml         # Python project config
   src/szimplacoffee/     # Application source
-    main.py              # FastAPI app + routes
+    api/                 # JSON API routes under /api/v1
+    schemas/             # Pydantic response models
+    services/            # Crawlers, discovery, parser, scoring, scheduler
+    main.py              # FastAPI app + API + SPA serving
     cli.py               # CLI entrypoint
     config.py            # Configuration
     db.py                # SQLAlchemy engine/session
-    models.py            # SQLAlchemy models
+    models.py            # SQLAlchemy models (15 primary tables)
     bootstrap.py         # Seed data
-    services/
-      crawlers.py        # Adapter-based crawling
-      discovery.py       # Merchant discovery
-      platforms.py       # Platform detection
-      recommendations.py # Scoring engine
-    templates/           # Jinja2 templates
-    static/              # CSS/JS
   tests/                 # pytest tests
-frontend/                # Frontend scaffold / SPA
+frontend/                # React SPA
+  package.json           # Frontend scripts and dependencies
+  src/
+    routes/              # TanStack Router file-based routes
+    hooks/               # TanStack Query hooks
+    components/          # UI and domain components
+    api/                 # Typed API client and generated schema
+  public/                # Static assets
+  dist/                  # Production build served by FastAPI when present
 data/                    # Shared data (DB lives here)
   szimplacoffee.db       # SQLite database
 scripts/
   dev.sh                 # Start dev environment
+.tickets/                # Local ticket system
+.plans/                  # Execution plans
+.memory/                 # Delivery memory
 SzimplaCoffee/           # Second brain (see below)
 north-star.md            # Product vision (read-only reference)
 comprehensive-plan.md    # Architecture plan (read-only reference)
 ```
+
+## Current Product Surface
+
+- The primary UI is now a React SPA, not the earlier server-rendered shell.
+- FastAPI mounts `/api/v1`, preserves a few legacy form endpoints for compatibility, and serves `frontend/dist` in production.
+- The SPA currently covers dashboard, merchants, merchant detail, add merchant, products, product detail, recommendations, discovery, and purchases.
+- The frontend data layer uses generated API types in `frontend/src/api/schema.d.ts` and shared query hooks in `frontend/src/hooks/`.
+
+## API Surface
+
+- `dashboard`: summary metrics for the landing dashboard.
+- `merchants`: list, detail, create, crawl trigger, crawl status/history, quality refresh, merchant promos.
+- `products`: merchant catalog listing and global product search with cursor pagination.
+- `recommendations`: create recommendation runs, list saved runs, inspect a run.
+- `discovery`: list candidates, run discovery, promote, reject.
+- `crawl`: inspect due work, inspect schedule, trigger scheduled crawls.
+- `history`: purchases CRUD, purchase stats, brew feedback create/list.
+
+## Data Model Surface
+
+- Merchant registry: `Merchant`, `MerchantCandidate`, `MerchantSource`.
+- Merchant scoring and logistics: `MerchantQualityProfile`, `MerchantPersonalProfile`, `ShippingPolicy`.
+- Catalog and pricing history: `Product`, `ProductVariant`, `OfferSnapshot`, `PromoSnapshot`, `MerchantPromo`.
+- Learning loop and operations: `PurchaseHistory`, `BrewFeedback`, `CrawlRun`, `RecommendationRun`.
+- Treat offer and promo history as append-only observed state, not mutable current truth.
 
 ## Agent Working Rules
 
@@ -93,22 +126,30 @@ comprehensive-plan.md    # Architecture plan (read-only reference)
 ## Commands
 
 ```bash
-# Run the web app (from backend/)
+# Run the backend API and production SPA server (from backend/)
 cd backend && uvicorn szimplacoffee.main:app --reload
 
-# Or use dev script
+# Run backend + frontend dev servers
 ./scripts/dev.sh
+
+# Frontend dev server
+cd frontend && npm run dev
 
 # Run CLI (from backend/)
 cd backend && szimpla merchant add <url>
 cd backend && szimpla crawl merchant <id>
 cd backend && szimpla recommend
 
-# Tests (from backend/)
+# Backend tests and lint (from backend/)
 cd backend && pytest tests/
-
-# Lint (from backend/)
 cd backend && ruff check src/ tests/
+
+# Frontend checks (from frontend/)
+cd frontend && npx tsc -b
+cd frontend && npm run build
+
+# Regenerate frontend API types (backend must be running)
+cd frontend && npm run gen:api
 ```
 
 ## Agentic Engineering Pipeline
@@ -224,7 +265,7 @@ After completing a ticket or discovering something important during implementati
 1. Write a memory file: `.memory/sprint-NN/SC-N-<slug>.md`
 2. Update `.memory/index.json` to add the entry
 
-Memory captures what was learned, what failed, and what to remember — beyond what git history shows.
+Memory captures what was learned, what failed, and what to remember, beyond what git history shows.
 
 See `.memory/README.md` for format and rules.
 
@@ -236,12 +277,10 @@ After any meaningful work session:
 3. If an architecture decision was made, create `SzimplaCoffee/brain/decisions/NNN-<title>.md`
 4. If merchant-specific intel was gathered, update `SzimplaCoffee/brain/merchant-intel/<merchant>.md`
 
-## Current State (as of 2026-03-08)
+## Current State (as of 2026-03-15)
 
-- 5 merchants, 111 products, 351 variants, 1451 offer snapshots
-- Shopify + WooCommerce adapters working
-- Recommendation engine functional with weighted scoring
-- Web UI renders dashboard, merchant detail, discovery, recommendations
-- Notion import is seeded, not fully integrated
-- Browser fallback not wired up yet
-- Promo false-positive suppression needs improvement
+- React SPA is the primary UI, with FastAPI serving the built app in production.
+- The backend exposes a broader `/api/v1` surface covering dashboard, merchants, products, recommendations, discovery, crawl scheduling, purchases, and brew feedback.
+- The SQLAlchemy model surface currently spans 15 primary tables, including crawl runs and persisted recommendation runs.
+- The local delivery system is active and should be treated as part of normal repo operation: `.tickets/`, `.plans/`, `.memory/`, and `SzimplaCoffee/brain/`.
+- Recommendation scoring, discovery review flow, purchase logging, and price history are already part of the implemented app surface.
