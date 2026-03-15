@@ -1,11 +1,37 @@
 {
   "name": "szimplacoffee-frontend",
   "private": true,
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "generate-api-types": "../scripts/generate-api-types.sh"
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "gen:api": "openapi-typescript http://localhost:8000/openapi.json -o src/api/schema.d.ts"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-router": "^1.167.0",
+    "openapi-fetch": "^0.17.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
-    "openapi-typescript": "^7.0.0"
+    "@eslint/js": "^9.39.4",
+    "@tailwindcss/vite": "^4.0.0",
+    "@tanstack/react-query-devtools": "^5.0.0",
+    "@tanstack/router-vite-plugin": "^1.0.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.0.0",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.4.0",
+    "openapi-typescript": "^7.0.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "~5.6.0",
+    "typescript-eslint": "^8.56.1",
+    "vite": "^6.3.5"
   }
 }
