@@ -14,3 +14,4 @@ Verification completed:
 - `cd backend && ../.venv/bin/ruff check src/szimplacoffee/services/coffee_parser.py src/szimplacoffee/services/crawlers.py src/szimplacoffee/models.py tests/test_coffee_parser.py`
 - `cd backend && ../.venv/bin/pytest -q`
 - `cd backend && ../.venv/bin/ruff check src tests`
+- draft PR opened at `https://github.com/hanksterhan/SzimplaCoffee/pull/4`

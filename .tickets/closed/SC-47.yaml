@@ -85,10 +85,11 @@ slices:
     notes: "Prefer explicit provenance over silent overwrite behavior."
 delivery:
   branch: "codex/sc-47-metadata-extraction-upgrade"
-  commits: []
-  pr_url: ""
+  commits:
+    - "7a233ed2fbdba13c773b8fcb177f36d8e6bf0b06"
+  pr_url: "https://github.com/hanksterhan/SzimplaCoffee/pull/4"
   started_at: "2026-03-15T20:05:34Z"
-  completed_at: "2026-03-15T20:12:42Z"
+  completed_at: "2026-03-15T20:14:10Z"
   verification:
     required_passed: true
     commands_run:
