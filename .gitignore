@@ -20,6 +20,10 @@ dist/
 build/
 *.tsbuildinfo
 
+# Generated API types (regenerate with scripts/generate-api-types.sh)
+frontend/openapi.json
+frontend/src/api/schema.d.ts
+
 # Misc
 instance/
 .DS_Store

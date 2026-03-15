@@ -1,0 +1,11 @@
+{
+  "name": "szimplacoffee-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate-api-types": "../scripts/generate-api-types.sh"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.0.0"
+  }
+}
