@@ -16,6 +16,7 @@ from ..models import (
     RecommendationRun,
 )
 from ..schemas.dashboard import DashboardMetrics
+from ..services.scheduler import get_merchants_due_for_crawl
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -32,6 +33,7 @@ def get_dashboard_metrics(db: Session = Depends(get_session)) -> DashboardMetric
     crawl_run_count = db.scalar(func.count(CrawlRun.id)) or 0
     recommendation_count = db.scalar(func.count(RecommendationRun.id)) or 0
     last_crawl_at = db.scalar(select(func.max(CrawlRun.started_at)))
+    merchants_due_for_crawl = len(get_merchants_due_for_crawl(db))
 
     return DashboardMetrics(
         merchant_count=merchant_count,
@@ -42,4 +44,5 @@ def get_dashboard_metrics(db: Session = Depends(get_session)) -> DashboardMetric
         crawl_run_count=crawl_run_count,
         recommendation_count=recommendation_count,
         last_crawl_at=last_crawl_at,
+        merchants_due_for_crawl=merchants_due_for_crawl,
     )

@@ -14,6 +14,7 @@ from ..schemas.promos import MerchantPromoSchema
 from ..models import MerchantPromo
 from ..services.crawlers import crawl_merchant
 from ..services.platforms import detect_platform, recommended_crawl_tier
+from ..services.quality_scorer import score_merchant
 
 router = APIRouter(prefix="/merchants", tags=["merchants"])
 
@@ -164,6 +165,29 @@ def list_crawl_runs(merchant_id: int, db: Session = Depends(get_session)) -> lis
         .limit(50)
     ).all()
     return [CrawlRunSchema.model_validate(r) for r in runs]
+
+
+@router.post("/{merchant_id}/refresh-quality", response_model=dict)
+def refresh_quality(
+    merchant_id: int,
+    db: Session = Depends(get_session),
+) -> dict:
+    """SC-32: Re-compute and upsert quality profile for a single merchant."""
+    merchant = db.get(Merchant, merchant_id)
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+    profile = score_merchant(db, merchant)
+    db.commit()
+    return {
+        "merchant_id": merchant_id,
+        "overall_quality_score": profile.overall_quality_score,
+        "freshness_transparency_score": profile.freshness_transparency_score,
+        "shipping_clarity_score": profile.shipping_clarity_score,
+        "metadata_quality_score": profile.metadata_quality_score,
+        "espresso_relevance_score": profile.espresso_relevance_score,
+        "service_confidence_score": profile.service_confidence_score,
+        "last_reviewed_at": profile.last_reviewed_at.isoformat() if profile.last_reviewed_at else None,
+    }
 
 
 @router.get("/{merchant_id}/promos", response_model=list[MerchantPromoSchema])

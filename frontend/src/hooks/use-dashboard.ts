@@ -2,7 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/api/client";
 import type { components } from "@/api/schema";
 
-export type DashboardMetrics = components["schemas"]["DashboardMetrics"];
+export type DashboardMetrics = components["schemas"]["DashboardMetrics"] & {
+  /** SC-33: Number of merchants due for a crawl based on tier schedule */
+  merchants_due_for_crawl?: number;
+};
 
 export function useDashboard() {
   return useQuery({

@@ -13,3 +13,4 @@ class DashboardMetrics(BaseModel):
     crawl_run_count: int
     recommendation_count: int
     last_crawl_at: Optional[datetime]
+    merchants_due_for_crawl: int = 0
