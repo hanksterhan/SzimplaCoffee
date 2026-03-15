@@ -1,6 +1,34 @@
 {
   "entries": [
     {
+      "id": "SC-56-inventory-awareness",
+      "path": ".memory/sprint-01/SC-56-inventory-awareness.md",
+      "ticket": "SC-56",
+      "title": "Personal inventory awareness for recommendations",
+      "date": "2026-03-15"
+    },
+    {
+      "id": "SC-55-subscription-pricing",
+      "path": ".memory/sprint-01/SC-55-subscription-pricing.md",
+      "ticket": "SC-55",
+      "title": "Subscription pricing as first-class recommendation dimension",
+      "date": "2026-03-15"
+    },
+    {
+      "id": "SC-54-wait-recommendation-rationale",
+      "path": ".memory/sprint-01/SC-54-wait-recommendation-rationale.md",
+      "ticket": "SC-54",
+      "title": "Richer wait recommendation with rationale",
+      "date": "2026-03-15"
+    },
+    {
+      "id": "SC-53-top-500-merchant-registry",
+      "path": ".memory/sprint-01/SC-53-top-500-merchant-registry.md",
+      "ticket": "SC-53",
+      "title": "Top-500 merchant registry with trust thresholds",
+      "date": "2026-03-15"
+    },
+    {
       "id": "SC-52-daily-utility-views",
       "path": ".memory/sprint-01/SC-52-daily-utility-views.md",
       "ticket": "SC-52",

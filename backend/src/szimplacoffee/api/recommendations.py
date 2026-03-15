@@ -15,6 +15,7 @@ from ..services.recommendations import (
     RecommendationRequest,
     build_biggest_sales,
     build_recommendations,
+    build_wait_assessment,
     persist_recommendation_run,
 )
 
@@ -26,6 +27,7 @@ class RecommendationRequestPayload(BaseModel):
     quantity_mode: str = "12-18 oz"
     bulk_allowed: bool = False
     allow_decaf: bool = False
+    current_inventory_grams: int = 0  # SC-56
 
 
 class RecommendationCandidateOut(BaseModel):
@@ -47,6 +49,7 @@ class RecommendationResultResponse(BaseModel):
     top_result: Optional[RecommendationCandidateOut]
     alternatives: list[RecommendationCandidateOut]
     wait_recommendation: bool
+    wait_rationale: Optional[str] = None  # SC-54
     run_id: int
 
 
@@ -80,6 +83,7 @@ def create_recommendation(
         quantity_mode=payload.quantity_mode,  # type: ignore[arg-type]
         bulk_allowed=payload.bulk_allowed,
         allow_decaf=payload.allow_decaf,
+        current_inventory_grams=payload.current_inventory_grams,
     )
     candidates = build_recommendations(db, req)
     persist_recommendation_run(db, req, candidates)
@@ -92,11 +96,13 @@ def create_recommendation(
 
     top = candidates[0] if candidates else None
     alternatives = candidates[1:3]
+    wait, wait_rationale = build_wait_assessment(candidates, no_candidates=not bool(candidates), current_inventory_grams=payload.current_inventory_grams)
 
     return RecommendationResultResponse(
         top_result=RecommendationCandidateOut(**asdict(top)) if top else None,
         alternatives=[RecommendationCandidateOut(**asdict(a)) for a in alternatives],
-        wait_recommendation=not bool(candidates),
+        wait_recommendation=wait,
+        wait_rationale=wait_rationale,
         run_id=run.id if run else 0,
     )
 
@@ -120,6 +126,7 @@ def today_buying_brief(
     shot_style: str = Query("modern_58mm"),
     quantity_mode: str = Query("12-18 oz"),
     limit: int = Query(5, ge=1, le=20),
+    current_inventory_grams: int = Query(0, ge=0),
 ) -> dict:
     """SC-52: Return a Today buying brief — best current option + notable sales.
 
@@ -131,6 +138,7 @@ def today_buying_brief(
         quantity_mode=quantity_mode,  # type: ignore[arg-type]
         bulk_allowed=False,
         allow_decaf=False,
+        current_inventory_grams=current_inventory_grams,
     )
     candidates = build_recommendations(db, req)
     sales = build_biggest_sales(db, limit=limit)
@@ -138,14 +146,16 @@ def today_buying_brief(
     top = candidates[0] if candidates else None
     alternatives = candidates[1:3]
 
+    wait, wait_rationale = build_wait_assessment(candidates, no_candidates=not bool(candidates), current_inventory_grams=current_inventory_grams)
     return {
-        "has_recommendation": bool(top),
+        "has_recommendation": bool(top) and not wait,
         "top_pick": asdict(top) if top else None,
         "alternatives": [asdict(a) for a in alternatives],
         "notable_sales": [asdict(s) for s in sales[:limit]],
         "shot_style": shot_style,
         "quantity_mode": quantity_mode,
-        "wait_recommendation": not bool(candidates),
+        "wait_recommendation": wait,
+        "wait_rationale": wait_rationale,
     }
 
 

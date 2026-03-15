@@ -1,0 +1,73 @@
+id: "SC-54"
+title: "Richer 'wait' recommendation with actionable rationale"
+type: "feature"
+priority: "p1"
+status: "done"
+owner: "h6nk-bot"
+created_at: "2026-03-15T17:45:00Z"
+updated_at: "2026-03-15T17:45:00Z"
+labels:
+  - "feature"
+  - "recommendations"
+  - "backend"
+  - "frontend"
+problem: "The wait_recommendation field is a boolean that only triggers when there are zero candidates. The north-star says the product must be allowed to say wait with a reason — not just a zero-candidates fallback."
+desired_outcome: "The system generates a wait recommendation with an explicit rationale when options are below the quality floor, when the best option is borderline, or when a known sale window is approaching."
+scope_in:
+  - "wait_recommendation can trigger even when candidates exist (e.g., all below quality floor)."
+  - "wait_rationale field explains why to wait (e.g., 'best current option scores below 0.5 — check back after next crawl cycle')."
+  - "Today page surfaces the rationale when wait is recommended."
+scope_out:
+  - "Predictive sale forecasting (requires weeks of price history)."
+  - "Email or push alerts when a sale is detected."
+acceptance_criteria:
+  -
+    id: "AC-1"
+    text: "wait_recommendation triggers when best candidate score falls below a configurable threshold."
+    verify: "cd backend && . .venv/bin/activate && pytest -q"
+    status: "pending"
+  -
+    id: "AC-2"
+    text: "A wait_rationale string explains the reason for the wait recommendation."
+    verify: "cd backend && . .venv/bin/activate && pytest -q"
+    status: "pending"
+  -
+    id: "AC-3"
+    text: "Today page shows wait rationale when wait_recommendation is true."
+    verify: "cd frontend && npm run build"
+    status: "pending"
+verification_required:
+  - "cd backend && . .venv/bin/activate && pytest -q"
+  - "cd backend && . .venv/bin/activate && ruff check src tests"
+  - "cd frontend && npm run build"
+context_refs:
+  - ".plans/SC-54-execution-plan.md"
+slices:
+  -
+    id: "S1"
+    title: "Add wait_rationale to recommendation result and today endpoint"
+    status: "pending"
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/recommendations.py"
+      - "backend/src/szimplacoffee/api/recommendations.py"
+      - "frontend/src/routes/today.lazy.tsx"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && . .venv/bin/activate && pytest -q"
+    evidence: []
+    notes: "Keep it simple — score threshold + plain-English rationale string."
+delivery:
+  branch: "feat/SC-54-wait-recommendation-rationale"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+notes:
+  - "Gap analysis ticket created after SC-53 delivery."
