@@ -1,0 +1,49 @@
+{
+  "active_context": [
+    {
+      "order": 3,
+      "path": "_index.md",
+      "tokens": 428,
+      "type": "summary"
+    },
+    {
+      "order": 2,
+      "path": "project_management/_index.md",
+      "tokens": 438,
+      "type": "summary"
+    },
+    {
+      "order": 1,
+      "path": "project_management/sprints/_index.md",
+      "tokens": 369,
+      "type": "summary"
+    },
+    {
+      "importance": 50,
+      "path": "project_management/context.md",
+      "tokens": 75,
+      "type": "context"
+    },
+    {
+      "importance": 50,
+      "path": "project_management/sprints/context.md",
+      "tokens": 49,
+      "type": "context"
+    },
+    {
+      "importance": 50,
+      "path": "project_management/sprints/sprint_2_planning.md",
+      "tokens": 441,
+      "type": "context"
+    }
+  ],
+  "generated_at": "2026-03-15T01:29:39.652Z",
+  "lane_tokens": {
+    "contexts": 565,
+    "stubs": 0,
+    "summaries": 1235
+  },
+  "source_fingerprint": "8e652557f0d8eb56178df6b9e11139621fc0d6e3d75ad14fe1d9326b99cc1cc3",
+  "total_tokens": 1800,
+  "version": 1
+}

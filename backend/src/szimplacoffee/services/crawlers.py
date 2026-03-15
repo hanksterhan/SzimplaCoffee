@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models import CrawlRun, Merchant, MerchantPromo, OfferSnapshot, Product, ProductVariant, PromoSnapshot, ShippingPolicy
+from .coffee_parser import parse_coffee_metadata
 
 USER_AGENT = "SzimplaCoffeeBot/0.1 (+local-first research utility)"
 
@@ -328,6 +329,32 @@ def _is_coffee_product(name: str, product_type: str = "", tags: Iterable[str] | 
             "filter",
         ]
     )
+
+
+def _enrich_payload_with_parser(payload: dict, name: str, description: str) -> dict:
+    """Run the coffee metadata parser and fill payload gaps.
+
+    The parser output is only applied when the crawler's heuristics left a
+    field empty, so hand-structured descriptions (Origin: X labels) still
+    take priority.
+    """
+    parsed = parse_coffee_metadata(name, description)
+    if not payload.get("origin_text") and parsed.origin_text:
+        payload["origin_text"] = parsed.origin_text
+    if not payload.get("process_text") and parsed.process_text:
+        payload["process_text"] = parsed.process_text
+    if not payload.get("variety_text") and parsed.variety_text:
+        payload["variety_text"] = parsed.variety_text
+    if not payload.get("roast_cues") and parsed.roast_cues:
+        payload["roast_cues"] = parsed.roast_cues
+    if not payload.get("tasting_notes_text") and parsed.tasting_notes_text:
+        payload["tasting_notes_text"] = parsed.tasting_notes_text
+    # Flags: parser wins if crawler left defaults
+    if not payload.get("is_single_origin"):
+        payload["is_single_origin"] = parsed.is_single_origin
+    if not payload.get("is_espresso_recommended"):
+        payload["is_espresso_recommended"] = parsed.is_espresso_recommended
+    return payload
 
 
 def _upsert_product(session: Session, merchant: Merchant, external_product_id: str, payload: dict) -> Product:
@@ -756,12 +783,10 @@ def _crawl_shopify(session: Session, merchant: Merchant) -> CrawlSummary:
                 continue
 
             text = _clean_text(raw.get("body_html", ""))
-            product = _upsert_product(
-                session,
-                merchant,
-                str(raw["id"]),
+            product_name = _normalize_product_name(raw.get("title", "Unnamed Coffee"))
+            shopify_payload = _enrich_payload_with_parser(
                 {
-                    "name": _normalize_product_name(raw.get("title", "Unnamed Coffee")),
+                    "name": product_name,
                     "product_url": f"{root_url}/products/{raw.get('handle', '')}",
                     "image_url": _normalize_asset_url((raw.get("image") or {}).get("src") or ((raw.get("images") or [{}])[0].get("src") or "")),
                     "origin_text": _extract_field(text, "Origin"),
@@ -772,6 +797,14 @@ def _crawl_shopify(session: Session, merchant: Merchant) -> CrawlSummary:
                     "is_single_origin": _normalize_single_origin_flag(raw.get("title", ""), tags, text),
                     "is_espresso_recommended": "espresso" in " ".join(tags).lower() or "recommended for espresso" in text.lower(),
                 },
+                product_name,
+                raw.get("body_html", ""),
+            )
+            product = _upsert_product(
+                session,
+                merchant,
+                str(raw["id"]),
+                shopify_payload,
             )
             session.flush()
             records_written += 1
@@ -1039,10 +1072,7 @@ def _crawl_agentic_catalog(
             image_url = ""
 
         external_product_id = str(ld_product.get("productID") or urlparse(product_url).path.rstrip("/"))
-        product = _upsert_product(
-            session,
-            merchant,
-            external_product_id,
+        agentic_payload = _enrich_payload_with_parser(
             {
                 "name": product_name,
                 "product_url": product_url,
@@ -1055,6 +1085,14 @@ def _crawl_agentic_catalog(
                 "is_single_origin": _normalize_single_origin_flag(product_name, [], combined_context),
                 "is_espresso_recommended": "espresso" in combined_context.lower(),
             },
+            product_name,
+            combined_context,
+        )
+        product = _upsert_product(
+            session,
+            merchant,
+            external_product_id,
+            agentic_payload,
         )
         session.flush()
         records_written += 1
@@ -1132,12 +1170,10 @@ def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
                 if first_intro_token and "masl" in first_intro_token.lower():
                     first_intro_token = ""
 
-                product = _upsert_product(
-                    session,
-                    merchant,
-                    str(raw["id"]),
+                woo_product_name = _normalize_product_name(raw.get("name", "Unnamed Coffee"))
+                woo_payload = _enrich_payload_with_parser(
                     {
-                        "name": _normalize_product_name(raw.get("name", "Unnamed Coffee")),
+                        "name": woo_product_name,
                         "product_url": product_url,
                         "image_url": ((raw.get("images") or [{}])[0].get("src") or ""),
                         "origin_text": _extract_field(description, "Origin") or _merge_origin_and_site(inferred_origin, first_intro_token),
@@ -1148,6 +1184,14 @@ def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
                         "is_single_origin": _normalize_single_origin_flag(raw.get("name", ""), [], combined_context, categories),
                         "is_espresso_recommended": "espresso" in combined_context.lower(),
                     },
+                    woo_product_name,
+                    combined_context,
+                )
+                product = _upsert_product(
+                    session,
+                    merchant,
+                    str(raw["id"]),
+                    woo_payload,
                 )
                 session.flush()
                 records_written += 1
