@@ -1,10 +1,23 @@
-import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { createLazyFileRoute, Link } from "@tanstack/react-router";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useProductSearch, type ProductSummary } from "@/hooks/use-products";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  useProduct,
+  useProductSearch,
+  type ProductDetail,
+  type ProductSummary,
+} from "@/hooks/use-products";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
 
 export const Route = createLazyFileRoute("/products")({
@@ -20,36 +33,70 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
-function EspressoBadge() {
-  return (
-    <Badge className="bg-amber-900 text-amber-100 text-xs px-1.5 py-0 h-5">
-      ☕ Espresso
-    </Badge>
-  );
-}
+type ProductCardSummary = ProductSummary & {
+  latest_price_cents?: number | null;
+  primary_weight_grams?: number | null;
+  primary_is_whole_bean?: boolean;
+};
+
+const CATEGORY_OPTIONS = [
+  { value: "coffee", label: "☕ Coffee Beans" },
+  { value: "cold_brew", label: "🧊 Cold Brew" },
+  { value: "instant", label: "⚡ Instant" },
+  { value: "gift", label: "🎁 Gift / Subscription" },
+  { value: "merch", label: "👕 Merch" },
+  { value: "equipment", label: "⚙️ Equipment" },
+  { value: "tea", label: "🍵 Tea" },
+  { value: "all", label: "🌐 All Categories" },
+] as const;
 
 function formatPrice(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-function ProductCard({ product }: { product: ProductSummary }) {
-  const navigate = useNavigate();
-  const latestOffer = product as ProductSummary & {
-    latest_price_cents?: number;
-    latest_offer?: { price_cents: number };
-  };
+function formatWeight(grams: number | null | undefined) {
+  if (!grams) return null;
+  const ounces = grams / 28.3495;
+  if (ounces >= 16) {
+    return `${(ounces / 16).toFixed(1)} lb`;
+  }
+  return `${Math.round(ounces)} oz`;
+}
+
+function buildTags(product: Pick<ProductDetail, "product_category" | "origin_text" | "process_text" | "variety_text" | "roast_cues" | "tasting_notes_text" | "is_single_origin" | "is_espresso_recommended">) {
+  const tags = [
+    product.product_category,
+    product.is_single_origin ? "single origin" : null,
+    product.is_espresso_recommended ? "espresso" : null,
+    product.origin_text || null,
+    product.process_text || null,
+    product.variety_text || null,
+    product.roast_cues || null,
+  ].filter(Boolean) as string[];
+
+  return Array.from(new Set(tags));
+}
+
+function toggleCategory(current: string[], value: string) {
+  if (value === "all") {
+    return ["all"];
+  }
+
+  const withoutAll = current.filter((item) => item !== "all");
+  const exists = withoutAll.includes(value);
+  const next = exists ? withoutAll.filter((item) => item !== value) : [...withoutAll, value];
+  return next.length > 0 ? next : ["coffee"];
+}
+
+function ProductCard({ product, onClick }: { product: ProductCardSummary; onClick: () => void }) {
+  const weightLabel = formatWeight(product.primary_weight_grams);
 
   return (
-    <div
-      className="rounded-lg border bg-card hover:shadow-md transition-all cursor-pointer overflow-hidden group flex flex-col"
-      onClick={() =>
-        navigate({
-          to: "/products/$productId",
-          params: { productId: String(product.id) },
-        })
-      }
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-left rounded-lg border bg-card hover:shadow-md transition-all overflow-hidden group flex flex-col w-full"
     >
-      {/* Image */}
       <div className="aspect-square bg-muted relative overflow-hidden">
         {product.image_url ? (
           <img
@@ -67,53 +114,36 @@ function ProductCard({ product }: { product: ProductSummary }) {
         )}
         {product.is_espresso_recommended && (
           <div className="absolute top-2 right-2">
-            <EspressoBadge />
+            <Badge className="bg-amber-900 text-amber-100 text-xs px-1.5 py-0 h-5">☕ Espresso</Badge>
           </div>
         )}
       </div>
 
-      {/* Info */}
-      <div className="p-3 space-y-1.5 flex-1 flex flex-col min-h-0">
-        <p className="font-semibold text-sm leading-tight line-clamp-2">{product.name}</p>
-        {product.merchant_name && (
-          <p className="text-xs text-muted-foreground/70 truncate">{product.merchant_name}</p>
-        )}
-
-        <div className="flex flex-wrap gap-1 overflow-hidden max-h-6">
-          {product.origin_text && (
-            <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 max-w-[100px] truncate block">
-              {product.origin_text}
-            </Badge>
-          )}
-          {product.process_text && (
-            <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5 max-w-[100px] truncate block">
-              {product.process_text}
-            </Badge>
+      <div className="p-3 space-y-2 flex-1 flex flex-col min-h-0">
+        <div className="space-y-1">
+          <p className="font-semibold text-sm leading-tight line-clamp-2">{product.name}</p>
+          {product.merchant_name && (
+            <p className="text-xs text-muted-foreground truncate">{product.merchant_name}</p>
           )}
         </div>
 
-        {product.tasting_notes_text && (
-          <p className="text-xs text-muted-foreground line-clamp-1">
-            {product.tasting_notes_text}
-          </p>
-        )}
-
-        <div className="flex items-center justify-between pt-1">
-          <span className="text-xs text-muted-foreground">
-            {product.is_active ? (
-              <span className="text-green-600 font-medium">● In stock</span>
+        <div className="mt-auto flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            {product.latest_price_cents ? (
+              <p className="font-bold text-sm text-amber-900">{formatPrice(product.latest_price_cents)}</p>
             ) : (
-              <span className="text-gray-400">● Unavailable</span>
+              <p className="text-sm text-muted-foreground">Price unavailable</p>
             )}
+            {product.primary_is_whole_bean && weightLabel && (
+              <p className="text-xs text-muted-foreground">{weightLabel}</p>
+            )}
+          </div>
+          <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+            {product.is_active ? "● In stock" : "● Unavailable"}
           </span>
-          {(latestOffer.latest_price_cents || latestOffer.latest_offer?.price_cents) && (
-            <span className="font-bold text-sm text-amber-900">
-              {formatPrice(latestOffer.latest_price_cents ?? latestOffer.latest_offer!.price_cents)}
-            </span>
-          )}
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -124,40 +154,152 @@ function ProductCardSkeleton() {
       <div className="p-3 space-y-2">
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3 w-1/2" />
-        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-1/3" />
       </div>
     </div>
   );
 }
 
-const CATEGORY_OPTIONS = [
-  { value: "coffee", label: "☕ Coffee Beans" },
-  { value: "cold_brew", label: "🧊 Cold Brew" },
-  { value: "instant", label: "⚡ Instant" },
-  { value: "gift", label: "🎁 Gift / Subscription" },
-  { value: "merch", label: "👕 Merch" },
-  { value: "equipment", label: "⚙️ Equipment" },
-  { value: "tea", label: "🍵 Tea" },
-  { value: "all", label: "🌐 All Categories" },
-];
+function ProductQuickView({ productId }: { productId: number | null }) {
+  const { data: product, isLoading } = useProduct(productId);
+
+  const cheapestVariant = useMemo(() => {
+    if (!product) return null;
+    const priced = product.variants.filter((variant) => variant.latest_offer);
+    if (priced.length === 0) return null;
+    const wholeBean = priced.filter((variant) => variant.is_whole_bean && variant.weight_grams);
+    const pool = wholeBean.length > 0 ? wholeBean : priced;
+    return pool.reduce((best, variant) => {
+      if (!best?.latest_offer) return variant;
+      return variant.latest_offer!.price_cents < best.latest_offer.price_cents ? variant : best;
+    }, pool[0]);
+  }, [product]);
+
+  if (!productId) return null;
+
+  if (isLoading || !product) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-6 w-2/3" />
+        <Skeleton className="h-4 w-1/3" />
+        <Skeleton className="h-48 w-full rounded-lg" />
+        <Skeleton className="h-24 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  const tags = buildTags(product);
+  const description = product.tasting_notes_text || "No long-form product description is available yet, but the metadata below should still help you evaluate it quickly.";
+
+  return (
+    <div className="space-y-5 max-h-[80vh] overflow-y-auto pr-1">
+      <div className="flex flex-col gap-4 sm:flex-row">
+        <div className="w-full sm:w-40 flex-shrink-0">
+          <div className="aspect-square rounded-lg bg-muted overflow-hidden">
+            {product.image_url ? (
+              <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-5xl text-muted-foreground/30">☕</div>
+            )}
+          </div>
+        </div>
+        <div className="flex-1 space-y-3 min-w-0">
+          <DialogHeader className="space-y-2 text-left">
+            <DialogTitle className="text-xl leading-tight">{product.name}</DialogTitle>
+            <DialogDescription className="text-sm">
+              {product.merchant_name || "Unknown merchant"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <Badge key={tag} variant="outline" className="text-xs">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            {cheapestVariant?.latest_offer && (
+              <span className="font-semibold text-amber-900">
+                {formatPrice(cheapestVariant.latest_offer.price_cents)}
+                {formatWeight(cheapestVariant.weight_grams) ? ` / ${formatWeight(cheapestVariant.weight_grams)}` : ""}
+              </span>
+            )}
+            <span className={product.is_active ? "text-green-600" : "text-muted-foreground"}>
+              {product.is_active ? "● In stock" : "● Unavailable"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-medium">Description</h3>
+        <p className="text-sm text-muted-foreground leading-6">{description}</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+        {product.origin_text && <div><span className="text-muted-foreground">Origin:</span> {product.origin_text}</div>}
+        {product.process_text && <div><span className="text-muted-foreground">Process:</span> {product.process_text}</div>}
+        {product.variety_text && <div><span className="text-muted-foreground">Variety:</span> {product.variety_text}</div>}
+        {product.roast_cues && <div><span className="text-muted-foreground">Roast:</span> {product.roast_cues}</div>}
+      </div>
+
+      {product.variants.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="font-medium">Variants</h3>
+          <div className="space-y-2">
+            {product.variants.map((variant) => (
+              <div key={variant.id} className="rounded-md border p-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{variant.label}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatWeight(variant.weight_grams) || "Size unavailable"}
+                    {variant.is_whole_bean ? " • whole bean" : " • not whole bean"}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="font-medium text-sm">
+                    {variant.latest_offer ? formatPrice(variant.latest_offer.price_cents) : "—"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {variant.is_available ? "In stock" : "Unavailable"}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2 pt-1">
+        <a href={product.product_url} target="_blank" rel="noreferrer">
+          <Button className="gap-2">
+            View product <ExternalLink className="h-4 w-4" />
+          </Button>
+        </a>
+        <Link to="/products/$productId" params={{ productId: String(product.id) }}>
+          <Button variant="outline">Open full page</Button>
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 function ProductsPage() {
   const [inputValue, setInputValue] = useState("");
-  const [category, setCategory] = useState("coffee");
+  const [categories, setCategories] = useState<string[]>(["coffee"]);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const debouncedQ = useDebounce(inputValue, 350);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const {
-    data,
-    isLoading,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
-  } = useProductSearch(debouncedQ, category);
+  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useProductSearch(debouncedQ, categories);
 
-  // Flatten pages into single product list
-  const products = data?.pages.flatMap((page) => page.items) ?? [];
+  const products = (data?.pages.flatMap((page) => page.items) ?? []) as ProductCardSummary[];
   const totalLoaded = products.length;
+  const selectedLabels = categories.includes("all")
+    ? ["🌐 All Categories"]
+    : CATEGORY_OPTIONS.filter((option) => categories.includes(option.value)).map((option) => option.label);
 
   const handleLoadMore = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -171,123 +313,125 @@ function ProductsPage() {
   });
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">📦 Products</h1>
-        <p className="text-muted-foreground text-sm">
-          Browse specialty coffee products
-        </p>
-      </div>
-
-      {/* Search + Filter bar */}
-      <div className="flex flex-wrap gap-2 max-w-2xl">
-        <div className="relative flex-1 min-w-48">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-            🔍
-          </span>
-          <Input
-            ref={inputRef}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Search by name, origin, process, tasting notes…"
-            className="pl-8"
-          />
+    <>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">📦 Products</h1>
+          <p className="text-muted-foreground text-sm">
+            Browse specialty coffee products
+          </p>
         </div>
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-        >
-          {CATEGORY_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-        {inputValue && (
-          <Button
-            variant="outline"
-            onClick={() => {
-              setInputValue("");
-              inputRef.current?.focus();
-            }}
-          >
-            Clear
-          </Button>
+
+        <div className="space-y-3 max-w-4xl">
+          <div className="relative max-w-2xl">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">🔍</span>
+            <Input
+              ref={inputRef}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Search by name, origin, process, tasting notes…"
+              className="pl-8"
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {CATEGORY_OPTIONS.map((option) => {
+              const active = categories.includes(option.value) || (option.value === "all" && categories.includes("all"));
+              return (
+                <Button
+                  key={option.value}
+                  type="button"
+                  size="sm"
+                  variant={active ? "default" : "outline"}
+                  onClick={() => setCategories((current) => toggleCategory(current, option.value))}
+                >
+                  {option.label}
+                </Button>
+              );
+            })}
+            {inputValue && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setInputValue("");
+                  inputRef.current?.focus();
+                }}
+              >
+                Clear search
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-sm text-muted-foreground">
+            {isLoading ? (
+              "Loading…"
+            ) : debouncedQ ? (
+              <>
+                Showing {totalLoaded} result{totalLoaded !== 1 ? "s" : ""} for <span className="font-medium text-foreground">“{debouncedQ}”</span>
+              </>
+            ) : (
+              <>
+                Showing {totalLoaded}{hasNextPage ? "+" : ""} products
+              </>
+            )}
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {selectedLabels.map((label) => (
+              <Badge key={label} variant="secondary">{label}</Badge>
+            ))}
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {Array.from({ length: 24 }).map((_, i) => (
+              <ProductCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : products.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-16 text-center text-muted-foreground">
+            <p className="text-4xl mb-3">📦</p>
+            <p className="font-medium">
+              {debouncedQ ? "No products match your search" : "No products yet"}
+            </p>
+            <p className="text-sm mt-1">
+              {debouncedQ ? "Try different search terms or category combinations" : "Add merchants and run crawls to populate the catalog"}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} onClick={() => setSelectedProductId(product.id)} />
+              ))}
+            </div>
+
+            {isFetchingNextPage && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <ProductCardSkeleton key={i} />
+                ))}
+              </div>
+            )}
+
+            {!hasNextPage && !isLoading && (
+              <p className="text-center text-sm text-muted-foreground py-4">
+                ✓ All {totalLoaded} products shown
+              </p>
+            )}
+            <div ref={loadMoreRef} className="h-1" />
+          </>
         )}
       </div>
 
-      {/* Results count + status */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          {isLoading ? (
-            "Loading…"
-          ) : debouncedQ ? (
-            <>
-              Showing {totalLoaded} result{totalLoaded !== 1 ? "s" : ""} for{" "}
-              <span className="font-medium text-foreground">"{debouncedQ}"</span>
-              {category !== "all" && (
-                <span className="text-muted-foreground/70"> in {CATEGORY_OPTIONS.find(o => o.value === category)?.label ?? category}</span>
-              )}
-              {hasNextPage && <span className="text-muted-foreground/60"> (more below)</span>}
-            </>
-          ) : (
-            <>
-              Showing {totalLoaded}
-              {hasNextPage ? "+" : ""}{" "}
-              {category !== "all" ? (CATEGORY_OPTIONS.find(o => o.value === category)?.label ?? category) + " " : ""}
-              products
-            </>
-          )}
-        </p>
-      </div>
-
-      {/* Grid */}
-      {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {Array.from({ length: 24 }).map((_, i) => (
-            <ProductCardSkeleton key={i} />
-          ))}
-        </div>
-      ) : products.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-16 text-center text-muted-foreground">
-          <p className="text-4xl mb-3">📦</p>
-          <p className="font-medium">
-            {debouncedQ ? "No products match your search" : "No products yet"}
-          </p>
-          <p className="text-sm mt-1">
-            {debouncedQ
-              ? "Try different search terms"
-              : "Add merchants and run crawls to populate the catalog"}
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {products.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
-
-          {/* Inline loader for subsequent pages */}
-          {isFetchingNextPage && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <ProductCardSkeleton key={i} />
-              ))}
-            </div>
-          )}
-
-          {/* Sentinel for intersection observer + end state */}
-          {!hasNextPage && !isLoading && (
-            <p className="text-center text-sm text-muted-foreground py-4">
-              ✓ All {totalLoaded} products shown
-            </p>
-          )}
-          <div ref={loadMoreRef} className="h-1" />
-        </>
-      )}
-    </div>
+      <Dialog open={selectedProductId !== null} onOpenChange={(open) => !open && setSelectedProductId(null)}>
+        <DialogContent className="max-w-3xl">
+          <ProductQuickView productId={selectedProductId} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

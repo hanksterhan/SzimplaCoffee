@@ -8,12 +8,14 @@ export type ProductVariantSchema = components["schemas"]["ProductVariantSchema"]
 export type OfferSnapshotSchema = components["schemas"]["OfferSnapshotSchema"];
 export type CursorPageProductSummary = components["schemas"]["CursorPage_ProductSummary_"];
 
-export function useProductSearch(q: string, category = "coffee") {
+export function useProductSearch(q: string, categories: string[] = ["coffee"]) {
+  const categoryParam = categories.length > 0 ? categories.join(",") : "coffee";
+
   return useInfiniteQuery({
-    queryKey: ["products", "search", q, category],
+    queryKey: ["products", "search", q, categoryParam],
     queryFn: async ({ pageParam }) => {
       const response = await fetch(
-        `/api/v1/products/search?q=${encodeURIComponent(q)}&category=${encodeURIComponent(category)}&limit=24${pageParam ? `&cursor=${pageParam}` : ""}`
+        `/api/v1/products/search?q=${encodeURIComponent(q)}&category=${encodeURIComponent(categoryParam)}&limit=24${pageParam ? `&cursor=${pageParam}` : ""}`
       );
       if (!response.ok) throw new Error("Search failed");
       return response.json() as Promise<CursorPageProductSummary>;

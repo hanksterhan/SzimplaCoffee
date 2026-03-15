@@ -1,0 +1,53 @@
+id: SC-43
+title: "Products catalog UX polish — multi-select filters, bean card cleanup, quick detail dialog"
+type: feature
+priority: high
+status: verifying
+owner: h6nk-bot
+labels: [catalog, ui, frontend, api]
+problem: "The /products catalog still has rough edges: some coffee beans are hidden under merch, category filtering is single-select only, and product cards require a route change to inspect details. Whole-bean cards also omit the bag size, making quick comparison harder."
+desired_outcome: "The /products experience supports multi-select category filters, treats coffee-like merch more intelligently when filtering beans, shows cleaner whole-bean summary cards, and opens an inline detail dialog with richer product metadata and outbound link."
+scope_in:
+  - "Multi-select product category filtering on /products"
+  - "Backend support for filtering multiple categories"
+  - "Coffee filter behavior that catches mis-tagged whole-bean products"
+  - "Clickable product cards opening an inline dialog/popout"
+  - "Whole-bean cards showing name, merchant, price, and bag size"
+  - "Expanded product view showing richer metadata, tags, and product link"
+scope_out:
+  - "New standalone product detail information architecture"
+  - "Database migration for dedicated product long-description storage"
+  - "Crawler/parser overhaul for perfect category classification"
+acceptance_criteria:
+  - text: "Users can select more than one product category on /products"
+    verify: "manual: select coffee + merch, verify both categories appear in results"
+  - text: "Coffee filter still includes coffee-like whole-bean products that were tagged as merch"
+    verify: "manual: select coffee, verify known coffee items previously hidden by merch tagging appear"
+  - text: "Whole-bean cards show name, merchant, price, and weight/oz summary"
+    verify: "manual: browse /products and confirm bean cards expose bag size without opening detail"
+  - text: "Clicking a product opens a detail dialog instead of forcing immediate route navigation"
+    verify: "manual: click a product card, confirm dialog opens with richer details and outbound link"
+verification_required:
+  - "frontend manual verification on /products"
+  - "backend test coverage for multi-category filtering helper logic"
+slices:
+  - title: "Backend category filtering improvements"
+    files:
+      - "backend/src/szimplacoffee/api/products.py"
+      - "backend/tests/test_api_products.py"
+  - title: "Catalog filter and card UX"
+    files:
+      - "frontend/src/routes/products.lazy.tsx"
+      - "frontend/src/hooks/use-products.ts"
+  - title: "Inline product detail dialog"
+    files:
+      - "frontend/src/routes/products.lazy.tsx"
+      - "frontend/src/hooks/use-products.ts"
+delivery:
+  branch: "feat/SC-43-products-catalog-ux-polish"
+  notes:
+    - "Use existing product detail endpoint for the dialog where possible"
+    - "If long description is unavailable in the data model, present the best available metadata cleanly instead of inventing data"
+context_refs:
+  - ".plans/SC-43-execution-plan.md"
+  - ".tickets/open/SC-37.yaml"

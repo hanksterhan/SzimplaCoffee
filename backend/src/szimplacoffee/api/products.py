@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from ..db import get_session
@@ -12,10 +12,86 @@ from ..schemas.products import OfferSnapshotSchema, ProductDetail, ProductSummar
 router = APIRouter(tags=["products"])
 
 
+MERCH_NAME_EXCLUSIONS = (
+    "tee",
+    "t-shirt",
+    "shirt",
+    "hoodie",
+    "crewneck",
+    "sweatshirt",
+    "hat",
+    "cap",
+    "beanie",
+    "tote",
+    "mug",
+    "pin",
+    "sticker",
+    "magnet",
+    "glass",
+    "straw",
+)
+
+
+def _parse_categories(category: str | None) -> list[str]:
+    if not category:
+        return ["coffee"]
+    categories = [part.strip() for part in category.split(",") if part.strip()]
+    if not categories:
+        return ["coffee"]
+    if "all" in categories:
+        return ["all"]
+    return list(dict.fromkeys(categories))
+
+
+def _coffee_like_merch_clause():
+    exclusions = [Product.name.ilike(f"%{term}%") for term in MERCH_NAME_EXCLUSIONS]
+    return and_(
+        Product.product_category == "merch",
+        Product.name.not_ilike("%subscription%"),
+        ~or_(*exclusions),
+        Product.variants.any(
+            and_(
+                ProductVariant.is_whole_bean.is_(True),
+                ProductVariant.weight_grams.is_not(None),
+                ProductVariant.weight_grams >= 340,
+            )
+        ),
+    )
+
+
+def _apply_category_filter(stmt, category: str | None):
+    categories = _parse_categories(category)
+    if "all" in categories:
+        return stmt
+
+    clauses = []
+    for cat in categories:
+        if cat == "coffee":
+            clauses.append(or_(Product.product_category == "coffee", _coffee_like_merch_clause()))
+        else:
+            clauses.append(Product.product_category == cat)
+    return stmt.where(or_(*clauses))
+
+
+def _select_primary_variant(product: Product) -> ProductVariant | None:
+    variants = [v for v in product.variants if v.latest_offer]
+    if not variants:
+        return None
+
+    whole_bean = [v for v in variants if v.is_whole_bean and v.weight_grams]
+    pool = whole_bean or variants
+    return min(pool, key=lambda v: v.latest_offer.price_cents if v.latest_offer else 10**12)
+
+
 def _product_summary_with_merchant(product: Product, merchant_name: str) -> ProductSummary:
-    """Build a ProductSummary and inject merchant_name (not an ORM attribute)."""
+    """Build a ProductSummary and inject merchant_name + derived card metadata."""
     summary = ProductSummary.model_validate(product)
     summary.merchant_name = merchant_name
+    primary_variant = _select_primary_variant(product)
+    if primary_variant and primary_variant.latest_offer:
+        summary.latest_price_cents = primary_variant.latest_offer.price_cents
+        summary.primary_weight_grams = primary_variant.weight_grams
+        summary.primary_is_whole_bean = primary_variant.is_whole_bean
     return summary
 
 
@@ -31,13 +107,16 @@ def list_products_for_merchant(
 ) -> CursorPage[ProductSummary]:
     merchant = db.get(Merchant, merchant_id)
     merchant_name = merchant.name if merchant else ""
-    q = select(Product).where(Product.merchant_id == merchant_id)
+    q = (
+        select(Product)
+        .options(selectinload(Product.variants).selectinload(ProductVariant.offers))
+        .where(Product.merchant_id == merchant_id)
+    )
     if is_active is not None:
         q = q.where(Product.is_active == is_active)
     if is_espresso_recommended is not None:
         q = q.where(Product.is_espresso_recommended == is_espresso_recommended)
-    if category and category != "all":
-        q = q.where(Product.product_category == category)
+    q = _apply_category_filter(q, category)
     if cursor is not None:
         q = q.where(Product.id > cursor)
     q = q.order_by(Product.id)
@@ -63,7 +142,11 @@ def search_products(
     limit: int = Query(24, ge=1, le=200),
     cursor: int | None = Query(None, description="Last product ID seen; returns products with id > cursor"),
 ) -> CursorPage[ProductSummary]:
-    stmt = select(Product).join(Merchant, Product.merchant_id == Merchant.id)
+    stmt = (
+        select(Product)
+        .options(selectinload(Product.variants).selectinload(ProductVariant.offers))
+        .join(Merchant, Product.merchant_id == Merchant.id)
+    )
     if is_active is not None:
         stmt = stmt.where(Product.is_active == is_active)
     else:
@@ -72,8 +155,7 @@ def search_products(
         stmt = stmt.where(Product.name.ilike(f"%{q}%"))
     if is_espresso_recommended is not None:
         stmt = stmt.where(Product.is_espresso_recommended == is_espresso_recommended)
-    if category and category != "all":
-        stmt = stmt.where(Product.product_category == category)
+    stmt = _apply_category_filter(stmt, category)
     if cursor is not None:
         stmt = stmt.where(Product.id > cursor)
     stmt = stmt.order_by(Product.id)

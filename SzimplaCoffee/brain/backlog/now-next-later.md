@@ -8,7 +8,7 @@
 
 ## Next
 
-- Add richer product-note parsing
+- Add richer product-note parsing and a dedicated long-form product description field for catalog quick views
 - Add crawl health, crawl error, and stale-data visibility
 - Import real purchase history from Notion instead of relying on seed data
 - Add richer merchant filtering and sorting in the dashboard and discovery queue
