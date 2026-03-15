@@ -1,0 +1,89 @@
+id: "SC-56"
+title: "Personal inventory awareness for bag-size and timing recommendations"
+type: "feature"
+priority: "p2"
+status: "ready"
+owner: "h6nk-bot"
+created_at: "2026-03-15T17:45:00Z"
+updated_at: "2026-03-15T17:45:00Z"
+labels:
+  - "feature"
+  - "recommendations"
+  - "backend"
+  - "frontend"
+problem: "The north-star says recommendations must be inventory-aware — 'the user must be able to state whether they want 12-18oz, up to 2lb, or up to 5lb, and bulk buys only matter if the user can realistically use the coffee.' But there is no way to record current coffee inventory, so the system cannot factor in when to buy next."
+desired_outcome: "A simple personal inventory field records how many grams of coffee the user currently has on hand, and the recommendation engine uses this to adjust buy-now vs wait decisions."
+scope_in:
+  - "PersonalProfile gets an inventory_on_hand_grams field."
+  - "Recommendation request accepts current_inventory_grams as optional input."
+  - "When inventory is high, the system down-scores bulk buys and adjusts wait_recommendation threshold."
+  - "Today page shows an inventory input that adjusts the daily recommendation."
+scope_out:
+  - "Multi-bean tracking or per-bag freshness tracking."
+  - "Automated inventory deduction from purchase history."
+acceptance_criteria:
+  -
+    id: "AC-1"
+    text: "PersonalProfile has inventory_on_hand_grams field."
+    verify: "cd backend && . .venv/bin/activate && pytest -q"
+    status: "pending"
+  -
+    id: "AC-2"
+    text: "Recommendation engine adjusts bulk-buy scoring when inventory is high."
+    verify: "cd backend && . .venv/bin/activate && pytest -q"
+    status: "pending"
+  -
+    id: "AC-3"
+    text: "Today page accepts inventory input and passes it to the backend."
+    verify: "cd frontend && npm run build"
+    status: "pending"
+verification_required:
+  - "cd backend && . .venv/bin/activate && pytest -q"
+  - "cd backend && . .venv/bin/activate && ruff check src tests"
+  - "cd frontend && npm run build"
+context_refs:
+  - ".plans/SC-56-execution-plan.md"
+slices:
+  -
+    id: "S1"
+    title: "Add inventory_on_hand_grams to PersonalProfile and recommendation request"
+    status: "pending"
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/services/recommendations.py"
+      - "backend/src/szimplacoffee/api/recommendations.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/schemas/recommendations.py"
+    checks:
+      - "cd backend && . .venv/bin/activate && pytest -q"
+    evidence: []
+    notes: "Keep it simple — a single integer input, not per-bag tracking."
+  -
+    id: "S2"
+    title: "Add inventory input to Today page"
+    status: "pending"
+    depends_on:
+      - "S1"
+    files_create: []
+    files_modify:
+      - "frontend/src/routes/today.lazy.tsx"
+      - "frontend/src/hooks/use-today.ts"
+    files_read_only: []
+    checks:
+      - "cd frontend && npm run build"
+    evidence: []
+    notes: "Optional numeric input, defaults to 0 (empty)."
+delivery:
+  branch: "feat/SC-56-inventory-awareness"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+notes:
+  - "Gap analysis ticket created after SC-53 delivery."

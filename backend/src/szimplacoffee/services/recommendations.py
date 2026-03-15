@@ -25,6 +25,9 @@ from .discovery import meets_buying_threshold
 QuantityMode = Literal["12-18 oz", "2 lb", "5 lb", "any"]
 ShotStyle = Literal["modern_58mm", "cremina_49mm", "turbo", "experimental"]
 
+# SC-54: Score threshold below which the system recommends waiting
+WAIT_SCORE_THRESHOLD = 0.30
+
 
 @dataclass
 class RecommendationRequest:
@@ -666,6 +669,21 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
         if len(selected) >= 5:
             break
     return selected
+
+
+def build_wait_assessment(candidates: list[RecommendationCandidate], no_candidates: bool = False) -> tuple[bool, str | None]:
+    """SC-54: Determine if the system should recommend waiting, and why.
+
+    Returns (wait_recommendation, wait_rationale).
+    """
+    if no_candidates:
+        return True, "No coffee meets the current filters — try broadening your criteria or check back after the next crawl cycle."
+    if not candidates:
+        return True, "No matching options found right now."
+    top_score = candidates[0].score
+    if top_score < WAIT_SCORE_THRESHOLD:
+        return True, f"The best current option scores {top_score:.0%} — below the quality threshold. Check back after merchants are refreshed."
+    return False, None
 
 
 def persist_recommendation_run(session: Session, request: RecommendationRequest, candidates: list[RecommendationCandidate]) -> None:

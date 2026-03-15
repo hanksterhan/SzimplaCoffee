@@ -15,6 +15,7 @@ from ..services.recommendations import (
     RecommendationRequest,
     build_biggest_sales,
     build_recommendations,
+    build_wait_assessment,
     persist_recommendation_run,
 )
 
@@ -47,6 +48,7 @@ class RecommendationResultResponse(BaseModel):
     top_result: Optional[RecommendationCandidateOut]
     alternatives: list[RecommendationCandidateOut]
     wait_recommendation: bool
+    wait_rationale: Optional[str] = None  # SC-54
     run_id: int
 
 
@@ -92,11 +94,13 @@ def create_recommendation(
 
     top = candidates[0] if candidates else None
     alternatives = candidates[1:3]
+    wait, wait_rationale = build_wait_assessment(candidates, no_candidates=not bool(candidates))
 
     return RecommendationResultResponse(
         top_result=RecommendationCandidateOut(**asdict(top)) if top else None,
         alternatives=[RecommendationCandidateOut(**asdict(a)) for a in alternatives],
-        wait_recommendation=not bool(candidates),
+        wait_recommendation=wait,
+        wait_rationale=wait_rationale,
         run_id=run.id if run else 0,
     )
 
@@ -138,14 +142,16 @@ def today_buying_brief(
     top = candidates[0] if candidates else None
     alternatives = candidates[1:3]
 
+    wait, wait_rationale = build_wait_assessment(candidates, no_candidates=not bool(candidates))
     return {
-        "has_recommendation": bool(top),
+        "has_recommendation": bool(top) and not wait,
         "top_pick": asdict(top) if top else None,
         "alternatives": [asdict(a) for a in alternatives],
         "notable_sales": [asdict(s) for s in sales[:limit]],
         "shot_style": shot_style,
         "quantity_mode": quantity_mode,
-        "wait_recommendation": not bool(candidates),
+        "wait_recommendation": wait,
+        "wait_rationale": wait_rationale,
     }
 
 

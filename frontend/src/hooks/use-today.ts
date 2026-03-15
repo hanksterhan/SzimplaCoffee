@@ -43,6 +43,7 @@ export interface TodayBriefResult {
   shot_style: string;
   quantity_mode: string;
   wait_recommendation: boolean;
+  wait_rationale: string | null;
 }
 
 export interface TodayBriefOptions {

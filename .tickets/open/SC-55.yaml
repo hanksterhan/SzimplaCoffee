@@ -1,0 +1,64 @@
+id: "SC-55"
+title: "Use subscription pricing as a first-class recommendation dimension"
+type: "feature"
+priority: "p2"
+status: "ready"
+owner: "h6nk-bot"
+created_at: "2026-03-15T17:45:00Z"
+updated_at: "2026-03-15T17:45:00Z"
+labels:
+  - "feature"
+  - "recommendations"
+  - "backend"
+problem: "subscription_price_cents is captured in OfferSnapshot but the recommendation engine ignores it. The north-star explicitly includes subscription discounts as real data for recommendations."
+desired_outcome: "When a merchant offers a meaningful subscription discount, the recommendation engine uses the discounted subscription price in landed cost and deal scoring, and surfaces the subscription savings in the recommendation rationale."
+scope_in:
+  - "Recommendation landed cost uses subscription_price_cents when available and the saving exceeds a threshold."
+  - "Recommendation pros list includes subscription savings as a reason."
+  - "Today page and recommendation cards show subscription badge when applied."
+scope_out:
+  - "Subscription management or renewal tracking."
+  - "Auto-enrollment or recurring order tracking."
+acceptance_criteria:
+  -
+    id: "AC-1"
+    text: "Recommendation landed cost uses subscription_price_cents when it is meaningfully lower than list price."
+    verify: "cd backend && . .venv/bin/activate && pytest -q"
+    status: "pending"
+  -
+    id: "AC-2"
+    text: "Subscription savings appear in recommendation pros list."
+    verify: "cd backend && . .venv/bin/activate && pytest -q"
+    status: "pending"
+verification_required:
+  - "cd backend && . .venv/bin/activate && pytest -q"
+  - "cd backend && . .venv/bin/activate && ruff check src tests"
+context_refs:
+  - ".plans/SC-55-execution-plan.md"
+slices:
+  -
+    id: "S1"
+    title: "Factor subscription price into deal scoring and recommendation rationale"
+    status: "pending"
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/recommendations.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && . .venv/bin/activate && pytest -q"
+    evidence: []
+    notes: "Only apply when savings >= 5% to avoid noise."
+delivery:
+  branch: "feat/SC-55-subscription-pricing"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+notes:
+  - "Gap analysis ticket created after SC-53 delivery."

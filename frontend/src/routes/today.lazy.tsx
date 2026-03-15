@@ -235,9 +235,13 @@ function TodayPage() {
           <CardContent className="py-8 text-center text-muted-foreground">
             <p className="text-3xl mb-3">⏸️</p>
             <p className="font-medium">Nothing worth buying right now</p>
-            <p className="text-sm mt-1">
-              No merchants meet the quality threshold for the current filters.
-            </p>
+            {data.wait_rationale ? (
+              <p className="text-sm mt-1 max-w-sm mx-auto">{data.wait_rationale}</p>
+            ) : (
+              <p className="text-sm mt-1">
+                No merchants meet the quality threshold for the current filters.
+              </p>
+            )}
           </CardContent>
         </Card>
       ) : data?.top_pick ? (
