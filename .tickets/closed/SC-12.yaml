@@ -1,0 +1,123 @@
+id: "SC-12"
+title: "Create /api/v1/merchants endpoints"
+type: "feature"
+priority: "p0"
+status: "done"
+owner: "h6nk-bot"
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "phase-0"
+  - "api"
+  - "merchants"
+problem: "No JSON API exists for merchants. The frontend needs to list, view, create, and trigger crawls for merchants."
+desired_outcome: "RESTful /api/v1/merchants routes return JSON using Pydantic schemas. Crawl trigger is async (background task). Status polling endpoint available."
+scope_in:
+  - "GET /api/v1/merchants \u2014 list all merchants (paginated, filter by platform_type, trust_tier, is_active)"
+  - "GET /api/v1/merchants/{id} \u2014 merchant detail with quality_profile, shipping_policies"
+  - "POST /api/v1/merchants \u2014 create new merchant"
+  - "POST /api/v1/merchants/{id}/crawl \u2014 trigger background crawl, return crawl_run_id"
+  - "GET /api/v1/merchants/{id}/crawl/{run_id} \u2014 poll crawl run status"
+  - "GET /api/v1/merchants/{id}/crawl-runs \u2014 list all crawl runs for a merchant"
+scope_out:
+  - "Products/variants (SC-13)"
+  - "Discovery candidates (SC-15)"
+dependencies:
+  blockers:
+    - "SC-11"
+  unblocks:
+    - "SC-21"
+    - "SC-22"
+    - "SC-23"
+acceptance_criteria:
+  -
+    id: "AC-1"
+    text: "GET /api/v1/merchants returns PaginatedResponse[MerchantSummary] JSON"
+    verify: "cd backend && pytest tests/test_api_merchants.py::test_list_merchants -v"
+    status: "pending"
+  -
+    id: "AC-2"
+    text: "GET /api/v1/merchants/{id} returns MerchantDetail with shipping_policies"
+    verify: "cd backend && pytest tests/test_api_merchants.py::test_merchant_detail -v"
+    status: "pending"
+  -
+    id: "AC-3"
+    text: "POST /api/v1/merchants/{id}/crawl returns {crawl_run_id: int}"
+    verify: "cd backend && pytest tests/test_api_merchants.py::test_trigger_crawl -v"
+    status: "pending"
+  -
+    id: "AC-4"
+    text: "Crawl status poll returns CrawlRunSchema with status field"
+    verify: "cd backend && pytest tests/test_api_merchants.py::test_poll_crawl -v"
+    status: "pending"
+verification_required:
+  - "cd backend && ruff check src/szimplacoffee/api/"
+  - "cd backend && pytest tests/test_api_merchants.py -v"
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-12-execution-plan.md"
+slices:
+  -
+    id: "S1"
+    title: "Merchant router (list + detail)"
+    status: "pending"
+    depends_on: []
+    files_create:
+      - "backend/src/szimplacoffee/api/__init__.py"
+      - "backend/src/szimplacoffee/api/merchants.py"
+    files_modify:
+      - "backend/src/szimplacoffee/main.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/schemas/merchants.py"
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/db.py"
+    checks:
+      - "cd backend && python -c 'from szimplacoffee.api.merchants import router; print(\"OK\")'"
+    evidence: []
+    notes:
+  - "Delivered as part of initial monorepo build. Closed during grooming pass." "Mount router at /api/v1 in main.py"
+  -
+    id: "S2"
+    title: "Crawl trigger + status poll endpoints"
+    status: "pending"
+    depends_on:
+      - "S1"
+    files_modify:
+      - "backend/src/szimplacoffee/api/merchants.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/services/crawlers.py"
+      - "backend/src/szimplacoffee/schemas/crawls.py"
+    checks:
+      - "cd backend && pytest tests/test_api_merchants.py -v -k crawl"
+    evidence: []
+    notes: "Use FastAPI BackgroundTasks. Crawl run record created immediately, updated when done."
+    files_create: []
+  -
+    id: "S3"
+    title: "API tests for merchants"
+    status: "pending"
+    depends_on:
+      - "S1"
+      - "S2"
+    files_create:
+      - "backend/tests/test_api_merchants.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/api/merchants.py"
+    checks:
+      - "cd backend && pytest tests/test_api_merchants.py -v"
+    evidence: []
+    notes: "Use FastAPI TestClient with test DB fixture"
+    files_modify: []
+delivery:
+  branch: "feat/SC-12-merchants-api"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: "2026-03-15T00:00:00Z"
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+notes:
+  - "16 merchants in DB: 14 Shopify, 1 WooCommerce, 1 agentic \u2014 test with all platform types"
+  - "321 shipping policies \u2014 use latest observed_at per merchant for summary"
+  - "Trusted merchants are Olympia Coffee and Camber Coffee (trust_tier='trusted')"

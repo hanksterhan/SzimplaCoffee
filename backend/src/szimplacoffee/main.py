@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import BackgroundTasks, Depends, FastAPI, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -17,14 +19,83 @@ from .models import CrawlRun, Merchant, MerchantCandidate
 from .services.crawlers import crawl_merchant
 from .services.discovery import promote_candidate, run_discovery
 from .services.platforms import detect_platform, recommended_crawl_tier
+from .services.scheduler import get_merchants_due_for_crawl
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# APScheduler – recurring crawl execution
+# ---------------------------------------------------------------------------
+
+_scheduler: BackgroundScheduler | None = None
+
+
+def _run_scheduled_crawls() -> None:
+    """APScheduler job: crawl all merchants that are currently due.
+
+    Each due merchant gets a CrawlRun record.  Failures are caught per-merchant
+    so one bad crawl cannot block the rest of the batch.
+    """
+    try:
+        with session_scope() as session:
+            due_merchants = get_merchants_due_for_crawl(session)
+            if not due_merchants:
+                return
+            logger.info("Scheduled crawl: %d merchant(s) due", len(due_merchants))
+            for merchant in due_merchants:
+                run = CrawlRun(
+                    merchant_id=merchant.id,
+                    run_type="scheduled_refresh",
+                    adapter_name=merchant.platform_type,
+                    status="queued",
+                    confidence=0.0,
+                    records_written=0,
+                )
+                session.add(run)
+                session.flush()
+                try:
+                    crawl_merchant(session, merchant, run=run)
+                    logger.info(
+                        "Scheduled crawl completed: merchant_id=%d records=%d",
+                        merchant.id,
+                        run.records_written,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "Scheduled crawl failed: merchant_id=%d error=%s",
+                        merchant.id,
+                        exc,
+                    )
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Scheduled crawl job error: %s", exc)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    global _scheduler  # noqa: PLW0603
     init_db()
     with session_scope() as session:
         bootstrap_if_empty(session)
+
+    # Start the background scheduler.  It runs `_run_scheduled_crawls` every
+    # 15 minutes; the function itself checks per-merchant tier thresholds, so
+    # no merchant is crawled more often than its tier allows.
+    _scheduler = BackgroundScheduler(daemon=True)
+    _scheduler.add_job(
+        _run_scheduled_crawls,
+        trigger="interval",
+        minutes=15,
+        id="scheduled_crawl_loop",
+        replace_existing=True,
+    )
+    _scheduler.start()
+    logger.info("APScheduler started — crawl loop runs every 15 minutes")
+
     yield
+
+    if _scheduler is not None and _scheduler.running:
+        _scheduler.shutdown(wait=False)
+        logger.info("APScheduler stopped")
 
 
 app = FastAPI(title="SzimplaCoffee", lifespan=lifespan)

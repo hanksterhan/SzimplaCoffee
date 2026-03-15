@@ -1,0 +1,94 @@
+id: "SC-17"
+title: "Generate OpenAPI spec and TypeScript client with openapi-typescript"
+type: "feature"
+priority: "p0"
+status: "done"
+owner: "h6nk-bot"
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "phase-0"
+  - "typescript"
+  - "codegen"
+  - "type-safety"
+problem: "Frontend needs type-safe API access. Manually writing TypeScript types for 15+ models is error-prone and gets out of sync. We should generate them from FastAPI's OpenAPI spec."
+desired_outcome: "npm run gen:api generates frontend/src/api/schema.d.ts from running backend. openapi-fetch provides type-safe HTTP client. Types stay in sync with backend automatically."
+scope_in:
+  - "Add openapi-typescript and openapi-fetch to frontend package.json"
+  - "Add gen:api script that fetches from http://localhost:8000/openapi.json and generates types"
+  - "Create frontend/src/api/client.ts \u2014 configured openapi-fetch client"
+  - "Create frontend/src/api/index.ts \u2014 export client + type helpers"
+  - "Add generate step to scripts/dev.sh"
+scope_out:
+  - "React hooks using the client (SC-18+)"
+  - "Any UI components"
+dependencies:
+  blockers:
+    - "SC-12"
+    - "SC-13"
+    - "SC-14"
+    - "SC-15"
+    - "SC-16"
+    - "SC-18"
+  unblocks:
+    - "SC-21"
+    - "SC-22"
+    - "SC-23"
+    - "SC-24"
+    - "SC-25"
+    - "SC-26"
+acceptance_criteria:
+  -
+    id: "AC-1"
+    text: "npm run gen:api generates frontend/src/api/schema.d.ts without errors"
+    verify: "cd frontend && npm run gen:api && ls src/api/schema.d.ts"
+    status: "pending"
+  -
+    id: "AC-2"
+    text: "TypeScript compilation passes after generation"
+    verify: "cd frontend && npm run gen:api"
+    status: "pending"
+  -
+    id: "AC-3"
+    text: "client.ts has typed GET /api/v1/merchants and GET /api/v1/dashboard calls"
+    verify: "cd frontend && npm run gen:api"
+    status: "pending"
+verification_required:
+  - "cd frontend && npm run gen:api"
+  - "cd frontend && npm run gen:api"
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-17-execution-plan.md"
+slices:
+  -
+    id: "S1"
+    title: "Add openapi-typescript tooling and gen:api script"
+    status: "pending"
+    depends_on: []
+    files_modify:
+      - "frontend/package.json"
+    files_create:
+      - "frontend/src/api/schema.d.ts"
+      - "frontend/src/api/client.ts"
+      - "frontend/src/api/index.ts"
+    files_read_only:
+      - "backend/src/szimplacoffee/main.py"
+    checks:
+      - "cd frontend && npm run gen:api"
+      - "cd frontend && npx tsc --noEmit"
+    evidence: []
+    notes:
+  - "Delivered as part of initial monorepo build. Closed during grooming pass." "openapi-typescript v7+ uses Node API for generation. Add to devDependencies."
+delivery:
+  branch: "feat/SC-17-ts-client"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: "2026-03-15T00:00:00Z"
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+notes:
+  - "FastAPI auto-generates OpenAPI at /openapi.json \u2014 no manual spec writing"
+  - "openapi-fetch wraps fetch() with full type inference from generated schema"
+  - "Requires SC-18 (frontend scaffold) to exist before this can be fully validated"

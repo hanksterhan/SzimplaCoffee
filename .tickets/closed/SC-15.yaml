@@ -1,0 +1,97 @@
+id: "SC-15"
+title: "Create /api/v1/discovery endpoints"
+type: "feature"
+priority: "p0"
+status: "done"
+owner: "h6nk-bot"
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "phase-0"
+  - "api"
+  - "discovery"
+problem: "The merchant discovery pipeline (services/discovery.py) has no JSON API. The frontend needs to surface candidate merchants and allow promote/reject actions."
+desired_outcome: "Endpoints to list candidates, run discovery, and promote/reject individual candidates."
+scope_in:
+  - "GET /api/v1/discovery/candidates \u2014 list MerchantCandidate records (filterable by status)"
+  - "POST /api/v1/discovery/run \u2014 trigger discovery pipeline in background"
+  - "POST /api/v1/discovery/candidates/{id}/promote \u2014 promote candidate to merchant"
+  - "POST /api/v1/discovery/candidates/{id}/reject \u2014 reject candidate"
+  - "GET /api/v1/discovery/candidates/{id} \u2014 single candidate detail"
+scope_out:
+  - "Discovery UI (SC-26)"
+  - "Crawling promoted merchants (SC-12)"
+dependencies:
+  blockers:
+    - "SC-11"
+  unblocks:
+    - "SC-26"
+acceptance_criteria:
+  -
+    id: "AC-1"
+    text: "GET /api/v1/discovery/candidates returns list[MerchantCandidateSchema]"
+    verify: "cd backend && pytest tests/test_api_discovery.py::test_list_candidates -v"
+    status: "pending"
+  -
+    id: "AC-2"
+    text: "POST promote changes candidate status to 'approved' and creates Merchant record"
+    verify: "cd backend && pytest tests/test_api_discovery.py::test_promote_candidate -v"
+    status: "pending"
+  -
+    id: "AC-3"
+    text: "POST reject changes candidate status to 'rejected'"
+    verify: "cd backend && pytest tests/test_api_discovery.py::test_reject_candidate -v"
+    status: "pending"
+verification_required:
+  - "cd backend && ruff check src/szimplacoffee/api/discovery.py"
+  - "cd backend && pytest tests/test_api_discovery.py -v"
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-15-execution-plan.md"
+slices:
+  -
+    id: "S1"
+    title: "Discovery router"
+    status: "pending"
+    depends_on: []
+    files_create:
+      - "backend/src/szimplacoffee/api/discovery.py"
+    files_modify:
+      - "backend/src/szimplacoffee/main.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/services/discovery.py"
+      - "backend/src/szimplacoffee/schemas/discovery.py"
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && python -c 'from szimplacoffee.api.discovery import router'"
+    evidence: []
+    notes:
+  - "Delivered as part of initial monorepo build. Closed during grooming pass." "MerchantCandidate.status: 'pending' | 'approved' | 'rejected'"
+  -
+    id: "S2"
+    title: "Discovery API tests"
+    status: "pending"
+    depends_on:
+      - "S1"
+    files_create:
+      - "backend/tests/test_api_discovery.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/api/discovery.py"
+    checks:
+      - "cd backend && pytest tests/test_api_discovery.py -v"
+    evidence: []
+    notes: ""
+    files_modify: []
+delivery:
+  branch: "feat/SC-15-discovery-api"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: "2026-03-15T00:00:00Z"
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+notes:
+  - "MerchantCandidate model has: canonical_domain, merchant_name, homepage_url, platform_type, confidence, status"
+  - "Promote: create Merchant from candidate fields, set candidate.status='approved', set candidate.reviewed_at"
+  - "Discovery run may be LLM-backed \u2014 wrap in background task to avoid timeout"

@@ -1,0 +1,129 @@
+id: "SC-30"
+title: "Coffee metadata parser \u2014 extract origin, process, tasting notes from product descriptions"
+type: "feature"
+priority: "p0"
+status: "done"
+owner: "h6nk-bot"
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "sprint-2a"
+  - "data-quality"
+  - "parser"
+  - "recommendation-engine"
+problem: "95% of products have empty origin_text, process_text, and tasting_notes_text. The recommendation engine's _espresso_fit() scores every product identically at 0.55 baseline because it operates on empty strings. Recommendations are effectively random noise."
+desired_outcome: "A reusable parser module that extracts structured coffee metadata (origin country/region, processing method, tasting notes, roast level, altitude, varietal) from raw product descriptions (HTML body_html from Shopify, description from WooCommerce). Parser should handle common coffee description formats across specialty roasters."
+scope_in:
+  - "New module: backend/src/szimplacoffee/services/metadata_parser.py"
+  - "Parse origin country and region from text (e.g., 'Ethiopia Yirgacheffe', 'Colombia Huila')"
+  - "Parse processing method (washed, natural, honey, anaerobic, wet-hulled, etc.)"
+  - "Parse tasting notes (freeform text extraction)"
+  - "Parse roast level indicators (light, medium, dark, omni)"
+  - "Parse altitude when present (e.g., '1800-2100 masl')"
+  - "Parse varietal when present (e.g., 'SL28, SL34', 'Gesha', 'Caturra')"
+  - "Detect single-origin vs blend from description text"
+  - "Detect espresso suitability signals from description text"
+  - "Unit tests for parser with sample descriptions from known merchants"
+scope_out:
+  - "LLM-based extraction (pure regex/heuristic approach)"
+  - "Integration into crawl pipeline (that's SC-31)"
+  - "Backfilling existing products (that's SC-31)"
+  - "Parsing images or non-text content"
+dependencies:
+  blockers: []
+  unblocks:
+    - "SC-31"
+acceptance_criteria:
+  -
+    id: "AC-1"
+    text: "Parser extracts origin from >=10 diverse sample descriptions correctly"
+    verify: "cd backend && python -m pytest tests/test_metadata_parser.py -k origin -v"
+    status: "pending"
+  -
+    id: "AC-2"
+    text: "Parser extracts process method from >=10 diverse sample descriptions"
+    verify: "cd backend && python -m pytest tests/test_metadata_parser.py -k process -v"
+    status: "pending"
+  -
+    id: "AC-3"
+    text: "Parser extracts tasting notes from >=10 diverse sample descriptions"
+    verify: "cd backend && python -m pytest tests/test_metadata_parser.py -k tasting -v"
+    status: "pending"
+  -
+    id: "AC-4"
+    text: "Parser detects single-origin vs blend"
+    verify: "cd backend && python -m pytest tests/test_metadata_parser.py -k single_origin -v"
+    status: "pending"
+  -
+    id: "AC-5"
+    text: "Parser detects espresso suitability signals"
+    verify: "cd backend && python -m pytest tests/test_metadata_parser.py -k espresso -v"
+    status: "pending"
+verification_required:
+  - "cd backend && python -m pytest tests/test_metadata_parser.py -v"
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-30-execution-plan.md"
+  - "/home/h6nk/SzimplaCoffee/SzimplaCoffee/brain/research/post-migration-gap-analysis.md"
+slices:
+  -
+    id: "S1"
+    title: "Core parser module with origin, process, and tasting notes extraction"
+    status: "pending"
+    depends_on: []
+    files_create:
+      - "backend/src/szimplacoffee/services/metadata_parser.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/services/crawlers.py"
+    checks:
+      - "cd backend && python -c 'from szimplacoffee.services.metadata_parser import parse_coffee_metadata; print(\"OK\")'"
+    evidence: []
+    notes:
+  - "Delivered as part of initial monorepo build. Closed during grooming pass." "Regex + keyword-based. Common patterns: 'Origin: X', 'Process: Y', 'Notes: Z', or inline text like 'This washed Ethiopian...' Also handle structured HTML (dt/dd, table rows, labeled spans)."
+    files_modify: []
+  -
+    id: "S2"
+    title: "Extended parsing \u2014 roast level, altitude, varietal, single-origin, espresso detection"
+    status: "pending"
+    depends_on:
+      - "S1"
+    files_modify:
+      - "backend/src/szimplacoffee/services/metadata_parser.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && python -c 'from szimplacoffee.services.metadata_parser import parse_coffee_metadata; r = parse_coffee_metadata(\"Ethiopia Yirgacheffe Washed Light Roast\"); assert r.origin_country; print(\"OK\")'"
+    evidence: []
+    notes: ""
+    files_create: []
+  -
+    id: "S3"
+    title: "Comprehensive unit tests with real merchant description samples"
+    status: "pending"
+    depends_on:
+      - "S2"
+    files_create:
+      - "backend/tests/test_metadata_parser.py"
+      - "backend/tests/fixtures/sample_descriptions.json"
+    files_read_only:
+      - "backend/src/szimplacoffee/services/metadata_parser.py"
+    checks:
+      - "cd backend && python -m pytest tests/test_metadata_parser.py -v"
+    evidence: []
+    notes: "Include samples from Shopify (Olympia, Camber, etc.) and WooCommerce stores. Test edge cases: blends, decaf, flavored, instant."
+    files_modify: []
+delivery:
+  branch: "feat/SC-30-metadata-parser"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: "2026-03-15T00:00:00Z"
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+notes:
+  - "This is the most critical ticket in Sprint 2. Without product metadata, the recommendation engine is blind."
+  - "Study existing crawled body_html/description fields to understand real formats."
+  - "Coffee description patterns vary wildly \u2014 some use structured lists, some use prose, some embed in HTML tables."
+  - "Consider a dataclass CoffeeMetadata as the return type."

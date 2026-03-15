@@ -1,0 +1,102 @@
+id: "SC-26"
+title: "Discovery pipeline page \u2014 candidate list, review/promote/reject flow"
+type: "feature"
+priority: "p2"
+status: "done"
+owner: "h6nk-bot"
+created_at: "2026-03-14T00:00:00Z"
+updated_at: "2026-03-15T07:00:00Z"
+labels:
+  - "phase-3"
+  - "frontend"
+  - "discovery"
+problem: "Discovery pipeline only accessible via CLI. Users need a UI to review merchant candidates and promote/reject them."
+desired_outcome: "/discovery page shows pending merchant candidates with confidence scores. Users can promote (creates merchant) or reject with a single click. Run discovery button triggers new search."
+scope_in:
+  - "List pending MerchantCandidate records with confidence score, platform, domain"
+  - "Promote button: POST /api/v1/discovery/candidates/{id}/promote"
+  - "Reject button: POST /api/v1/discovery/candidates/{id}/reject"
+  - "Run Discovery button: POST /api/v1/discovery/run"
+  - "Status filter: pending / approved / rejected tabs"
+  - "useDiscoveryCandidates(), usePromoteCandidate(), useRejectCandidate() hooks"
+scope_out:
+  - "Merchant detail after promotion (handled by SC-23)"
+  - "Custom discovery search queries"
+dependencies:
+  blockers:
+    - "SC-15"
+    - "SC-17"
+    - "SC-20"
+  unblocks: []
+acceptance_criteria:
+  -
+    id: "AC-1"
+    text: "Discovery page renders at /discovery with candidate list"
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-2"
+    text: "Promote action updates candidate to 'approved' and refreshes list"
+    verify: "cd frontend && npm run build"
+    status: "pending"
+  -
+    id: "AC-3"
+    text: "TypeScript compilation passes"
+    verify: "cd frontend && npm run build"
+    status: "pending"
+verification_required:
+  - "cd frontend && npm run build"
+  - "cd frontend && npm run build"
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-26-execution-plan.md"
+slices:
+  -
+    id: "S1"
+    title: "Discovery route + candidate list"
+    status: "pending"
+    depends_on: []
+    files_create:
+      - "frontend/src/routes/discovery.tsx"
+      - "frontend/src/hooks/useDiscovery.ts"
+      - "frontend/src/components/discovery/CandidateCard.tsx"
+      - "frontend/src/components/discovery/CandidateList.tsx"
+    files_read_only:
+      - "frontend/src/api/client.ts"
+      - "frontend/src/components/ui/card.tsx"
+      - "frontend/src/components/ui/tabs.tsx"
+    checks:
+      - "cd frontend && npx tsc --noEmit"
+    evidence: []
+    notes:
+  - "Delivered as part of initial monorepo build. Closed during grooming pass." ""
+    files_modify: []
+  -
+    id: "S2"
+    title: "Promote/reject actions + run discovery button"
+    status: "pending"
+    depends_on:
+      - "S1"
+    files_modify:
+      - "frontend/src/hooks/useDiscovery.ts"
+      - "frontend/src/components/discovery/CandidateCard.tsx"
+    files_read_only:
+      - "frontend/src/api/client.ts"
+    checks:
+      - "cd frontend && npm run build"
+    evidence: []
+    notes: ""
+    files_create: []
+delivery:
+  branch: "feat/SC-26-discovery-page"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: "2026-03-15T00:00:00Z"
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+notes:
+  - "MerchantCandidate.confidence is 0.0-1.0 float \u2014 display as percentage"
+  - "MerchantCandidate.status: 'pending' | 'approved' | 'rejected'"
+  - "After promote: link to /merchants/:id for the created merchant"
