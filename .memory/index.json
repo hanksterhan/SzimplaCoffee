@@ -1,6 +1,20 @@
 {
   "entries": [
     {
+      "id": "SC-50-recurring-crawl-scheduling",
+      "path": ".memory/sprint-01/SC-50-recurring-crawl-scheduling.md",
+      "ticket": "SC-50",
+      "title": "Recurring crawl scheduling",
+      "date": "2026-03-15"
+    },
+    {
+      "id": "SC-51-crawl-strategy-quality-layer",
+      "path": ".memory/sprint-01/SC-51-crawl-strategy-quality-layer.md",
+      "ticket": "SC-51",
+      "title": "Crawl strategy quality layer",
+      "date": "2026-03-15"
+    },
+    {
       "id": "SC-49-deal-facts-and-sales-intelligence",
       "path": ".memory/sprint-01/SC-49-deal-facts-and-sales-intelligence.md",
       "ticket": "SC-49",

@@ -310,6 +310,14 @@ class CrawlRun(Base):
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
     records_written: Mapped[int] = mapped_column(Integer, default=0)
     error_summary: Mapped[str] = mapped_column(Text, default="")
+    # Crawl strategy layer tracking (SC-51)
+    # Strategy layers: "feed" | "structured" | "dom" | "agentic" | "none"
+    catalog_strategy: Mapped[str] = mapped_column(String(32), default="none")
+    promo_strategy: Mapped[str] = mapped_column(String(32), default="none")
+    shipping_strategy: Mapped[str] = mapped_column(String(32), default="none")
+    metadata_strategy: Mapped[str] = mapped_column(String(32), default="none")
+    # Derived quality score [0.0–1.0] for this run
+    crawl_quality_score: Mapped[float] = mapped_column(Float, default=0.0)
 
     merchant: Mapped[Merchant] = relationship(back_populates="crawl_runs")
 

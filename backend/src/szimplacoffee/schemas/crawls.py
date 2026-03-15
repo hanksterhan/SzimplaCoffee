@@ -17,6 +17,12 @@ class CrawlRunSchema(BaseModel):
     confidence: float
     records_written: int
     error_summary: str
+    # Crawl strategy layers (SC-51)
+    catalog_strategy: str = "none"
+    promo_strategy: str = "none"
+    shipping_strategy: str = "none"
+    metadata_strategy: str = "none"
+    crawl_quality_score: float = 0.0
 
     @computed_field
     @property
