@@ -97,19 +97,25 @@ function buildTags(product: Pick<ProductDetail, "product_category" | "origin_tex
 }
 
 function toggleCategory(current: string[], value: string) {
+  console.log("[Filter:Category] toggleCategory called — current:", current, "value:", value);
   if (value === "all") {
+    console.log("[Filter:Category] → returning ['all']");
     return ["all"];
   }
 
   const withoutAll = current.filter((item) => item !== "all");
   const exists = withoutAll.includes(value);
   const next = exists ? withoutAll.filter((item) => item !== value) : [...withoutAll, value];
-  return next.length > 0 ? next : ["coffee"];
+  const result = next.length > 0 ? next : ["coffee"];
+  console.log("[Filter:Category] → next state:", result);
+  return result;
 }
 
 function toggleMerchant(current: number[], value: number) {
+  console.log("[Filter:Merchant] toggleMerchant called — current:", current, "value:", value);
   const exists = current.includes(value);
   const next = exists ? current.filter((item) => item !== value) : [...current, value];
+  console.log("[Filter:Merchant] → next state:", next);
   return next;
 }
 
@@ -337,6 +343,9 @@ function ProductsPage() {
   const debouncedQ = useDebounce(inputValue, 350);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // DEBUG: log state on every render
+  console.log("[ProductsPage] render — categories:", categories, "merchants:", selectedMerchants, "sort:", sortBy, "q:", debouncedQ);
+
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useProductSearch({
     q: debouncedQ,
     categories,
@@ -411,7 +420,10 @@ function ProductsPage() {
                     <DropdownMenuCheckboxItem
                       key={option.value}
                       checked={checked}
-                      onCheckedChange={() => setCategories((current) => toggleCategory(current, option.value))}
+                      onCheckedChange={(checked) => {
+                        console.log("[Filter:Category] onCheckedChange fired — option:", option.value, "checked arg:", checked);
+                        setCategories((current) => toggleCategory(current, option.value));
+                      }}
                     >
                       <span>{option.label}</span>
                     </DropdownMenuCheckboxItem>
@@ -440,7 +452,10 @@ function ProductsPage() {
                       <DropdownMenuCheckboxItem
                         key={merchant.merchant_id}
                         checked={checked}
-                        onCheckedChange={() => setSelectedMerchants((current) => toggleMerchant(current, merchant.merchant_id))}
+                        onCheckedChange={(checked) => {
+                          console.log("[Filter:Merchant] onCheckedChange fired — merchant:", merchant.merchant_id, merchant.merchant_name, "checked arg:", checked);
+                          setSelectedMerchants((current) => toggleMerchant(current, merchant.merchant_id));
+                        }}
                       >
                         <span className="truncate">{merchant.merchant_name}</span>
                       </DropdownMenuCheckboxItem>
@@ -474,7 +489,10 @@ function ProductsPage() {
                     key={value}
                     type="button"
                     className={`flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-sm hover:bg-accent ${sortBy === value ? "bg-accent" : ""}`}
-                    onClick={() => setSortBy(value as typeof sortBy)}
+                    onClick={() => {
+                      console.log("[Filter:Sort] clicked — value:", value);
+                      setSortBy(value as typeof sortBy);
+                    }}
                   >
                     <span>{label}</span>
                     {sortBy === value && <Check className="h-4 w-4 text-green-600" />}
