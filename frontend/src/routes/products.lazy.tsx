@@ -346,6 +346,22 @@ function ProductsPage() {
   // DEBUG: log state on every render
   console.log("[ProductsPage] render — categories:", categories, "merchants:", selectedMerchants, "sort:", sortBy, "q:", debouncedQ);
 
+  // DEBUG: document-level click trap to detect if ANY click reaches the page
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      console.log("[DOM] document click fired — target:", e.target, "composedPath:", e.composedPath().slice(0, 4));
+    };
+    const pointerHandler = (e: PointerEvent) => {
+      console.log("[DOM] document pointerdown fired — target:", e.target);
+    };
+    document.addEventListener("click", handler, true); // capture phase
+    document.addEventListener("pointerdown", pointerHandler, true); // capture phase
+    return () => {
+      document.removeEventListener("click", handler, true);
+      document.removeEventListener("pointerdown", pointerHandler, true);
+    };
+  }, []);
+
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useProductSearch({
     q: debouncedQ,
     categories,
@@ -405,7 +421,12 @@ function ProductsPage() {
           <div className="flex flex-wrap gap-2 items-center">
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onPointerDown={(e) => console.log("[TRIGGER] Categories pointerdown", e.target, e.currentTarget)}
+                  onClick={(e) => console.log("[TRIGGER] Categories click", e.target, e.currentTarget)}
+                >
                   Categories
                   <span className="text-muted-foreground">{categoryMenuLabel}</span>
                   <ChevronDown className="h-4 w-4" />
