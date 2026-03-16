@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 /* Map CSS custom properties to Tailwind v4 color utilities.
    Without @theme, bg-accent/bg-muted/etc. won't resolve to our CSS vars.
