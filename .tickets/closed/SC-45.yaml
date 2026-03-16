@@ -2,10 +2,10 @@ id: "SC-45"
 title: "Correct catalog search truth and stock semantics"
 type: "feature"
 priority: "p1"
-status: "draft"
+status: "done"
 owner: "h6nk-bot"
 created_at: "2026-03-15T07:00:00Z"
-updated_at: "2026-03-15T07:00:00Z"
+updated_at: "2026-03-15T22:20:00Z"
 labels:
   - "feature"
   - "workflow"
@@ -31,17 +31,17 @@ acceptance_criteria:
     id: "AC-1"
     text: "Catalog search copy matches actual backend search behavior."
     verify: "cd frontend && npm run build"
-    status: "pending"
+    status: "passed"
   -
     id: "AC-2"
     text: "Product cards derive stock labels from variant availability rather than product presence alone."
     verify: "cd backend && . .venv/bin/activate && pytest tests/test_api_products.py -q"
-    status: "pending"
+    status: "passed"
   -
     id: "AC-3"
     text: "Catalog UI renders with truthful stock indicators without misleading inventory states."
     verify: "cd frontend && npm run build"
-    status: "pending"
+    status: "passed"
 verification_required:
   - "cd backend && . .venv/bin/activate && pytest tests/test_api_products.py -q"
   - "cd backend && . .venv/bin/activate && ruff check src tests"
@@ -53,7 +53,7 @@ slices:
   -
     id: "S1"
     title: "Make stock semantics truthful in product summaries"
-    status: "pending"
+    status: "done"
     depends_on: []
     files_create: []
     files_modify:
@@ -69,7 +69,7 @@ slices:
   -
     id: "S2"
     title: "Align catalog UI messaging with backend truth"
-    status: "pending"
+    status: "done"
     depends_on:
       - "S1"
     files_create: []
@@ -84,13 +84,18 @@ slices:
     notes: "Do not advertise unsupported search fields."
 delivery:
   branch: "feat/SC-45-catalog-search-stock-truth"
-  commits: []
+  commits:
+    - "b7e7bed feat(SC-45): align catalog search and stock truth"
+    - "a57cf9a chore(SC-45): close delivery record"
   pr_url: ""
-  started_at: ""
-  completed_at: ""
+  started_at: "2026-03-15T07:00:00Z"
+  completed_at: "2026-03-15T22:20:00Z"
   verification:
-    required_passed: false
-    commands_run: []
+    required_passed: true
+    commands_run:
+      - "cd backend && pytest tests/test_api_products.py -q"
+      - "cd backend && ruff check src tests"
+      - "cd frontend && npm run build"
     evidence_refs: []
 notes:
   - "Generated from .plans/next-steps-march15.md in strict-schema migration batch."
