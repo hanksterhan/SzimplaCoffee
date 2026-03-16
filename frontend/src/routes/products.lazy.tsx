@@ -412,7 +412,6 @@ function ProductsPage() {
                       key={option.value}
                       checked={checked}
                       onCheckedChange={() => setCategories((current) => toggleCategory(current, option.value))}
-                      onSelect={(event) => event.preventDefault()}
                     >
                       <span>{option.label}</span>
                     </DropdownMenuCheckboxItem>
@@ -442,7 +441,6 @@ function ProductsPage() {
                         key={merchant.merchant_id}
                         checked={checked}
                         onCheckedChange={() => setSelectedMerchants((current) => toggleMerchant(current, merchant.merchant_id))}
-                        onSelect={(event) => event.preventDefault()}
                       >
                         <span className="truncate">{merchant.merchant_name}</span>
                       </DropdownMenuCheckboxItem>
