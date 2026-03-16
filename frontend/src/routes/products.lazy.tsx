@@ -334,6 +334,8 @@ function ProductsPage() {
   const [selectedMerchants, setSelectedMerchants] = useState<number[]>([]);
   const [sortBy, setSortBy] = useState<ProductSort>("featured");
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [merchantOpen, setMerchantOpen] = useState(false);
   const debouncedQ = useDebounce(inputValue, 350);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -394,7 +396,7 @@ function ProductsPage() {
           </div>
 
           <div className="flex flex-wrap gap-2 items-center">
-            <DropdownMenu>
+            <DropdownMenu open={categoryOpen} onOpenChange={setCategoryOpen}>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="gap-2">
                   Categories
@@ -421,7 +423,7 @@ function ProductsPage() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <DropdownMenu>
+            <DropdownMenu open={merchantOpen} onOpenChange={setMerchantOpen}>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="gap-2">
                   Merchants
