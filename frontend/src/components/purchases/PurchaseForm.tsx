@@ -142,7 +142,7 @@ export function PurchaseForm({ open, onOpenChange, editPurchase }: PurchaseFormP
           <div className="space-y-1">
             <label className="text-sm font-medium">Merchant *</label>
             <Select value={form.merchant_id} onValueChange={(v) => set("merchant_id", v)} open={merchantSelectOpen} onOpenChange={setMerchantSelectOpen}>
-              <SelectTrigger onClick={() => setMerchantSelectOpen((v) => !v)}>
+              <SelectTrigger onOpenToggle={() => setMerchantSelectOpen(true)}>
                 <SelectValue placeholder="Select merchant…" />
               </SelectTrigger>
               <SelectContent>
@@ -208,7 +208,7 @@ export function PurchaseForm({ open, onOpenChange, editPurchase }: PurchaseFormP
                 open={weightSelectOpen}
                 onOpenChange={setWeightSelectOpen}
               >
-                <SelectTrigger onClick={() => setWeightSelectOpen((v) => !v)}>
+                <SelectTrigger onOpenToggle={() => setWeightSelectOpen(true)}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

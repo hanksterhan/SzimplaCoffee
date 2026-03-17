@@ -86,7 +86,7 @@ export function BrewFeedbackForm({
               open={shotStyleOpen}
               onOpenChange={setShotStyleOpen}
             >
-              <SelectTrigger onClick={() => setShotStyleOpen((v) => !v)}>
+              <SelectTrigger onOpenToggle={() => setShotStyleOpen(true)}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -118,7 +118,7 @@ export function BrewFeedbackForm({
               open={basketOpen}
               onOpenChange={setBasketOpen}
             >
-              <SelectTrigger onClick={() => setBasketOpen((v) => !v)}>
+              <SelectTrigger onOpenToggle={() => setBasketOpen(true)}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

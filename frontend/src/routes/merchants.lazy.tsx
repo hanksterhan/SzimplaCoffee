@@ -72,7 +72,7 @@ function MerchantsPage() {
           open={platformOpen}
           onOpenChange={setPlatformOpen}
         >
-          <SelectTrigger className="w-44" onClick={() => setPlatformOpen((v) => !v)}>
+          <SelectTrigger className="w-44" onOpenToggle={() => setPlatformOpen(true)}>
             <SelectValue placeholder="All Platforms" />
           </SelectTrigger>
           <SelectContent>
@@ -89,7 +89,7 @@ function MerchantsPage() {
           open={trustOpen}
           onOpenChange={setTrustOpen}
         >
-          <SelectTrigger className="w-40" onClick={() => setTrustOpen((v) => !v)}>
+          <SelectTrigger className="w-40" onOpenToggle={() => setTrustOpen(true)}>
             <SelectValue placeholder="All Trust" />
           </SelectTrigger>
           <SelectContent>

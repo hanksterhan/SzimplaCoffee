@@ -364,7 +364,7 @@ function RecommendPage() {
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Shot Style</label>
                 <Select value={shotStyle} onValueChange={setShotStyle} open={shotStyleOpen} onOpenChange={setShotStyleOpen}>
-                  <SelectTrigger onClick={() => setShotStyleOpen((v) => !v)}>
+                  <SelectTrigger onOpenToggle={() => setShotStyleOpen(true)}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -381,7 +381,7 @@ function RecommendPage() {
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Bag Size</label>
                 <Select value={quantityMode} onValueChange={setQuantityMode} open={quantityModeOpen} onOpenChange={setQuantityModeOpen}>
-                  <SelectTrigger onClick={() => setQuantityModeOpen((v) => !v)}>
+                  <SelectTrigger onOpenToggle={() => setQuantityModeOpen(true)}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

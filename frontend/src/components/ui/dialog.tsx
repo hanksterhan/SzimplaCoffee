@@ -28,7 +28,10 @@ const DialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => (
   <DialogPortal>
-    <DialogOverlay />
+    {/* Wrap overlay in DialogClose so clicking the backdrop dismisses the dialog */}
+    <DialogPrimitive.Close asChild>
+      <DialogOverlay />
+    </DialogPrimitive.Close>
     <DialogPrimitive.Content
       ref={ref}
       className={cn(

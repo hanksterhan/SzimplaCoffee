@@ -253,7 +253,7 @@ function PurchasesPage() {
           open={merchantFilterOpen}
           onOpenChange={setMerchantFilterOpen}
         >
-          <SelectTrigger className="w-full sm:w-48" onClick={() => setMerchantFilterOpen((v) => !v)}>
+          <SelectTrigger className="w-full sm:w-48" onOpenToggle={() => setMerchantFilterOpen(true)}>
             <SelectValue placeholder="All merchants" />
           </SelectTrigger>
           <SelectContent>
