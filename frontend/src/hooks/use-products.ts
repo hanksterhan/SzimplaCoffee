@@ -45,13 +45,9 @@ export function useProductSearch({
       if (pageParam !== null && pageParam !== undefined) {
         params.set("cursor", String(pageParam));
       }
-      const url = `/api/v1/products/search?${params.toString()}`;
-      console.log("[useProductSearch] fetching:", url);
-      const response = await fetch(url);
+      const response = await fetch(`/api/v1/products/search?${params.toString()}`);
       if (!response.ok) throw new Error("Search failed");
-      const result = await response.json() as CursorPageProductSummary;
-      console.log("[useProductSearch] got", result.items?.length, "items, has_more:", result.has_more);
-      return result;
+      return response.json() as Promise<CursorPageProductSummary>;
     },
     initialPageParam: null as number | null,
     getNextPageParam: (lastPage) =>

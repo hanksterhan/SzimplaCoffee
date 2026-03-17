@@ -97,26 +97,16 @@ function buildTags(product: Pick<ProductDetail, "product_category" | "origin_tex
 }
 
 function toggleCategory(current: string[], value: string) {
-  console.log("[Filter:Category] toggleCategory called — current:", current, "value:", value);
-  if (value === "all") {
-    console.log("[Filter:Category] → returning ['all']");
-    return ["all"];
-  }
-
+  if (value === "all") return ["all"];
   const withoutAll = current.filter((item) => item !== "all");
   const exists = withoutAll.includes(value);
   const next = exists ? withoutAll.filter((item) => item !== value) : [...withoutAll, value];
-  const result = next.length > 0 ? next : ["coffee"];
-  console.log("[Filter:Category] → next state:", result);
-  return result;
+  return next.length > 0 ? next : ["coffee"];
 }
 
 function toggleMerchant(current: number[], value: number) {
-  console.log("[Filter:Merchant] toggleMerchant called — current:", current, "value:", value);
   const exists = current.includes(value);
-  const next = exists ? current.filter((item) => item !== value) : [...current, value];
-  console.log("[Filter:Merchant] → next state:", next);
-  return next;
+  return exists ? current.filter((item) => item !== value) : [...current, value];
 }
 
 function ProductCard({ product, onClick }: { product: ProductCardSummary; onClick: () => void }) {
@@ -340,27 +330,13 @@ function ProductsPage() {
   const [selectedMerchants, setSelectedMerchants] = useState<number[]>([]);
   const [sortBy, setSortBy] = useState<ProductSort>("featured");
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [merchantsOpen, setMerchantsOpen] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
   const debouncedQ = useDebounce(inputValue, 350);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // DEBUG: log state on every render
-  console.log("[ProductsPage] render — categories:", categories, "merchants:", selectedMerchants, "sort:", sortBy, "q:", debouncedQ);
 
-  // DEBUG: document-level click trap to detect if ANY click reaches the page
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      console.log("[DOM] document click fired — target:", e.target, "composedPath:", e.composedPath().slice(0, 4));
-    };
-    const pointerHandler = (e: PointerEvent) => {
-      console.log("[DOM] document pointerdown fired — target:", e.target);
-    };
-    document.addEventListener("click", handler, true); // capture phase
-    document.addEventListener("pointerdown", pointerHandler, true); // capture phase
-    return () => {
-      document.removeEventListener("click", handler, true);
-      document.removeEventListener("pointerdown", pointerHandler, true);
-    };
-  }, []);
 
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useProductSearch({
     q: debouncedQ,
@@ -419,13 +395,12 @@ function ProductsPage() {
           </div>
 
           <div className="flex flex-wrap gap-2 items-center">
-            <DropdownMenu modal={false}>
+            <DropdownMenu modal={false} open={categoriesOpen} onOpenChange={setCategoriesOpen}>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
                   className="gap-2"
-                  onPointerDown={(e) => console.log("[TRIGGER] Categories pointerdown", e.target, e.currentTarget)}
-                  onClick={(e) => console.log("[TRIGGER] Categories click", e.target, e.currentTarget)}
+                  onClick={() => setCategoriesOpen((v) => !v)}
                 >
                   Categories
                   <span className="text-muted-foreground">{categoryMenuLabel}</span>
@@ -441,10 +416,7 @@ function ProductsPage() {
                     <DropdownMenuCheckboxItem
                       key={option.value}
                       checked={checked}
-                      onCheckedChange={(checked) => {
-                        console.log("[Filter:Category] onCheckedChange fired — option:", option.value, "checked arg:", checked);
-                        setCategories((current) => toggleCategory(current, option.value));
-                      }}
+                      onCheckedChange={() => setCategories((current) => toggleCategory(current, option.value))}
                     >
                       <span>{option.label}</span>
                     </DropdownMenuCheckboxItem>
@@ -453,9 +425,9 @@ function ProductsPage() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <DropdownMenu modal={false}>
+            <DropdownMenu modal={false} open={merchantsOpen} onOpenChange={setMerchantsOpen}>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
+                <Button variant="outline" className="gap-2" onClick={() => setMerchantsOpen((v) => !v)}>
                   Merchants
                   <span className="text-muted-foreground">{merchantMenuLabel}</span>
                   <ChevronDown className="h-4 w-4" />
@@ -473,10 +445,7 @@ function ProductsPage() {
                       <DropdownMenuCheckboxItem
                         key={merchant.merchant_id}
                         checked={checked}
-                        onCheckedChange={(checked) => {
-                          console.log("[Filter:Merchant] onCheckedChange fired — merchant:", merchant.merchant_id, merchant.merchant_name, "checked arg:", checked);
-                          setSelectedMerchants((current) => toggleMerchant(current, merchant.merchant_id));
-                        }}
+                        onCheckedChange={() => setSelectedMerchants((current) => toggleMerchant(current, merchant.merchant_id))}
                       >
                         <span className="truncate">{merchant.merchant_name}</span>
                       </DropdownMenuCheckboxItem>
@@ -486,9 +455,9 @@ function ProductsPage() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <DropdownMenu modal={false}>
+            <DropdownMenu modal={false} open={sortOpen} onOpenChange={setSortOpen}>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
+                <Button variant="outline" className="gap-2" onClick={() => setSortOpen((v) => !v)}>
                   Sort
                   <span className="text-muted-foreground">{sortBy.replaceAll("_", " ")}</span>
                   <ChevronDown className="h-4 w-4" />
