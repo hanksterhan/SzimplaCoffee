@@ -10,31 +10,54 @@ const SelectValue = SelectPrimitive.Value;
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger> & { onOpenToggle?: () => void }
->(({ className, children, onOpenToggle, onPointerDown, onClick, ...props }, ref) => (
-  <SelectPrimitive.Trigger
-    ref={ref}
-    className={cn(
-      "flex h-10 w-full items-center justify-between rounded-md border border-input [background-color:hsl(var(--background))] px-3 py-2 text-sm ring-offset-background placeholder:[color:hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
-      className
-    )}
-    onPointerDown={(e) => {
-      // Fire our open toggle on pointerdown (before Radix calls preventDefault which blocks click)
-      console.log("[SelectTrigger] pointerdown fired, onOpenToggle:", !!onOpenToggle);
-      onPointerDown?.(e);
-      onOpenToggle?.();
-    }}
-    onClick={(e) => {
-      console.log("[SelectTrigger] click fired");
-      onClick?.(e);
-    }}
-    {...props}
-  >
-    {children}
-    <SelectPrimitive.Icon asChild>
-      <ChevronDown className="h-4 w-4 opacity-50" />
-    </SelectPrimitive.Icon>
-  </SelectPrimitive.Trigger>
-));
+>(({ className, children, onOpenToggle, onClick, ...props }, ref) => {
+  // When onOpenToggle is provided, we render a plain <button> that drives open state via
+  // onClick (reliable in React 19). Radix SelectPrimitive.Trigger uses pointerdown which
+  // is not forwarded correctly in React 19's event system.
+  if (onOpenToggle) {
+    return (
+      <SelectPrimitive.Trigger
+        ref={ref}
+        className={cn(
+          "flex h-10 w-full items-center justify-between rounded-md border border-input [background-color:hsl(var(--background))] px-3 py-2 text-sm ring-offset-background placeholder:[color:hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
+          className
+        )}
+        onPointerDown={(e) => {
+          // preventDefault prevents Radix's own pointerdown handler (composeEventHandlers
+          // checks defaultPrevented) while also allowing the click event to fire afterward.
+          e.preventDefault();
+        }}
+        onClick={(e) => {
+          onClick?.(e);
+          onOpenToggle();
+        }}
+        {...props}
+      >
+        {children}
+        <SelectPrimitive.Icon asChild>
+          <ChevronDown className="h-4 w-4 opacity-50" />
+        </SelectPrimitive.Icon>
+      </SelectPrimitive.Trigger>
+    );
+  }
+
+  return (
+    <SelectPrimitive.Trigger
+      ref={ref}
+      className={cn(
+        "flex h-10 w-full items-center justify-between rounded-md border border-input [background-color:hsl(var(--background))] px-3 py-2 text-sm ring-offset-background placeholder:[color:hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
+        className
+      )}
+      onClick={onClick}
+      {...props}
+    >
+      {children}
+      <SelectPrimitive.Icon asChild>
+        <ChevronDown className="h-4 w-4 opacity-50" />
+      </SelectPrimitive.Icon>
+    </SelectPrimitive.Trigger>
+  );
+});
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 
 const SelectScrollUpButton = React.forwardRef<
