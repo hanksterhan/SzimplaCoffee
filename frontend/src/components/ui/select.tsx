@@ -10,16 +10,22 @@ const SelectValue = SelectPrimitive.Value;
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger> & { onOpenToggle?: () => void }
->(({ className, children, onOpenToggle, onClick, ...props }, ref) => (
+>(({ className, children, onOpenToggle, onPointerDown, onClick, ...props }, ref) => (
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
       "flex h-10 w-full items-center justify-between rounded-md border border-input [background-color:hsl(var(--background))] px-3 py-2 text-sm ring-offset-background placeholder:[color:hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
       className
     )}
-    onClick={(e) => {
-      onClick?.(e);
+    onPointerDown={(e) => {
+      // Fire our open toggle on pointerdown (before Radix calls preventDefault which blocks click)
+      console.log("[SelectTrigger] pointerdown fired, onOpenToggle:", !!onOpenToggle);
+      onPointerDown?.(e);
       onOpenToggle?.();
+    }}
+    onClick={(e) => {
+      console.log("[SelectTrigger] click fired");
+      onClick?.(e);
     }}
     {...props}
   >
