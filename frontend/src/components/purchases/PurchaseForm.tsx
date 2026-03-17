@@ -77,6 +77,8 @@ export function PurchaseForm({ open, onOpenChange, editPurchase }: PurchaseFormP
   const [form, setForm] = useState<FormState>(
     editPurchase ? purchaseToForm(editPurchase) : DEFAULT_FORM
   );
+  const [merchantSelectOpen, setMerchantSelectOpen] = useState(false);
+  const [weightSelectOpen, setWeightSelectOpen] = useState(false);
 
   const { data: merchantsData } = useMerchants({ page_size: 200, is_active: true });
   const merchants = merchantsData?.items ?? [];
@@ -139,8 +141,8 @@ export function PurchaseForm({ open, onOpenChange, editPurchase }: PurchaseFormP
           {/* Merchant */}
           <div className="space-y-1">
             <label className="text-sm font-medium">Merchant *</label>
-            <Select value={form.merchant_id} onValueChange={(v) => set("merchant_id", v)}>
-              <SelectTrigger>
+            <Select value={form.merchant_id} onValueChange={(v) => set("merchant_id", v)} open={merchantSelectOpen} onOpenChange={setMerchantSelectOpen}>
+              <SelectTrigger onClick={() => setMerchantSelectOpen((v) => !v)}>
                 <SelectValue placeholder="Select merchant…" />
               </SelectTrigger>
               <SelectContent>
@@ -203,8 +205,10 @@ export function PurchaseForm({ open, onOpenChange, editPurchase }: PurchaseFormP
               <Select
                 value={form.weight_preset}
                 onValueChange={(v) => set("weight_preset", v)}
+                open={weightSelectOpen}
+                onOpenChange={setWeightSelectOpen}
               >
-                <SelectTrigger>
+                <SelectTrigger onClick={() => setWeightSelectOpen((v) => !v)}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

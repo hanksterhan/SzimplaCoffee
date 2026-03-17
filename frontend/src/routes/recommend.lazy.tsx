@@ -297,6 +297,8 @@ function RecommendPage() {
   const [quantityMode, setQuantityMode] = useState("12-18 oz");
   const [bulkAllowed, setBulkAllowed] = useState(false);
   const [allowDecaf, setAllowDecaf] = useState(false);
+  const [shotStyleOpen, setShotStyleOpen] = useState(false);
+  const [quantityModeOpen, setQuantityModeOpen] = useState(false);
 
   const [activeResult, setActiveResult] =
     useState<RecommendationResultResponse | null>(null);
@@ -361,8 +363,8 @@ function RecommendPage() {
               {/* Shot Style */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Shot Style</label>
-                <Select value={shotStyle} onValueChange={setShotStyle}>
-                  <SelectTrigger>
+                <Select value={shotStyle} onValueChange={setShotStyle} open={shotStyleOpen} onOpenChange={setShotStyleOpen}>
+                  <SelectTrigger onClick={() => setShotStyleOpen((v) => !v)}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -378,8 +380,8 @@ function RecommendPage() {
               {/* Bag Size */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Bag Size</label>
-                <Select value={quantityMode} onValueChange={setQuantityMode}>
-                  <SelectTrigger>
+                <Select value={quantityMode} onValueChange={setQuantityMode} open={quantityModeOpen} onOpenChange={setQuantityModeOpen}>
+                  <SelectTrigger onClick={() => setQuantityModeOpen((v) => !v)}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

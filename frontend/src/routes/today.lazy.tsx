@@ -172,6 +172,8 @@ function TodayPage() {
   const [shotStyle, setShotStyle] = useState("modern_58mm");
   const [quantityMode, setQuantityMode] = useState("12-18 oz");
   const [inventoryGrams, setInventoryGrams] = useState(0);
+  const [shotStyleOpen, setShotStyleOpen] = useState(false);
+  const [quantityModeOpen, setQuantityModeOpen] = useState(false);
 
   const { data, isLoading, refetch, isFetching } = useTodayBrief({
     shot_style: shotStyle,
@@ -190,8 +192,8 @@ function TodayPage() {
       <div className="flex flex-wrap gap-3">
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Shot style</label>
-          <Select value={shotStyle} onValueChange={setShotStyle}>
-            <SelectTrigger className="w-44">
+          <Select value={shotStyle} onValueChange={setShotStyle} open={shotStyleOpen} onOpenChange={setShotStyleOpen}>
+            <SelectTrigger className="w-44" onClick={() => setShotStyleOpen((v) => !v)}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -205,8 +207,8 @@ function TodayPage() {
 
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Bag size</label>
-          <Select value={quantityMode} onValueChange={setQuantityMode}>
-            <SelectTrigger className="w-36">
+          <Select value={quantityMode} onValueChange={setQuantityMode} open={quantityModeOpen} onOpenChange={setQuantityModeOpen}>
+            <SelectTrigger className="w-36" onClick={() => setQuantityModeOpen((v) => !v)}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -204,6 +204,7 @@ function PurchasesPage() {
   const [logOpen, setLogOpen] = useState(false);
   const [editPurchase, setEditPurchase] = useState<PurchaseSummary | null>(null);
   const [filterMerchantId, setFilterMerchantId] = useState<string>("");
+  const [merchantFilterOpen, setMerchantFilterOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -249,8 +250,10 @@ function PurchasesPage() {
         <Select
           value={filterMerchantId}
           onValueChange={setFilterMerchantId}
+          open={merchantFilterOpen}
+          onOpenChange={setMerchantFilterOpen}
         >
-          <SelectTrigger className="w-full sm:w-48">
+          <SelectTrigger className="w-full sm:w-48" onClick={() => setMerchantFilterOpen((v) => !v)}>
             <SelectValue placeholder="All merchants" />
           </SelectTrigger>
           <SelectContent>
