@@ -47,6 +47,30 @@ export function useRemoveFromWatchlist() {
   });
 }
 
+export function useUpdateTrustTier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      merchantId,
+      trustTier,
+    }: {
+      merchantId: number;
+      trustTier: string;
+    }) => {
+      const response = await fetch(`/api/v1/merchants/${merchantId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trust_tier: trustTier }),
+      });
+      if (!response.ok) throw new Error("Failed to update trust tier");
+      return response.json() as Promise<MerchantSummary>;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["merchants"] });
+    },
+  });
+}
+
 export function useLowConfidenceMerchants(maxQualityScore = 0.5) {
   return useQuery({
     queryKey: ["merchants", "low-confidence", maxQualityScore],

@@ -8,6 +8,7 @@ import {
   useWatchlist,
   useRemoveFromWatchlist,
   useLowConfidenceMerchants,
+  useUpdateTrustTier,
   type MerchantSummary,
 } from "@/hooks/use-watchlist";
 import { toast } from "sonner";
@@ -57,6 +58,61 @@ function MetadataBadge({ pct }: { pct: number }) {
     <Badge variant="outline" className={`text-xs ${color}`}>
       {pct}% meta
     </Badge>
+  );
+}
+
+const TRUST_TIER_ORDER = ["rejected", "candidate", "verified", "trusted"] as const;
+type TrustTier = (typeof TRUST_TIER_ORDER)[number];
+
+function TrustControls({ merchant }: { merchant: MerchantSummary }) {
+  const { mutate: updateTrust, isPending } = useUpdateTrustTier();
+  const currentIdx = TRUST_TIER_ORDER.indexOf(merchant.trust_tier as TrustTier);
+  const canPromote = currentIdx < TRUST_TIER_ORDER.length - 1;
+  const canDemote = currentIdx > 0;
+
+  const promote = () => {
+    const newTier = TRUST_TIER_ORDER[currentIdx + 1];
+    updateTrust(
+      { merchantId: merchant.id, trustTier: newTier },
+      { onSuccess: () => toast.success(`${merchant.name} promoted to ${newTier}`) }
+    );
+  };
+
+  const demote = () => {
+    const newTier = TRUST_TIER_ORDER[currentIdx - 1];
+    updateTrust(
+      { merchantId: merchant.id, trustTier: newTier },
+      { onSuccess: () => toast.success(`${merchant.name} demoted to ${newTier}`) }
+    );
+  };
+
+  return (
+    <div className="flex gap-1 shrink-0">
+      {canDemote && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-xs px-2"
+          onClick={demote}
+          disabled={isPending}
+          title="Demote trust tier"
+        >
+          ↓
+        </Button>
+      )}
+      {canPromote && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-xs px-2 text-green-700 border-green-300 hover:bg-green-50"
+          onClick={promote}
+          disabled={isPending}
+          title="Promote trust tier"
+        >
+          ↑
+        </Button>
+      )}
+    </div>
   );
 }
 
@@ -138,17 +194,20 @@ function WatchlistTab() {
           key={m.id}
           merchant={m}
           action={
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs text-red-600 hover:text-red-700"
-              onClick={() => {
-                remove(m.id);
-                toast.success(`Removed ${m.name} from watchlist`);
-              }}
-            >
-              Remove
-            </Button>
+            <div className="flex items-center gap-1 shrink-0">
+              <TrustControls merchant={m} />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-red-600 hover:text-red-700"
+                onClick={() => {
+                  remove(m.id);
+                  toast.success(`Removed ${m.name} from watchlist`);
+                }}
+              >
+                Remove
+              </Button>
+            </div>
           }
         />
       ))}
@@ -190,7 +249,8 @@ function ReviewQueueTab() {
           key={m.id}
           merchant={m}
           action={
-            <div className="flex gap-1 shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
+              <TrustControls merchant={m} />
               <Link
                 to="/merchants/$merchantId"
                 params={{ merchantId: String(m.id) }}

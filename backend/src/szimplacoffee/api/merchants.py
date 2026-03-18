@@ -20,9 +20,16 @@ from ..services.discovery import meets_buying_threshold, BUYING_QUALITY_FLOOR, B
 router = APIRouter(prefix="/merchants", tags=["merchants"])
 
 
+VALID_TRUST_TIERS = {"trusted", "verified", "candidate", "rejected"}
+
+
 class MerchantCreateRequest(BaseModel):
     url: str
     trust_tier: str = "candidate"
+
+
+class MerchantUpdateRequest(BaseModel):
+    trust_tier: str | None = None
 
 
 def _background_crawl(merchant_id: int, run_id: int) -> None:
@@ -162,6 +169,27 @@ def get_merchant(merchant_id: int, db: Session = Depends(get_session)) -> Mercha
     if not m:
         raise HTTPException(status_code=404, detail="Merchant not found")
     return MerchantDetail.model_validate(m)
+
+
+@router.patch("/{merchant_id}", response_model=MerchantSummary)
+def update_merchant(
+    merchant_id: int,
+    payload: MerchantUpdateRequest,
+    db: Session = Depends(get_session),
+) -> MerchantSummary:
+    merchant = db.get(Merchant, merchant_id)
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+    if payload.trust_tier is not None:
+        if payload.trust_tier not in VALID_TRUST_TIERS:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid trust_tier '{payload.trust_tier}'. Valid: {sorted(VALID_TRUST_TIERS)}",
+            )
+        merchant.trust_tier = payload.trust_tier
+    db.commit()
+    db.refresh(merchant)
+    return MerchantSummary.model_validate(merchant)
 
 
 @router.post("", response_model=MerchantSummary, status_code=201)
