@@ -1516,6 +1516,8 @@ export interface components {
             source_system: string;
             /** Source Ref */
             source_ref: string;
+            /** Recommendation Run Id */
+            recommendation_run_id?: number | null;
             /**
              * Brew Feedback
              * @default []
@@ -1560,6 +1562,8 @@ export interface components {
             source_system: string;
             /** Source Ref */
             source_ref: string;
+            /** Recommendation Run Id */
+            recommendation_run_id?: number | null;
             /**
              * Feedback Count
              * @default 0
