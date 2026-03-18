@@ -1,6 +1,6 @@
 # Now / Next / Later
 
-_Updated: 2026-03-18 after SC-75 delivery_
+_Updated: 2026-03-18 after SC-78 delivery_
 
 ## Top-500 Merchant Registry — Rollout Policy (SC-53)
 
@@ -32,13 +32,13 @@ _Updated: 2026-03-18 after SC-75 delivery_
 
 ## Now
 
-- Finish merchant coverage with SC-76 (La Colombe, Coava, Huckleberry)
-- Review merchant crawl quality and trust promotion candidates in SC-60
-- Decide whether custom platforms like Blue Bottle need first-pass crawler support or should stay discovery-only
+- Deliver SC-72 so brew feedback ratings affect recommendation ranking
+- Keep the ready backlog replenished after SC-78; SC-80 is the next purchases UX follow-on
+- Add the recommendation-page handoff into `/purchases?recommendationRunId=<id>` once the next purchase-loop slice is selected
 
 ## Next
 
-- Add richer product-note parsing and a dedicated long-form product description field for catalog quick views
+- Surface recommendation linkage in purchase history/detail (SC-80)
 - Add crawl health, crawl error, and stale-data visibility in the Watch/Review UI
 - Import real purchase history from Notion instead of relying on seed data
 - Add richer merchant filtering and sorting in the dashboard and discovery queue

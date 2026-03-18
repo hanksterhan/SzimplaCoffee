@@ -1,10 +1,17 @@
 {
   "entries": [
     {
+      "id": "SC-78-purchase-form-recommendation-linkage",
+      "path": ".memory/sprint-02/SC-78-purchase-form-recommendation-linkage.md",
+      "ticket": "SC-78",
+      "title": "PurchaseForm recommendation linkage",
+      "date": "2026-03-18"
+    },
+    {
       "id": "SC-79-de1-bridge",
       "path": ".memory/sprint-02/SC-79-de1-bridge.md",
       "ticket": "SC-79",
-      "title": "DE1 Visualizer bridge — auto-import shots as BrewFeedback",
+      "title": "DE1 Visualizer bridge \u2014 auto-import shots as BrewFeedback",
       "date": "2026-03-18"
     },
     {

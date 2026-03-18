@@ -5,8 +5,12 @@ import type { components } from "@/api/schema";
 
 export type PurchaseSummary = components["schemas"]["PurchaseSummary"];
 export type PurchaseDetail = components["schemas"]["PurchaseDetail"];
-export type PurchaseCreate = components["schemas"]["PurchaseCreate"];
-export type PurchaseUpdate = components["schemas"]["PurchaseUpdate"];
+export type PurchaseCreate = components["schemas"]["PurchaseCreate"] & {
+  recommendation_run_id?: number | null;
+};
+export type PurchaseUpdate = components["schemas"]["PurchaseUpdate"] & {
+  recommendation_run_id?: number | null;
+};
 export type PurchaseStats = components["schemas"]["PurchaseStats"];
 
 interface PurchasesFilter {

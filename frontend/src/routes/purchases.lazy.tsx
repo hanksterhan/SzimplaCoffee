@@ -1,5 +1,5 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -201,11 +201,18 @@ function FeedbackDetail({ purchaseId }: { purchaseId: number }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 function PurchasesPage() {
+  const search = Route.useSearch();
   const [logOpen, setLogOpen] = useState(false);
   const [editPurchase, setEditPurchase] = useState<PurchaseSummary | null>(null);
   const [filterMerchantId, setFilterMerchantId] = useState<string>("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+
+  useEffect(() => {
+    if (search.recommendationRunId !== undefined) {
+      setLogOpen(true);
+    }
+  }, [search.recommendationRunId]);
 
   const { data: merchantsData } = useMerchants({ page_size: 200, is_active: true });
   const merchants = merchantsData?.items ?? [];
@@ -384,7 +391,11 @@ function PurchasesPage() {
       )}
 
       {/* Dialogs */}
-      <PurchaseForm open={logOpen} onOpenChange={setLogOpen} />
+      <PurchaseForm
+        open={logOpen}
+        onOpenChange={setLogOpen}
+        recommendationRunId={search.recommendationRunId}
+      />
       {editPurchase && (
         <PurchaseForm
           open={!!editPurchase}

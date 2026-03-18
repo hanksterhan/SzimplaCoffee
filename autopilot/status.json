@@ -2,13 +2,13 @@
   "goal_status": "active",
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
-  "last_refill_at": null,
-  "last_delivered_task": "SC-79",
-  "completed_since_reflect": 0,
+  "last_refill_at": "2026-03-18T16:41:51Z",
+  "last_delivered_task": "SC-78",
+  "completed_since_reflect": 1,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T15:56:00Z",
+  "last_run_at": "2026-03-18T16:47:49Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-79 delivered: DE1 Visualizer bridge polling every 5min, auto-imports shots as BrewFeedback with telemetry + fuzzy product matching. 163 tests pass. Reflection #3 written. State: 17 merchants (13 Tier A), 890 products, 3319 deal facts, 5 purchases, 3 brew sessions.",
-  "next_task_hint": "SC-69"
+  "last_run_summary": "SC-78 delivered: PurchaseForm now accepts hidden recommendation context, submits recommendation_run_id, and /purchases supports recommendationRunId route context. Frontend build passed; SC-80 added as follow-on backlog ticket.",
+  "next_task_hint": "SC-72"
 }

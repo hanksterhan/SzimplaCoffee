@@ -71,9 +71,15 @@ interface PurchaseFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editPurchase?: PurchaseSummary;
+  recommendationRunId?: number;
 }
 
-export function PurchaseForm({ open, onOpenChange, editPurchase }: PurchaseFormProps) {
+export function PurchaseForm({
+  open,
+  onOpenChange,
+  editPurchase,
+  recommendationRunId,
+}: PurchaseFormProps) {
   const [form, setForm] = useState<FormState>(
     editPurchase ? purchaseToForm(editPurchase) : DEFAULT_FORM
   );
@@ -104,6 +110,9 @@ export function PurchaseForm({ open, onOpenChange, editPurchase }: PurchaseFormP
       purchased_at: new Date(form.purchased_at).toISOString(),
       source_system: "manual",
       source_ref: "",
+      ...(recommendationRunId !== undefined
+        ? { recommendation_run_id: recommendationRunId }
+        : {}),
     };
     if (editPurchase) {
       updatePurchase(
