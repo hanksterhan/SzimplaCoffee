@@ -922,6 +922,14 @@ def crawl_merchant(session: Session, merchant: Merchant, run: CrawlRun | None = 
         except Exception:
             pass  # scoring failure must not break the crawl result
 
+        # SC-68: materialize deal facts so recommendation engine has rows to join on
+        try:
+            from .recommendations import materialize_variant_deal_facts as _materialize_deal_facts
+
+            _materialize_deal_facts(session)
+        except Exception:
+            pass  # deal fact failure must not break the crawl result
+
         return summary
     except Exception as exc:
         run.finished_at = _utcnow()
