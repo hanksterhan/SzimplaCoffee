@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": null,
-  "last_delivered_task": "SC-63",
-  "completed_since_reflect": 0,
+  "last_delivered_task": "SC-68",
+  "completed_since_reflect": 1,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T07:04:00Z",
+  "last_run_at": "2026-03-18T07:31:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-63 done. Reflection ran (5 tasks). Roast fill 1.8%→61.5%, 597 products, 15 merchants, 120 tests. Next: SC-68 (VariantDealFact post-crawl wiring) — critical for recommendations.",
-  "next_task_hint": "SC-68"
+  "last_run_summary": "SC-68 delivered: materialize_variant_deal_facts() was missing from post-crawl hook — wired in crawlers.py with lazy-import + try/except guard. Table had 0 rows pre-fix; will populate on next crawl. 120 tests pass, ruff clean.",
+  "next_task_hint": "SC-65"
 }
