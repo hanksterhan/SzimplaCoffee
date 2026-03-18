@@ -1,0 +1,35 @@
+goal: >
+  Make SzimplaCoffee the best local-first specialty coffee buying assistant —
+  surfacing the right bag, at the right price, from the right roaster, every time.
+
+context: >
+  SzimplaCoffee is a personal tool for specialty espresso purchasing decisions.
+  The backend (FastAPI + SQLite) has a sophisticated recommendation engine,
+  crawl infrastructure, quality scoring, and 18 data models. The React SPA
+  covers dashboard, merchants, products, recommendations, discovery, purchases,
+  brew feedback, Today view, and Watch queue. The core problem: the engine is
+  well-designed but starving for real data — only 2 merchants, 38 products,
+  0 recommendation runs, and 93–95% empty coffee metadata fields.
+
+success_criteria:
+  - 15+ real specialty coffee merchants crawled and in the DB at Tier A or B
+  - Coffee metadata (origin, process, roast_level, variety) populated on ≥70% of products
+  - Recommendation engine produces meaningful results (not empty/wait) for a real request
+  - "Today" view returns a ranked recommendation on every use
+  - Purchase history has ≥10 real logged purchases
+  - Brew feedback loop is exercised (at least 3 real sessions logged)
+  - All app UI interactions work correctly (dropdowns, filters, forms)
+  - Backend tests pass (≥84 tests green)
+
+current_state: >
+  Sprint 2 in progress. UI dropdown bugs fixed (React 19 + Radix compat).
+  Autopilot scaffolded today (2026-03-17). Open tickets SC-47 through SC-56
+  cover merchant import, metadata parsing, crawl health, purchase logging,
+  and recommendation engine validation.
+
+priority_order:
+  - Merchant coverage: import 15+ merchants and trigger crawls
+  - Coffee metadata: verify coffee_parser runs post-crawl and fills fields
+  - End-to-end recommendation: run the engine against real data
+  - Purchase + brew feedback loop: log real buys and feedback
+  - UI polish and remaining Sprint 2 tickets

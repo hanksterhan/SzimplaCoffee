@@ -1,0 +1,23 @@
+project_prefix: "SC"
+planning:
+  brainstorm_packet: ".plans/brainstorm-current.md"
+  stale_after_hours: 72
+backlog:
+  min_ready_tasks: 3
+  refill_batch_epics: 5
+  refill_tickets_per_epic: 6
+delivery:
+  max_tasks_per_run: 1
+  max_runtime_minutes: 45
+  pr_mode: "draft"
+  base_branch: "main"
+escalation:
+  ask_human_when:
+    - "product ambiguity"
+    - "scope expansion"
+    - "secret or credential work"
+    - "destructive migration"
+    - "prod infra or billing risk"
+    - "same task fails twice"
+reflection:
+  every_n_completed: 5

@@ -1,0 +1,13 @@
+{
+  "goal_status": "active",
+  "last_brainstorm_at": null,
+  "last_brainstorm_packet": ".plans/brainstorm-current.md",
+  "last_refill_at": null,
+  "last_delivered_task": null,
+  "completed_since_reflect": 0,
+  "task_failures": {},
+  "cooldowns": {},
+  "last_run_at": null,
+  "last_run_result": null,
+  "last_run_summary": null
+}
