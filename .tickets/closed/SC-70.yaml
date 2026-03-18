@@ -1,0 +1,77 @@
+id: SC-70
+title: "Add purchase-to-recommendation linkage — DB model + migration + API"
+type: feature
+priority: p2
+status: done
+owner: h6nk-bot
+created_at: "2026-03-18T00:00:00Z"
+updated_at: "2026-03-18T06:00:00Z"
+labels: ["purchase-loop", "epic-4", "backend"]
+
+problem: "Purchases are logged but there is no link between a purchase and the recommendation run that suggested it. Without this linkage we cannot measure recommendation conversion."
+desired_outcome: "PurchaseHistory model has an optional recommendation_run_id FK. The API accepts and returns it. Alembic migration applies cleanly."
+
+scope_in:
+  - "Add recommendation_run_id nullable FK to PurchaseHistory model"
+  - "Create and apply Alembic migration"
+  - "Update history API schema to accept and return recommendation_run_id"
+  - "Add pytest coverage for the new field"
+scope_out:
+  - "Frontend PurchaseForm update (SC-78)"
+  - "Analytics or reporting on recommendation conversion rate"
+  - "Automatic pre-population of recommendation_run_id from URL"
+
+dependencies:
+  blockers: ["SC-69"]
+  unblocks: ["SC-78"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "purchase_history table has recommendation_run_id column after migration"
+    verify: "cd backend && .venv/bin/python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; cols=[r[1] for r in engine.connect().execute(text('PRAGMA table_info(purchase_history)')).fetchall()]; print('recommendation_run_id' in cols)\""
+    status: pending
+  - id: AC-2
+    text: "POST /api/v1/history/purchases accepts and returns recommendation_run_id"
+    verify: "cd backend && .venv/bin/pytest tests/ -q -k purchase"
+    status: pending
+
+verification_required:
+  - "cd backend && .venv/bin/ruff check src/ tests/"
+  - "cd backend && .venv/bin/pytest tests/ -q"
+
+context_refs:
+  - ".plans/SC-70-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Add recommendation_run_id to PurchaseHistory model and migration"
+    status: pending
+    depends_on: []
+    files_create:
+      - "backend/alembic/versions/03_add_recommendation_run_id_to_purchase_history.py"
+    files_modify:
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/api/history.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/schemas/history.py"
+    checks:
+      - "alembic upgrade head succeeds"
+      - "column present in PRAGMA table_info"
+      - "pytest passes"
+    evidence: []
+    notes: "Nullable FK to recommendation_runs.id; ON DELETE SET NULL"
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Split from original SC-70 — frontend half is SC-78"
+  - "Keep recommendation_run_id fully optional — existing purchase logging must not break"

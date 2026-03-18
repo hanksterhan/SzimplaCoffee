@@ -125,6 +125,19 @@
       "ticket": "SC-43",
       "title": "Products catalog UX polish",
       "date": "2026-03-14"
+    },
+    {
+      "id": "SC-70",
+      "title": "recommendation_run_id FK to PurchaseHistory",
+      "path": ".memory/sprint-02/SC-70-recommendation-run-linkage.md",
+      "sprint": "sprint-02",
+      "delivered": "2026-03-18",
+      "tags": [
+        "purchase",
+        "recommendation",
+        "migration",
+        "backend"
+      ]
     }
   ]
 }
