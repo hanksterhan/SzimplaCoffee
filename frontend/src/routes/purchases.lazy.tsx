@@ -1,4 +1,4 @@
-import { createLazyFileRoute } from "@tanstack/react-router";
+import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -201,12 +201,14 @@ function FeedbackDetail({ purchaseId }: { purchaseId: number }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 function PurchasesPage() {
+  const navigate = useNavigate({ from: "/purchases" });
   const search = Route.useSearch();
   const [logOpen, setLogOpen] = useState(false);
   const [editPurchase, setEditPurchase] = useState<PurchaseSummary | null>(null);
   const [filterMerchantId, setFilterMerchantId] = useState<string>("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [filterRecommendationLinked, setFilterRecommendationLinked] = useState(false);
 
   useEffect(() => {
     if (search.recommendationRunId !== undefined) {
@@ -217,11 +219,15 @@ function PurchasesPage() {
   const { data: merchantsData } = useMerchants({ page_size: 200, is_active: true });
   const merchants = merchantsData?.items ?? [];
 
-  const { data: purchases, isLoading } = usePurchases({
+  const { data: rawPurchases, isLoading } = usePurchases({
     merchant_id: filterMerchantId ? parseInt(filterMerchantId) : undefined,
     date_from: dateFrom || undefined,
     date_to: dateTo || undefined,
   });
+
+  const purchases = filterRecommendationLinked
+    ? rawPurchases?.filter((p) => p.recommendation_run_id != null)
+    : rawPurchases;
 
   const { mutate: deletePurchase } = useDeletePurchase();
 
@@ -233,6 +239,13 @@ function PurchasesPage() {
 
   function merchantName(id: number) {
     return merchants.find((m) => m.id === id)?.name ?? `#${id}`;
+  }
+
+  function openRecommendationRun(runId: number) {
+    void navigate({
+      to: "/recommend",
+      search: { selectedRunId: runId },
+    });
   }
 
   return (
@@ -250,6 +263,27 @@ function PurchasesPage() {
 
       {/* Stats */}
       <StatsBar />
+
+      {search.recommendationRunId !== undefined && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium">Logging from recommendation run #{search.recommendationRunId}</p>
+              <p className="text-emerald-800/90">
+                Purchases saved from this flow keep their recommendation linkage so you can revisit the original run later.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => openRecommendationRun(search.recommendationRunId!)}
+            >
+              View run
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
@@ -285,7 +319,15 @@ function PurchasesPage() {
           className="w-full sm:w-40"
           placeholder="To"
         />
-        {(filterMerchantId || dateFrom || dateTo) && (
+        <Button
+          variant={filterRecommendationLinked ? "default" : "outline"}
+          size="sm"
+          onClick={() => setFilterRecommendationLinked((v) => !v)}
+          title="Show only purchases linked to a recommendation run"
+        >
+          🎯 Rec-linked{filterRecommendationLinked ? " ✓" : ""}
+        </Button>
+        {(filterMerchantId || dateFrom || dateTo || filterRecommendationLinked) && (
           <Button
             variant="outline"
             size="sm"
@@ -293,6 +335,7 @@ function PurchasesPage() {
               setFilterMerchantId("");
               setDateFrom("");
               setDateTo("");
+              setFilterRecommendationLinked(false);
             }}
           >
             Clear filters
@@ -309,12 +352,30 @@ function PurchasesPage() {
         </div>
       ) : !purchases?.length ? (
         <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
-          <p className="text-4xl mb-3">🛒</p>
-          <p className="font-medium">No purchases yet</p>
-          <p className="text-sm">Log your first coffee purchase to get started</p>
-          <Button className="mt-4" onClick={() => setLogOpen(true)}>
-            Log Purchase
-          </Button>
+          <p className="text-4xl mb-3">{filterRecommendationLinked ? "🎯" : "🛒"}</p>
+          {filterRecommendationLinked ? (
+            <>
+              <p className="font-medium">No recommendation-linked purchases yet</p>
+              <p className="text-sm">
+                When you log a purchase from a recommendation run, it will appear here.
+              </p>
+              <Button
+                className="mt-4"
+                variant="outline"
+                onClick={() => setFilterRecommendationLinked(false)}
+              >
+                Show all purchases
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="font-medium">No purchases yet</p>
+              <p className="text-sm">Log your first coffee purchase to get started</p>
+              <Button className="mt-4" onClick={() => setLogOpen(true)}>
+                Log Purchase
+              </Button>
+            </>
+          )}
         </div>
       ) : (
         <div className="rounded-md border overflow-x-auto">
@@ -348,6 +409,20 @@ function PurchasesPage() {
                           {[p.origin_text, p.process_text].filter(Boolean).join(" · ")}
                         </div>
                       )}
+                      {p.recommendation_run_id ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <Badge variant="outline">
+                            Linked run #{p.recommendation_run_id}
+                          </Badge>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-blue-600 hover:underline"
+                            onClick={() => openRecommendationRun(p.recommendation_run_id!)}
+                          >
+                            Open recommendation
+                          </button>
+                        </div>
+                      ) : null}
                     </TableCell>
                     <TableCell className="text-sm whitespace-nowrap">{fmtPrice(p.price_cents)}</TableCell>
                     <TableCell className="text-sm whitespace-nowrap">{fmtWeight(p.weight_grams)}</TableCell>
