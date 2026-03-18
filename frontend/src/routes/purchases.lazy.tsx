@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PurchaseForm } from "@/components/purchases/PurchaseForm";
+import { PurchaseDetailDrawer } from "@/components/purchases/PurchaseDetailDrawer";
 import { BrewFeedbackForm } from "@/components/purchases/BrewFeedbackForm";
 import { usePurchases, usePurchaseStats, useDeletePurchase } from "@/hooks/use-purchases";
 import { usePurchaseFeedback } from "@/hooks/use-feedback";
@@ -205,6 +206,7 @@ function PurchasesPage() {
   const search = Route.useSearch();
   const [logOpen, setLogOpen] = useState(false);
   const [editPurchase, setEditPurchase] = useState<PurchaseSummary | null>(null);
+  const [detailPurchase, setDetailPurchase] = useState<PurchaseSummary | null>(null);
   const [filterMerchantId, setFilterMerchantId] = useState<string>("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -395,7 +397,11 @@ function PurchasesPage() {
             <TableBody>
               {purchases.map((p) => (
                 <>
-                  <TableRow key={p.id}>
+                  <TableRow
+                    key={p.id}
+                    className="cursor-pointer hover:bg-muted/40"
+                    onClick={() => setDetailPurchase(p)}
+                  >
                     <TableCell className="text-sm whitespace-nowrap">
                       {fmtDate(p.purchased_at)}
                     </TableCell>
@@ -410,17 +416,13 @@ function PurchasesPage() {
                         </div>
                       )}
                       {p.recommendation_run_id ? (
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <Badge variant="outline">
-                            Linked run #{p.recommendation_run_id}
-                          </Badge>
-                          <button
-                            type="button"
-                            className="text-xs font-medium text-blue-600 hover:underline"
-                            onClick={() => openRecommendationRun(p.recommendation_run_id!)}
+                        <div className="mt-1">
+                          <Badge
+                            variant="outline"
+                            className="text-xs border-emerald-300 text-emerald-700 bg-emerald-50"
                           >
-                            Open recommendation
-                          </button>
+                            🎯 run #{p.recommendation_run_id}
+                          </Badge>
                         </div>
                       ) : null}
                     </TableCell>
@@ -438,7 +440,7 @@ function PurchasesPage() {
                         <span className="text-xs text-muted-foreground">None</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
                         <Button
                           size="sm"
@@ -478,6 +480,21 @@ function PurchasesPage() {
           editPurchase={editPurchase}
         />
       )}
+      <PurchaseDetailDrawer
+        purchase={detailPurchase}
+        merchantName={
+          detailPurchase ? merchantName(detailPurchase.merchant_id) : ""
+        }
+        onClose={() => setDetailPurchase(null)}
+        onEdit={(p) => {
+          setDetailPurchase(null);
+          setEditPurchase(p);
+        }}
+        onDelete={(p) => {
+          setDetailPurchase(null);
+          handleDelete(p);
+        }}
+      />
     </div>
   );
 }

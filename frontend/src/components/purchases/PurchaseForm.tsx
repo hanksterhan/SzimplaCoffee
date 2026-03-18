@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -80,9 +81,11 @@ export function PurchaseForm({
   editPurchase,
   recommendationRunId,
 }: PurchaseFormProps) {
+  const navigate = useNavigate();
   const [form, setForm] = useState<FormState>(
     editPurchase ? purchaseToForm(editPurchase) : DEFAULT_FORM
   );
+  const [savedRunId, setSavedRunId] = useState<number | null>(null);
 
   const { data: merchantsData } = useMerchants({ page_size: 200, is_active: true });
   const merchants = merchantsData?.items ?? [];
@@ -127,18 +130,65 @@ export function PurchaseForm({
       addPurchase(body, {
         onSuccess: () => {
           setForm(DEFAULT_FORM);
-          onOpenChange(false);
+          if (recommendationRunId !== undefined) {
+            // Show success state briefly before closing
+            setSavedRunId(recommendationRunId);
+          } else {
+            onOpenChange(false);
+          }
         },
       });
     }
+  }
+
+  function handleClose() {
+    setSavedRunId(null);
+    onOpenChange(false);
+  }
+
+  function openRecommendationRun(runId: number) {
+    handleClose();
+    void navigate({ to: "/recommend", search: { selectedRunId: runId } });
   }
 
   function set(field: keyof FormState, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  // Success state after saving a recommendation-linked purchase
+  if (savedRunId !== null) {
+    return (
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Purchase Saved ✓</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 space-y-2">
+              <p className="text-sm font-medium text-emerald-900">
+                🎯 Linked to recommendation run #{savedRunId}
+              </p>
+              <p className="text-sm text-emerald-800/80">
+                Your purchase has been saved with its recommendation context. You can
+                revisit the original run at any time from the Purchases page.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={handleClose}>
+              Done
+            </Button>
+            <Button onClick={() => openRecommendationRun(savedRunId)}>
+              View recommendation →
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{editPurchase ? "Edit Purchase" : "Log Purchase"}</DialogTitle>
@@ -257,7 +307,7 @@ export function PurchaseForm({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={handleClose}>
               Cancel
             </Button>
             <Button
