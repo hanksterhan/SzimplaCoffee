@@ -180,13 +180,13 @@ def main() -> None:
             # SC-32: generate/update quality profiles for all active merchants
             results = score_all_merchants(session)
             print(f"Scored {len(results)} merchants.")
-            for r in sorted(results, key=lambda x: x["overall_quality_score"], reverse=True):
+            for r in sorted(results, key=lambda x: x["overall"], reverse=True):
                 print(
-                    f"  {r['name']:<40} overall={r['overall_quality_score']:.2f}"
-                    f"  fresh={r['freshness_transparency_score']:.2f}"
-                    f"  shipping={r['shipping_clarity_score']:.2f}"
-                    f"  metadata={r['metadata_quality_score']:.2f}"
-                    f"  espresso={r['espresso_relevance_score']:.2f}"
+                    f"  {r['name']:<40} overall={r['overall']:.2f}"
+                    f"  fresh={r['freshness']:.2f}"
+                    f"  shipping={r['shipping']:.2f}"
+                    f"  metadata={r['metadata']:.2f}"
+                    f"  espresso={r['espresso']:.2f}"
                 )
             return
 
