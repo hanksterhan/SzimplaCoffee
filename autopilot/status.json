@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": null,
-  "last_delivered_task": "SC-76",
-  "completed_since_reflect": 0,
+  "last_delivered_task": "SC-60",
+  "completed_since_reflect": 1,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T09:11:00Z",
+  "last_run_at": "2026-03-18T09:38:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-76 delivered: Final crawl batch verified — all 3 merchants (13-15) have completed crawl_runs, 14/15 merchants with products (890 total), 123 tests passed, ruff clean. Reflection cycle #2 written. SC-60 elevated to p1.",
-  "next_task_hint": "SC-60"
+  "last_run_summary": "SC-60 delivered: added szimpla promote-tiers CLI command. 13 merchants at Tier A, Blue Bottle demoted to D (0 products). 123 tests pass, ruff clean.",
+  "next_task_hint": "SC-65"
 }
