@@ -255,6 +255,41 @@ class TestBrewFeedback:
         })
         assert resp.status_code == 404
 
+    def test_list_all_brew_feedback_returns_seeded_rows(self, client):
+        """AC-2: GET /api/v1/history/brew-feedback returns all feedback rows globally."""
+        resp = client.get("/api/v1/history/brew-feedback")
+        assert resp.status_code == 200
+        items = resp.json()
+        # Seeded rows from bootstrap are present
+        assert len(items) >= 3
+
+    def test_list_all_brew_feedback_includes_new_row(self, client, merchant_id):
+        """AC-2: newly created feedback appears in global list."""
+        purchase = _make_purchase(client, merchant_id)
+        pid = purchase["id"]
+        fb_resp = client.post(f"/api/v1/purchases/{pid}/feedback", json={
+            "shot_style": "turbo",
+            "rating": 4.5,
+            "notes": "Bright and juicy",
+        })
+        assert fb_resp.status_code == 201
+        fb_id = fb_resp.json()["id"]
+
+        resp = client.get("/api/v1/history/brew-feedback")
+        assert resp.status_code == 200
+        ids = [item["id"] for item in resp.json()]
+        assert fb_id in ids
+
+    def test_list_all_brew_feedback_rows_have_rating_and_notes(self, client):
+        """AC-3: all seeded rows have rating and notes populated."""
+        resp = client.get("/api/v1/history/brew-feedback")
+        assert resp.status_code == 200
+        items = resp.json()
+        assert len(items) >= 3
+        for item in items:
+            assert item["rating"] is not None
+            assert item["notes"] is not None and item["notes"] != ""
+
 
 # ── SC-70: recommendation_run_id linkage ──────────────────────────────────────
 

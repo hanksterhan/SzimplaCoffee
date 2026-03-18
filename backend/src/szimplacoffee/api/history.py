@@ -186,6 +186,18 @@ def delete_purchase(
 
 # ── Brew Feedback ─────────────────────────────────────────────────────────────
 
+@router.get("/history/brew-feedback", response_model=list[BrewFeedbackOut])
+def list_all_feedback(
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_session),
+) -> list[BrewFeedbackOut]:
+    """Return all brew feedback rows across all purchases, newest first."""
+    items = db.scalars(
+        select(BrewFeedback).order_by(BrewFeedback.id.desc()).limit(limit)
+    ).all()
+    return [BrewFeedbackOut.model_validate(fb) for fb in items]
+
+
 @router.post("/purchases/{purchase_id}/feedback", response_model=BrewFeedbackOut, status_code=201)
 def create_feedback(
     purchase_id: int,
