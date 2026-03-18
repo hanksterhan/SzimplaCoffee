@@ -4,10 +4,11 @@
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": null,
   "last_delivered_task": "SC-63",
-  "completed_since_reflect": 5,
+  "completed_since_reflect": 0,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T06:53:00Z",
+  "last_run_at": "2026-03-18T07:04:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-63 delivered: improved coffee_parser roast/process patterns with implicit inference. Key addition: _infer_roast_from_context (single-origin→light, blend→medium-dark). Roast fill rate: 1.8%→61.5% (367/597). Process unchanged at 44.6% (data gap, not parser gap). 22 new tests, 120 total passing, ruff clean."
+  "last_run_summary": "SC-63 done. Reflection ran (5 tasks). Roast fill 1.8%→61.5%, 597 products, 15 merchants, 120 tests. Next: SC-68 (VariantDealFact post-crawl wiring) — critical for recommendations.",
+  "next_task_hint": "SC-68"
 }

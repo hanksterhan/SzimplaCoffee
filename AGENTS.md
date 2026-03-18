@@ -156,6 +156,7 @@ szimpla run-scheduled-crawls        # Manually trigger scheduled crawl batch
 # Backend tests and lint (from backend/)
 cd backend && pytest tests/
 cd backend && ruff check src/ tests/
+# Note: ruff binary is at ~/.local/bin/ruff, not inside .venv. Use system ruff or full path.
 
 # Frontend checks (from frontend/)
 cd frontend && npm run build        # Runs Vite build (also regenerates routeTree.gen.ts)
