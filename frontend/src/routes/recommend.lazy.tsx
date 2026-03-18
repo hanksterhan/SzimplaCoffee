@@ -313,6 +313,7 @@ function RecommendPage() {
         quantity_mode: quantityMode,
         bulk_allowed: bulkAllowed,
         allow_decaf: allowDecaf,
+        current_inventory_grams: 0,
       },
       {
         onSuccess: (data) => {

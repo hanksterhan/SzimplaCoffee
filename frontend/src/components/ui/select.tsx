@@ -89,6 +89,10 @@ const SelectTrigger = React.forwardRef<
           button: e.button,
           ctrlKey: e.ctrlKey,
         });
+        // Block Radix's internal pointerdown handler (it checks defaultPrevented).
+        // Without this, React 19 fires both pointerdown (Radix opens) and click
+        // (something closes), net-cancelling the toggle. onClick drives open state.
+        e.preventDefault();
         onPointerDown?.(e);
       }}
       onClick={(e) => {
