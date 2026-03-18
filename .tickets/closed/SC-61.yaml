@@ -1,0 +1,109 @@
+id: SC-61
+title: "Audit coffee_parser.py — verify it runs post-crawl and fills origin/process/roast_level/variety"
+type: task
+priority: p1
+status: done
+owner: h6nk-bot
+created_at: "2026-03-18T00:00:00Z"
+updated_at: "2026-03-18T06:10:00Z"
+labels: ["metadata-pipeline", "epic-2"]
+
+problem: "Coffee metadata fields (origin, process, roast_level, variety) are 93-95% empty. It is unclear whether coffee_parser.py is wired into the post-crawl scheduler or whether its patterns are simply too weak."
+desired_outcome: "coffee_parser.py is confirmed to run automatically post-crawl. A baseline fill rate is measured. backfill-metadata CLI command is exercised against all products. Fill rate improvement is documented."
+
+scope_in:
+  - "Inspect coffee_parser.py to understand what it parses and returns"
+  - "Inspect scheduler.py to verify coffee_parser is called after crawl"
+  - "Run szimpla backfill-metadata and measure fill rate before and after"
+  - "Document the wiring gap if parser is not called post-crawl"
+scope_out:
+  - "Improving regex patterns (SC-62, SC-63)"
+  - "Dashboard metric changes (SC-64)"
+
+dependencies:
+  blockers: []
+  unblocks: ["SC-62", "SC-63", "SC-64"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "coffee_parser.py is called after every successful crawl (confirmed by code inspection or log)"
+    verify: "grep -n 'coffee_parser\\|parse_coffee\\|backfill' backend/src/szimplacoffee/services/crawlers.py backend/src/szimplacoffee/scheduler.py"
+    status: passed
+    notes: "crawlers.py imports parse_coffee_metadata at line 28 and calls _enrich_payload_with_parser() at line 411 inside the product upsert loop. Pre-existing wiring confirmed."
+  - id: AC-2
+    text: "szimpla backfill-metadata runs without error and reports fill rate"
+    verify: "cd backend && . .venv/bin/activate && szimpla backfill-metadata 2>&1 | tail -10"
+    status: passed
+    notes: "Runs cleanly: 'Backfill complete. Updated 0/597 products.' — 0 updates because (a) fields already populated from crawl-time parsing, and (b) Product model has no description_html column so backfill only has product name to parse, yielding nothing extra."
+  - id: AC-3
+    text: "Baseline fill rate for origin is documented (even if 0%)"
+    verify: "SELECT COUNT(*) FROM products WHERE origin_text != '' AND origin_text IS NOT NULL"
+    status: passed
+    notes: |
+      Baseline fill rates (597 products, post-crawl parsing already active):
+        origin_text: 387/597 = 64.8%
+        process_text: 203/597 = 34.0%
+        roast_level: 11/597 (non-unknown) = 1.8%
+        variety_text: 141/597 = 23.6%
+        origin_country: 378/597 = 63.3%
+        process_family: 266/597 (non-unknown) = 44.6%
+      Post-backfill is identical (0 new updates from backfill run).
+
+verification_required:
+  - "ruff check src/ tests/"
+  - "pytest tests/ -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-61-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Audit scheduler and crawler wiring for coffee_parser"
+    status: done
+    depends_on: []
+    files_create: []
+    files_modify: []
+    files_read_only:
+      - "backend/src/szimplacoffee/services/coffee_parser.py"
+      - "backend/src/szimplacoffee/scheduler.py"
+      - "backend/src/szimplacoffee/services/crawlers.py"
+    checks:
+      - "grep confirms parser is called post-crawl"
+    evidence:
+      - "crawlers.py:28: from .coffee_parser import parse_coffee_metadata"
+      - "crawlers.py:411: parsed = parse_coffee_metadata(name, description)"
+      - "_enrich_payload_with_parser() fills all 8 metadata fields at crawl time"
+    notes: "Parser was pre-wired. No changes needed for AC-1."
+  - id: S2
+    title: "Run backfill-metadata and measure fill rates"
+    status: done
+    depends_on: ["S1"]
+    files_create: []
+    files_modify: []
+    files_read_only: []
+    checks:
+      - "fill rates documented for all 4 fields"
+    evidence:
+      - "szimpla backfill-metadata: Updated 0/597 (all fields already set from crawl)"
+      - "origin_text 64.8%, process_text 34.0%, roast_level 1.8%, variety_text 23.6%"
+    notes: "Critical finding: Product model has no description_html column. Backfill can only parse from product names. The real improvement lever is in crawl-time description capture (SC-62/SC-63)."
+
+delivery:
+  branch: "main"
+  commits: []
+  pr_url: ""
+  started_at: "2026-03-18T06:00:00Z"
+  completed_at: "2026-03-18T06:10:00Z"
+  verification:
+    required_passed: true
+    commands_run:
+      - "pytest tests/ -q  → 84 passed"
+      - "ruff check src/ tests/  → All checks passed!"
+      - "szimpla backfill-metadata → Backfill complete. Updated 0/597 products."
+    evidence_refs: []
+
+notes:
+  - "Sprint 2 context: only 59/910 products have origin, 43/910 have process (stale count — 597 products as of audit)"
+  - "Baseline measurement is the primary deliverable here — fixing comes in SC-62/63"
+  - "CRITICAL FOR SC-62/SC-63: Product model has no description_html. Descriptions are parsed at crawl time but NOT stored in DB. Backfill can only use product names. SC-62/63 authors must address description storage to meaningfully improve fill rates."
+  - "roast_level is the worst field at 1.8% — only 11 products have non-unknown. Pattern detection needs expansion."

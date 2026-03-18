@@ -1,6 +1,13 @@
 {
   "entries": [
     {
+      "id": "SC-61-coffee-parser-audit",
+      "path": ".memory/sprint-02/SC-61-coffee-parser-audit.md",
+      "ticket": "SC-61",
+      "title": "Coffee parser audit — baseline fill rates and wiring confirmation",
+      "date": "2026-03-18"
+    },
+    {
       "id": "SC-58-crawl-batch1",
       "path": ".memory/sprint-02/SC-58-crawl-batch1.md",
       "ticket": "SC-58",
