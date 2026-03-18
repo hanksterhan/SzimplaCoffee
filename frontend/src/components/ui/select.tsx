@@ -80,7 +80,7 @@ function Select({
       <SelectShimContext.Provider value={shimCtx}>
         <SelectPrimitive.Root
           {...props}
-          {...(open !== undefined ? { open } : {})}
+          open={resolvedOpen}
           value={value}
           onOpenChange={handleOpenChange}
           onValueChange={(nextValue) => {
@@ -169,6 +169,33 @@ const SelectContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
 >(({ className, children, position = "popper", onCloseAutoFocus, onEscapeKeyDown, onPointerDownOutside, ...props }, ref) => {
   const debugName = React.useContext(SelectDebugContext);
+  const { setOpen } = React.useContext(SelectShimContext);
+  const contentRef = React.useRef<HTMLDivElement>(null);
+
+  // Click-outside shim: Radix uses pointerdown on document for dismiss,
+  // but React 19 may not deliver it reliably. Strategy: on the NEXT mousedown
+  // after content mounts (not the current one that opened it), close if outside.
+  React.useEffect(() => {
+    // Skip the mousedown that caused this content to open by waiting for the
+    // next one. We track via a flag flipped after the current event loop drains.
+    let ready = false;
+    const enable = () => { ready = true; };
+    // requestAnimationFrame fires after paint — by then the opening click is done
+    const raf = requestAnimationFrame(enable);
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (!ready) return;
+      if (contentRef.current && !contentRef.current.contains(e.target as Node)) {
+        logSelect(debugName, "mousedown-outside shim → closing");
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener("mousedown", handleMouseDown);
+    };
+  }, [debugName, setOpen]);
 
   React.useEffect(() => {
     logSelect(debugName, "content mounted");
@@ -178,7 +205,11 @@ const SelectContent = React.forwardRef<
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
-        ref={ref}
+        ref={(node) => {
+          contentRef.current = node;
+          if (typeof ref === "function") ref(node);
+          else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+        }}
         className={cn(
           "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border shadow-md [background-color:hsl(var(--popover))] [color:hsl(var(--popover-foreground))] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
           position === "popper" &&
@@ -192,6 +223,7 @@ const SelectContent = React.forwardRef<
         }}
         onEscapeKeyDown={(event) => {
           logSelect(debugName, "content onEscapeKeyDown");
+          setOpen(false);
           onEscapeKeyDown?.(event);
         }}
         onPointerDownOutside={(event) => {
