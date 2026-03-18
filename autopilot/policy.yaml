@@ -9,8 +9,9 @@ backlog:
 delivery:
   max_tasks_per_run: 1
   max_runtime_minutes: 45
-  pr_mode: "draft"
+  pr_mode: "merge"
   base_branch: "main"
+  merge_to_main: true
 escalation:
   ask_human_when:
     - "product ambiguity"
