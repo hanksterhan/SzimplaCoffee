@@ -61,6 +61,7 @@ def create_purchase(
         purchased_at=body.purchased_at or datetime.now(UTC),
         source_system=body.source_system,
         source_ref=body.source_ref,
+        recommendation_run_id=body.recommendation_run_id,
     )
     db.add(p)
     db.flush()

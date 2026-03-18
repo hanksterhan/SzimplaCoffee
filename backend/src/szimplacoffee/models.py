@@ -278,6 +278,10 @@ class PurchaseHistory(Base):
     source_system: Mapped[str] = mapped_column(String(64), default="seed")
     source_ref: Mapped[str] = mapped_column(String(255), default="")
 
+    recommendation_run_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("recommendation_runs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+
     merchant: Mapped[Merchant] = relationship(back_populates="purchases")
     brew_feedback: Mapped[list["BrewFeedback"]] = relationship(back_populates="purchase", cascade="all, delete-orphan")
 

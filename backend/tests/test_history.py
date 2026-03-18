@@ -254,3 +254,99 @@ class TestBrewFeedback:
             "rating": 5.0,
         })
         assert resp.status_code == 404
+
+
+# ── SC-70: recommendation_run_id linkage ──────────────────────────────────────
+
+class TestPurchaseRecommendationLink:
+    """Verify recommendation_run_id is accepted, persisted, and returned."""
+
+    def test_create_without_recommendation_run_id_succeeds(self, client, merchant_id):
+        """Existing callers without the field must continue to work."""
+        resp = client.post("/api/v1/purchases", json={
+            "merchant_id": merchant_id,
+            "product_name": "No Run Link",
+            "price_cents": 1800,
+            "weight_grams": 340,
+            "source_system": "manual",
+            "source_ref": "test",
+        })
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data.get("recommendation_run_id") is None
+
+    def test_create_with_null_recommendation_run_id_succeeds(self, client, merchant_id):
+        """Explicit null is also fine."""
+        resp = client.post("/api/v1/purchases", json={
+            "merchant_id": merchant_id,
+            "product_name": "Null Run Link",
+            "price_cents": 1800,
+            "weight_grams": 340,
+            "source_system": "manual",
+            "source_ref": "test",
+            "recommendation_run_id": None,
+        })
+        assert resp.status_code == 201
+        assert resp.json().get("recommendation_run_id") is None
+
+    def test_create_with_recommendation_run_id_persists(self, client, merchant_id):
+        """When a valid recommendation_run_id is passed it is stored and returned."""
+        # Get or create a recommendation run
+        with SessionLocal() as db:
+            row = db.execute(text("SELECT id FROM recommendation_runs LIMIT 1")).fetchone()
+            if row is None:
+                result = db.execute(
+                    text(
+                        "INSERT INTO recommendation_runs "
+                        "(created_at, inventory_grams, status) "
+                        "VALUES (datetime('now'), 0, 'completed') RETURNING id"
+                    )
+                )
+                db.commit()
+                run_id = result.fetchone()[0]
+            else:
+                run_id = row[0]
+
+        resp = client.post("/api/v1/purchases", json={
+            "merchant_id": merchant_id,
+            "product_name": "Run Linked Purchase",
+            "price_cents": 2000,
+            "weight_grams": 340,
+            "source_system": "manual",
+            "source_ref": "test",
+            "recommendation_run_id": run_id,
+        })
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["recommendation_run_id"] == run_id
+
+        # Verify DB
+        with engine.connect() as conn:
+            row = conn.execute(
+                text("SELECT recommendation_run_id FROM purchase_history WHERE id = :id"),
+                {"id": data["id"]},
+            ).fetchone()
+        assert row is not None
+        assert row[0] == run_id
+
+    def test_get_purchase_returns_recommendation_run_id(self, client, merchant_id):
+        """GET /api/v1/purchases/{id} response includes recommendation_run_id."""
+        created = _make_purchase(client, merchant_id, "Get With Run ID")
+        resp = client.get(f"/api/v1/purchases/{created['id']}")
+        assert resp.status_code == 200
+        assert "recommendation_run_id" in resp.json()
+
+    def test_list_purchases_returns_recommendation_run_id_field(self, client, merchant_id):
+        """GET /api/v1/purchases list items include recommendation_run_id."""
+        _make_purchase(client, merchant_id, "List Run ID Check")
+        resp = client.get("/api/v1/purchases")
+        assert resp.status_code == 200
+        items = resp.json()
+        assert len(items) > 0
+        assert "recommendation_run_id" in items[0]
+
+    def test_column_exists_in_db(self):
+        """AC-1: confirm column is present after migration."""
+        with engine.connect() as conn:
+            cols = [r[1] for r in conn.execute(text("PRAGMA table_info(purchase_history)")).fetchall()]
+        assert "recommendation_run_id" in cols

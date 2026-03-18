@@ -54,6 +54,7 @@ class PurchaseCreate(BaseModel):
     purchased_at: Optional[datetime] = None
     source_system: str = "manual"
     source_ref: str = ""
+    recommendation_run_id: Optional[int] = None
 
 
 class PurchaseUpdate(BaseModel):
@@ -66,6 +67,7 @@ class PurchaseUpdate(BaseModel):
     purchased_at: Optional[datetime] = None
     source_system: Optional[str] = None
     source_ref: Optional[str] = None
+    recommendation_run_id: Optional[int] = None
 
 
 class PurchaseSummary(BaseModel):
@@ -82,6 +84,7 @@ class PurchaseSummary(BaseModel):
     source_system: str
     source_ref: str
     feedback_count: int = 0
+    recommendation_run_id: Optional[int] = None
 
 
 class PurchaseDetail(BaseModel):
@@ -97,6 +100,7 @@ class PurchaseDetail(BaseModel):
     purchased_at: datetime
     source_system: str
     source_ref: str
+    recommendation_run_id: Optional[int] = None
     brew_feedback: list[BrewFeedbackOut] = []
 
 
