@@ -3,11 +3,11 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": null,
-  "last_delivered_task": null,
-  "completed_since_reflect": 0,
+  "last_delivered_task": "SC-57",
+  "completed_since_reflect": 1,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T04:46:00Z",
-  "last_run_result": "brainstorm_refreshed",
-  "last_run_summary": "Brainstorm packet was missing; wrote Discovery Completion Packet covering Sprint 2 phases 2a-2d with 18 open tasks prioritized."
+  "last_run_at": "2026-03-18T05:33:00Z",
+  "last_run_result": "delivered",
+  "last_run_summary": "SC-57 delivered: 15 merchants imported (Onyx, Intelligentsia, Counter Culture, Verve, Sightglass, Blue Bottle, Stumptown, Heart, George Howell, Passenger, La Colombe, Coava, Huckleberry + 2 pre-existing). All 84 tests pass, ruff clean."
 }
