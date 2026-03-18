@@ -3,11 +3,11 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": null,
-  "last_delivered_task": "SC-57",
-  "completed_since_reflect": 1,
+  "last_delivered_task": "SC-58",
+  "completed_since_reflect": 2,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T05:33:00Z",
+  "last_run_at": "2026-03-18T06:05:28Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-57 delivered: 15 merchants imported (Onyx, Intelligentsia, Counter Culture, Verve, Sightglass, Blue Bottle, Stumptown, Heart, George Howell, Passenger, La Colombe, Coava, Huckleberry + 2 pre-existing). All 84 tests pass, ruff clean."
+  "last_run_summary": "SC-58 delivered: Crawled 5 Tier A merchants (Onyx, Intelligentsia, Counter Culture, Verve, Sightglass). Products grew 38 → 597. All confidence=0.95, crawl_runs=7. 84 tests pass, ruff clean."
 }

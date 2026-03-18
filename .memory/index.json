@@ -1,6 +1,13 @@
 {
   "entries": [
     {
+      "id": "SC-58-crawl-batch1",
+      "path": ".memory/sprint-02/SC-58-crawl-batch1.md",
+      "ticket": "SC-58",
+      "title": "Crawl batch 1 — Tier A anchors (Onyx, Intelligentsia, Counter Culture, Verve, Sightglass)",
+      "date": "2026-03-18"
+    },
+    {
       "id": "SC-56-inventory-awareness",
       "path": ".memory/sprint-01/SC-56-inventory-awareness.md",
       "ticket": "SC-56",

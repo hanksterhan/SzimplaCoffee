@@ -2,10 +2,10 @@ id: SC-58
 title: "Crawl batch 1 — Tier A anchors (Onyx, Intelligentsia, Counter Culture, Verve, Sightglass)"
 type: task
 priority: p1
-status: ready
+status: done
 owner: h6nk-bot
 created_at: "2026-03-18T00:00:00Z"
-updated_at: "2026-03-18T05:50:00Z"
+updated_at: "2026-03-18T06:05:00Z"
 labels: ["merchant-coverage", "epic-1", "crawling"]
 
 problem: "5 high-quality Tier A merchants were imported in SC-57 but have no product data yet. These are the best candidates for recommendations and should be crawled first."
@@ -29,11 +29,13 @@ acceptance_criteria:
   - id: AC-1
     text: "crawl_runs has at least one row for each of merchants 3-7"
     verify: "cd backend && .venv/bin/python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; print(engine.connect().execute(text('SELECT merchant_id, status FROM crawl_runs WHERE merchant_id BETWEEN 3 AND 7')).fetchall())\""
-    status: pending
+    status: passed
+    evidence: "5 crawl_run rows created: Onyx (601 records), Intelligentsia (460), Counter Culture (386), Verve (814), Sightglass (325). Total crawl_runs=7."
   - id: AC-2
     text: "products table has more rows after crawl than before"
     verify: "cd backend && .venv/bin/python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; print(engine.connect().execute(text('SELECT COUNT(*) FROM products')).scalar())\""
-    status: pending
+    status: passed
+    evidence: "Products before: 38 (Olympia+Camber). Products after: 597 (+559 net, deduped per-merchant). All 5 merchants have data."
 
 verification_required:
   - "cd backend && .venv/bin/pytest tests/ -q"
@@ -45,7 +47,7 @@ context_refs:
 slices:
   - id: S1
     title: "Crawl merchants 3-7 and record results"
-    status: pending
+    status: done
     depends_on: []
     files_create: []
     files_modify: []
@@ -54,20 +56,30 @@ slices:
       - "backend/src/szimplacoffee/cli.py"
     checks:
       - "szimpla crawl-all exits without unhandled exception"
-    evidence: []
-    notes: "Use szimpla crawl-all or individual szimpla add-merchant --crawl-only per merchant ID"
+    evidence:
+      - "Onyx Coffee Lab: 132 products in DB, conf=0.95"
+      - "Intelligentsia Coffee: 168 products in DB, conf=0.95"
+      - "Counter Culture Coffee: 146 products in DB, conf=0.95"
+      - "Verve Coffee Roasters: 93 products in DB, conf=0.95"
+      - "Sightglass Coffee: 20 products in DB, conf=0.95"
+    notes: "All 5 merchants crawled successfully via Shopify JSON feed adapter"
 
 delivery:
-  branch: ""
+  branch: "main"
   commits: []
   pr_url: ""
-  started_at: ""
-  completed_at: ""
+  started_at: "2026-03-18T06:04:00Z"
+  completed_at: "2026-03-18T06:05:00Z"
   verification:
-    required_passed: false
-    commands_run: []
-    evidence_refs: []
+    required_passed: true
+    commands_run:
+      - "cd backend && .venv/bin/pytest tests/ -q → 84 passed"
+      - "cd backend && ruff check src/ tests/ → All checks passed!"
+    evidence_refs:
+      - "products table: 38 → 597"
+      - "crawl_runs: 2 → 7"
 
 notes:
   - "Split from original SC-58 (all-15 crawl) to limit each run to 5 merchants"
   - "Batch 2: SC-75 (merchants 8-11). Batch 3: SC-76 (merchants 12-15)"
+  - "Delivered 2026-03-18T06:05Z — all 5/5 Tier A merchants crawled, confidence=0.95 each"
