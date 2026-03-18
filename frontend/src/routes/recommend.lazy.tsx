@@ -17,6 +17,8 @@ import {
   type RecommendationCandidateOut,
   type RecommendationResultResponse,
   type RecommendationRunSchema,
+  type FilteredCandidateOut,
+  type ScoreBreakdown,
 } from "@/hooks/use-recommendations";
 
 export const Route = createLazyFileRoute("/recommend")({
@@ -53,12 +55,56 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
   );
 }
 
+function ScoreBreakdownPanel({ breakdown }: { breakdown: ScoreBreakdown }) {
+  const rows: [string, number, number | undefined][] = [
+    ["Merchant quality", breakdown.merchant_score, breakdown.weights.merchant],
+    ["Quantity fit", breakdown.quantity_score, breakdown.weights.quantity],
+    ["Espresso match", breakdown.espresso_score, breakdown.weights.espresso],
+    ["Deal value", breakdown.deal_score, breakdown.weights.deal],
+    ["Freshness", breakdown.freshness_score, breakdown.weights.freshness],
+    ["Purchase history", breakdown.history_score, breakdown.weights.history],
+    ["Promo bonus", breakdown.promo_bonus, undefined],
+  ];
+
+  return (
+    <details className="mt-2 group">
+      <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground select-none list-none flex items-center gap-1">
+        <span className="group-open:rotate-90 transition-transform inline-block">▶</span>
+        Score breakdown
+      </summary>
+      <div className="mt-2 space-y-1.5 pl-3 border-l border-border/50">
+        {rows.map(([label, value, weight]) => (
+          <div key={label} className="flex items-center gap-2 text-xs">
+            <span className="w-32 text-muted-foreground shrink-0">{label}</span>
+            <div className="flex-1 bg-muted rounded-full h-1.5 overflow-hidden">
+              <div
+                className={`h-full rounded-full ${value >= 0.8 ? "bg-green-500" : value >= 0.6 ? "bg-amber-500" : value > 0 ? "bg-red-400" : "bg-muted-foreground/30"}`}
+                style={{ width: `${Math.round(Math.min(value, 1) * 100)}%` }}
+              />
+            </div>
+            <span className="w-8 text-right font-medium">{(value * 100).toFixed(0)}%</span>
+            {weight !== undefined && (
+              <span className="w-10 text-right text-muted-foreground/60">×{Math.round(weight * 100)}%</span>
+            )}
+          </div>
+        ))}
+        <div className="flex items-center justify-between text-xs font-medium pt-1 border-t border-border/50">
+          <span>Total</span>
+          <span>{(breakdown.total * 100).toFixed(1)}%</span>
+        </div>
+      </div>
+    </details>
+  );
+}
+
 function ResultCard({
   candidate,
   rank,
+  explainScores,
 }: {
   candidate: RecommendationCandidateOut;
   rank: number;
+  explainScores?: boolean;
 }) {
   const isTop = rank === 1;
   const discounted = candidate.discounted_landed_price_cents;
@@ -157,6 +203,9 @@ function ResultCard({
         {/* Score */}
         <div className="space-y-1.5 pt-1 border-t border-border/50">
           <ScoreBar label="Match Score" value={candidate.score} />
+          {explainScores && candidate.score_breakdown && (
+            <ScoreBreakdownPanel breakdown={candidate.score_breakdown} />
+          )}
         </div>
 
         {/* Buy link */}
@@ -297,6 +346,7 @@ function RecommendPage() {
   const [quantityMode, setQuantityMode] = useState("12-18 oz");
   const [bulkAllowed, setBulkAllowed] = useState(false);
   const [allowDecaf, setAllowDecaf] = useState(false);
+  const [explainScores, setExplainScores] = useState(false);
 
   const [activeResult, setActiveResult] =
     useState<RecommendationResultResponse | null>(null);
@@ -314,6 +364,7 @@ function RecommendPage() {
         bulk_allowed: bulkAllowed,
         allow_decaf: allowDecaf,
         current_inventory_grams: 0,
+        explain_scores: explainScores,
       },
       {
         onSuccess: (data) => {
@@ -413,6 +464,15 @@ function RecommendPage() {
                   />
                   <span className="text-sm">Allow decaf options</span>
                 </label>
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={explainScores}
+                    onChange={(e) => setExplainScores(e.target.checked)}
+                    className="rounded border-gray-300"
+                  />
+                  <span className="text-sm">Explain scores</span>
+                </label>
               </div>
 
               <Button
@@ -483,7 +543,7 @@ function RecommendPage() {
               </p>
 
               {activeResult.top_result && (
-                <ResultCard candidate={activeResult.top_result} rank={1} />
+                <ResultCard candidate={activeResult.top_result} rank={1} explainScores={explainScores} />
               )}
 
               {activeResult.alternatives.length > 0 && (
@@ -493,10 +553,41 @@ function RecommendPage() {
                   </h3>
                   <div className="space-y-3">
                     {activeResult.alternatives.map((alt, i) => (
-                      <ResultCard key={i} candidate={alt} rank={i + 2} />
+                      <ResultCard key={i} candidate={alt} rank={i + 2} explainScores={explainScores} />
                     ))}
                   </div>
                 </>
+              )}
+
+              {/* Filtered candidates panel (explain mode only) */}
+              {explainScores && activeResult.filtered_candidates && activeResult.filtered_candidates.length > 0 && (
+                <details className="mt-4">
+                  <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground select-none list-none flex items-center gap-1">
+                    <span>▶</span>
+                    {activeResult.filtered_candidates.length} filtered out
+                  </summary>
+                  <div className="mt-2 border rounded-lg overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="text-left px-3 py-1.5 font-medium">Product</th>
+                          <th className="text-left px-3 py-1.5 font-medium">Reason</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeResult.filtered_candidates.map((fc: FilteredCandidateOut, i: number) => (
+                          <tr key={i} className="border-t border-border/50">
+                            <td className="px-3 py-1.5 text-muted-foreground">
+                              {fc.merchant_name} — {fc.product_name}
+                              {fc.variant_label && <span className="text-muted-foreground/60"> ({fc.variant_label})</span>}
+                            </td>
+                            <td className="px-3 py-1.5 text-red-600">{fc.filter_reason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
               )}
             </div>
           ) : null}

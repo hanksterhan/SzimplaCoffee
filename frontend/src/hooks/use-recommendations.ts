@@ -10,6 +10,10 @@ export type RecommendationCandidateOut =
   components["schemas"]["RecommendationCandidateOut"];
 export type RecommendationRunSchema =
   components["schemas"]["RecommendationRunSchema"];
+export type FilteredCandidateOut =
+  components["schemas"]["FilteredCandidateOut"];
+export type ScoreBreakdown =
+  components["schemas"]["ScoreBreakdown"];
 
 export function useRecommendations() {
   return useQuery({

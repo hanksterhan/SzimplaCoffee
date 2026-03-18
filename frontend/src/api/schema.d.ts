@@ -1587,6 +1587,45 @@ export interface components {
             /** Source Ref */
             source_ref?: string | null;
         };
+        /** FilteredCandidateOut */
+        FilteredCandidateOut: {
+            /** Merchant Name */
+            merchant_name: string;
+            /** Product Name */
+            product_name: string;
+            /** Variant Label */
+            variant_label: string;
+            /** Filter Reason */
+            filter_reason: string;
+        };
+        /** ScoreBreakdown */
+        ScoreBreakdown: {
+            /** Merchant Score */
+            merchant_score: number;
+            /** Quantity Score */
+            quantity_score: number;
+            /** Espresso Score */
+            espresso_score: number;
+            /** Deal Score */
+            deal_score: number;
+            /** Freshness Score */
+            freshness_score: number;
+            /** History Score */
+            history_score: number;
+            /** Promo Bonus */
+            promo_bonus: number;
+            /** Total */
+            total: number;
+            /** Weights */
+            weights: {
+                merchant: number;
+                quantity: number;
+                espresso: number;
+                deal: number;
+                freshness: number;
+                history: number;
+            };
+        };
         /** RecommendationCandidateOut */
         RecommendationCandidateOut: {
             /** Merchant Name */
@@ -1613,6 +1652,8 @@ export interface components {
             score: number;
             /** Pros */
             pros: string[];
+            /** Score Breakdown (only present when explain_scores=true) */
+            score_breakdown?: components["schemas"]["ScoreBreakdown"] | null;
         };
         /** RecommendationRequestPayload */
         RecommendationRequestPayload: {
@@ -1641,6 +1682,11 @@ export interface components {
              * @default 0
              */
             current_inventory_grams: number;
+            /**
+             * Explain Scores
+             * @default false
+             */
+            explain_scores?: boolean;
         };
         /** RecommendationResultResponse */
         RecommendationResultResponse: {
@@ -1653,6 +1699,8 @@ export interface components {
             wait_rationale?: string | null;
             /** Run Id */
             run_id: number;
+            /** Filtered Candidates (only present when explain_scores=true) */
+            filtered_candidates?: components["schemas"]["FilteredCandidateOut"][] | null;
         };
         /** RecommendationRunSchema */
         RecommendationRunSchema: {
