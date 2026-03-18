@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": null,
-  "last_delivered_task": "SC-65",
-  "completed_since_reflect": 2,
+  "last_delivered_task": "SC-66",
+  "completed_since_reflect": 3,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T07:55:00Z",
+  "last_run_at": "2026-03-18T08:10:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-65 delivered: Recommendation engine diagnosis complete. Engine works correctly — returns 5 ranked candidates (top: Ethiopia Bochesa 0.9046). Root cause: variant_deal_facts materializes in-session via flush(), not pre-persisted. Added trace logger.debug() calls to pipeline for future debugging. SC-66 repurposed from bug-fix to regression test. 120 tests pass, ruff clean.",
-  "next_task_hint": "SC-66"
+  "last_run_summary": "SC-66 delivered: Added 3 recommendation engine regression tests — build_recommendations with seeded offer_snapshot, POST /api/v1/recommendations endpoint shape assertion, and wait=False with 0g inventory. Also imported build_recommendations and build_wait_assessment to test module. 123 tests pass, ruff clean, pushed to main.",
+  "next_task_hint": "SC-75"
 }
