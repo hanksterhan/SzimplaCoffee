@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": null,
-  "last_delivered_task": "SC-77",
-  "completed_since_reflect": 2,
+  "last_delivered_task": "SC-69",
+  "completed_since_reflect": 3,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T12:20:00Z",
+  "last_run_at": "2026-03-18T13:45:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-77 delivered: explain toggle added to Recommendations page — 'Explain scores' checkbox, per-candidate ScoreBreakdownPanel with dimension bars and weights, filtered_candidates table. Schema types updated. Build clean, 132 tests green. Pushed to main.",
-  "next_task_hint": "SC-78"
+  "last_run_summary": "SC-69 delivered: fixed missing db.commit in history API so purchase and brew-feedback writes persist, added 15 history API tests, verified 5 purchase_history rows and 147 tests green, pushed to main.",
+  "next_task_hint": "SC-70"
 }
