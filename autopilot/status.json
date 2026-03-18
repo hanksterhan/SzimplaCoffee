@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": null,
-  "last_delivered_task": "SC-60",
-  "completed_since_reflect": 1,
+  "last_delivered_task": "SC-74",
+  "completed_since_reflect": 2,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T09:38:00Z",
+  "last_run_at": "2026-03-18T09:41:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-60 delivered: added szimpla promote-tiers CLI command. 13 merchants at Tier A, Blue Bottle demoted to D (0 products). 123 tests pass, ruff clean.",
-  "next_task_hint": "SC-65"
+  "last_run_summary": "SC-74 delivered: crawl health fields (last_crawl_at, crawl_success, product_count, metadata_pct) added to merchant API. 6 new tests, 129 total pass, ruff clean, frontend build passes. Unblocks SC-79.",
+  "next_task_hint": "SC-79"
 }
