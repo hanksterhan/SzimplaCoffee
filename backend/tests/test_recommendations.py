@@ -393,7 +393,7 @@ def test_build_recommendations_returns_candidate_with_seeded_offer_snapshot(deal
             bulk_allowed=False,
             current_inventory_grams=0,
         )
-        results = build_recommendations(session, request)
+        results, _filtered = build_recommendations(session, request)
 
     assert len(results) >= 1, (
         "Expected at least 1 recommendation candidate but got none. "
@@ -435,7 +435,7 @@ def test_wait_is_false_when_inventory_is_zero(deal_test_client) -> None:
             bulk_allowed=False,
             current_inventory_grams=0,
         )
-        candidates = build_recommendations(session, request)
+        candidates, _ = build_recommendations(session, request)
 
     wait, rationale = build_wait_assessment(
         candidates,
@@ -444,3 +444,77 @@ def test_wait_is_false_when_inventory_is_zero(deal_test_client) -> None:
     )
 
     assert not wait, f"Expected wait=False with 0g inventory but got wait=True. Rationale: {rationale}"
+
+
+# SC-67: explain_scores tests
+def test_explain_scores_true_returns_score_breakdown(deal_test_client) -> None:
+    """SC-67 AC-1: explain_scores=True must return score_breakdown per candidate."""
+    _client, engine, _seeded = deal_test_client
+
+    with Session(engine) as session:
+        request = RecommendationRequest(
+            shot_style="modern_58mm",
+            quantity_mode="12-18 oz",
+            bulk_allowed=False,
+            current_inventory_grams=0,
+            explain_scores=True,
+        )
+        results, filtered = build_recommendations(session, request)
+
+    assert len(results) >= 1, "Expected at least 1 candidate with explain_scores=True"
+    for candidate in results:
+        assert candidate.score_breakdown is not None, (
+            f"Expected score_breakdown on {candidate.product_name} but got None"
+        )
+        breakdown = candidate.score_breakdown
+        for field in ("merchant_score", "quantity_score", "espresso_score", "deal_score", "freshness_score", "history_score", "promo_bonus", "total"):
+            assert field in breakdown, f"Missing field '{field}' in score_breakdown"
+        assert breakdown["total"] == candidate.score, (
+            f"score_breakdown.total={breakdown['total']} must match candidate.score={candidate.score}"
+        )
+    # filtered list is populated
+    assert isinstance(filtered, list)
+
+
+def test_explain_scores_false_no_score_breakdown(deal_test_client) -> None:
+    """SC-67 AC-2: explain_scores=False (default) must not populate score_breakdown."""
+    _client, engine, _seeded = deal_test_client
+
+    with Session(engine) as session:
+        request = RecommendationRequest(
+            shot_style="modern_58mm",
+            quantity_mode="12-18 oz",
+            bulk_allowed=False,
+            current_inventory_grams=0,
+            explain_scores=False,
+        )
+        results, filtered = build_recommendations(session, request)
+
+    assert len(results) >= 1
+    for candidate in results:
+        assert candidate.score_breakdown is None, (
+            f"Expected score_breakdown=None when explain_scores=False on {candidate.product_name}"
+        )
+    assert filtered == [], "filtered_candidates must be empty when explain_scores=False"
+
+
+def test_explain_scores_api_endpoint(deal_test_client) -> None:
+    """SC-67: POST /api/v1/recommendations with explain_scores=True returns score_breakdown and filtered_candidates."""
+    client, _engine, _seeded = deal_test_client
+
+    response = client.post(
+        "/api/v1/recommendations",
+        json={"current_inventory_grams": 0, "explain_scores": True},
+    )
+
+    assert response.status_code in (200, 201)
+    payload = response.json()
+
+    top_result = payload.get("top_result")
+    assert top_result is not None, "Expected top_result with explain_scores=True and seeded data"
+    assert "score_breakdown" in top_result, "top_result must include score_breakdown when explain_scores=True"
+    assert top_result["score_breakdown"] is not None
+
+    assert "filtered_candidates" in payload, "Response must include filtered_candidates key"
+    assert payload["filtered_candidates"] is not None
+    assert isinstance(payload["filtered_candidates"], list)

@@ -28,6 +28,7 @@ class RecommendationRequestPayload(BaseModel):
     bulk_allowed: bool = False
     allow_decaf: bool = False
     current_inventory_grams: int = 0  # SC-56
+    explain_scores: bool = False  # SC-67
 
 
 class RecommendationCandidateOut(BaseModel):
@@ -43,6 +44,14 @@ class RecommendationCandidateOut(BaseModel):
     discounted_landed_price_cents: Optional[int]
     score: float
     pros: list[str]
+    score_breakdown: Optional[dict] = None  # SC-67: populated when explain_scores=True
+
+
+class FilteredCandidateOut(BaseModel):  # SC-67
+    merchant_name: str
+    product_name: str
+    variant_label: str
+    filter_reason: str
 
 
 class RecommendationResultResponse(BaseModel):
@@ -51,6 +60,7 @@ class RecommendationResultResponse(BaseModel):
     wait_recommendation: bool
     wait_rationale: Optional[str] = None  # SC-54
     run_id: int
+    filtered_candidates: Optional[list[FilteredCandidateOut]] = None  # SC-67: populated when explain_scores=True
 
 
 class BiggestSaleCandidateOut(BaseModel):
@@ -84,8 +94,9 @@ def create_recommendation(
         bulk_allowed=payload.bulk_allowed,
         allow_decaf=payload.allow_decaf,
         current_inventory_grams=payload.current_inventory_grams,
+        explain_scores=payload.explain_scores,
     )
-    candidates = build_recommendations(db, req)
+    candidates, filtered = build_recommendations(db, req)
     persist_recommendation_run(db, req, candidates)
     db.commit()
 
@@ -98,12 +109,17 @@ def create_recommendation(
     alternatives = candidates[1:3]
     wait, wait_rationale = build_wait_assessment(candidates, no_candidates=not bool(candidates), current_inventory_grams=payload.current_inventory_grams)
 
+    filtered_out: list[FilteredCandidateOut] | None = None
+    if payload.explain_scores:
+        filtered_out = [FilteredCandidateOut(**asdict(f)) for f in filtered]
+
     return RecommendationResultResponse(
         top_result=RecommendationCandidateOut(**asdict(top)) if top else None,
         alternatives=[RecommendationCandidateOut(**asdict(a)) for a in alternatives],
         wait_recommendation=wait,
         wait_rationale=wait_rationale,
         run_id=run.id if run else 0,
+        filtered_candidates=filtered_out,
     )
 
 
@@ -140,7 +156,7 @@ def today_buying_brief(
         allow_decaf=False,
         current_inventory_grams=current_inventory_grams,
     )
-    candidates = build_recommendations(db, req)
+    candidates, _ = build_recommendations(db, req)
     sales = build_biggest_sales(db, limit=limit)
 
     top = candidates[0] if candidates else None

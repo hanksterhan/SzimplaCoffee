@@ -40,6 +40,8 @@ class RecommendationRequest:
     allow_decaf: bool = False
     # SC-56: Optional personal inventory in grams (0 = unknown)
     current_inventory_grams: int = 0
+    # SC-67: When True, each candidate includes a score_breakdown dict
+    explain_scores: bool = False
 
 
 @dataclass
@@ -56,6 +58,17 @@ class RecommendationCandidate:
     discounted_landed_price_cents: int | None
     score: float
     pros: list[str]
+    # SC-67: populated when explain_scores=True
+    score_breakdown: dict | None = None
+
+
+@dataclass
+class FilteredCandidate:
+    """SC-67: A candidate excluded from results, with the reason it was filtered."""
+    merchant_name: str
+    product_name: str
+    variant_label: str
+    filter_reason: str
 
 
 @dataclass
@@ -618,8 +631,17 @@ def build_biggest_sales(session: Session, limit: int = 10) -> list[BiggestSaleCa
     return candidates[:limit]
 
 
-def build_recommendations(session: Session, request: RecommendationRequest) -> list[RecommendationCandidate]:
+def build_recommendations(
+    session: Session,
+    request: RecommendationRequest,
+) -> tuple[list[RecommendationCandidate], list[FilteredCandidate]]:
+    """Build ranked recommendation candidates.
+
+    Returns a tuple of (selected_candidates, filtered_candidates).
+    filtered_candidates is only populated when request.explain_scores=True.
+    """
     candidates: list[RecommendationCandidate] = []
+    filtered: list[FilteredCandidate] = []
     prefs = _preference_profile(session)
     fact_by_variant = materialize_variant_deal_facts(session)
     category_baseline = _catalog_price_per_oz_baseline_cents(session)
@@ -634,6 +656,13 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
         # SC-53: exclude merchants below buying threshold from recommendations
         if not meets_buying_threshold(merchant):
             skipped_threshold += 1
+            if request.explain_scores:
+                filtered.append(FilteredCandidate(
+                    merchant_name=merchant.name,
+                    product_name=product.name,
+                    variant_label="",
+                    filter_reason="merchant does not meet buying threshold (trust or crawl quality too low)",
+                ))
             continue
         merchant_score = _merchant_score_with_shot_style(merchant, request.shot_style)
         shipping_policy = _latest_shipping_policy(session, merchant.id)
@@ -642,21 +671,56 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
         for variant in product.variants:
             if not variant.is_whole_bean:
                 skipped_whole_bean += 1
+                if request.explain_scores:
+                    filtered.append(FilteredCandidate(
+                        merchant_name=merchant.name,
+                        product_name=product.name,
+                        variant_label=variant.label,
+                        filter_reason="variant is not whole bean",
+                    ))
                 continue
             if not variant.is_available:
                 skipped_available += 1
+                if request.explain_scores:
+                    filtered.append(FilteredCandidate(
+                        merchant_name=merchant.name,
+                        product_name=product.name,
+                        variant_label=variant.label,
+                        filter_reason="variant is not available",
+                    ))
                 continue
             format_haystack = f"{product.name} {variant.label}".lower()
             if any(term in format_haystack for term in ["instant", "pod", "capsule", "packet", "packets"]):
                 skipped_format += 1
+                if request.explain_scores:
+                    filtered.append(FilteredCandidate(
+                        merchant_name=merchant.name,
+                        product_name=product.name,
+                        variant_label=variant.label,
+                        filter_reason="format exclusion (instant/pod/capsule/packet)",
+                    ))
                 continue
             offer = _latest_offer(session, variant.id)
             if offer is None or not offer.is_available:
                 skipped_offer += 1
+                if request.explain_scores:
+                    filtered.append(FilteredCandidate(
+                        merchant_name=merchant.name,
+                        product_name=product.name,
+                        variant_label=variant.label,
+                        filter_reason="no available offer snapshot",
+                    ))
                 continue
             fact = fact_by_variant.get(variant.id)
             if fact is None:
                 skipped_fact += 1
+                if request.explain_scores:
+                    filtered.append(FilteredCandidate(
+                        merchant_name=merchant.name,
+                        product_name=product.name,
+                        variant_label=variant.label,
+                        filter_reason="no deal fact materialized (insufficient offer history)",
+                    ))
                 continue
 
             quantity_score = _quantity_score(variant.weight_grams, request.quantity_mode, request.bulk_allowed, request.current_inventory_grams)
@@ -693,6 +757,28 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
                 best_promo_label,
             )
 
+            # SC-67: Build score breakdown when explain_scores=True
+            score_breakdown: dict | None = None
+            if request.explain_scores:
+                score_breakdown = {
+                    "merchant_score": round(merchant_score, 4),
+                    "quantity_score": round(quantity_score, 4),
+                    "espresso_score": round(espresso_score, 4),
+                    "deal_score": round(deal_score, 4),
+                    "freshness_score": round(freshness_score, 4),
+                    "history_score": round(history_score, 4),
+                    "promo_bonus": round(promo_bonus, 4),
+                    "total": round(total, 4),
+                    "weights": {
+                        "merchant": 0.24,
+                        "quantity": 0.18,
+                        "espresso": 0.20,
+                        "deal": 0.12,
+                        "freshness": 0.08,
+                        "history": 0.18,
+                    },
+                }
+
             candidates.append(
                 RecommendationCandidate(
                     merchant_name=merchant.name,
@@ -707,6 +793,7 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
                     discounted_landed_price_cents=discounted_landed_price_cents,
                     score=round(total, 4),
                     pros=pros,
+                    score_breakdown=score_breakdown,
                 )
             )
 
@@ -721,13 +808,20 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
     for candidate in candidates:
         count = per_merchant_counts.get(candidate.merchant_name, 0)
         if count >= 2:
+            if request.explain_scores:
+                filtered.append(FilteredCandidate(
+                    merchant_name=candidate.merchant_name,
+                    product_name=candidate.product_name,
+                    variant_label=candidate.variant_label,
+                    filter_reason="per-merchant cap reached (max 2 results per merchant)",
+                ))
             continue
         per_merchant_counts[candidate.merchant_name] = count + 1
         selected.append(candidate)
         if len(selected) >= 5:
             break
     logger.debug("build_recommendations: selected %d results (per-merchant cap applied)", len(selected))
-    return selected
+    return selected, filtered
 
 
 def build_wait_assessment(
@@ -756,10 +850,16 @@ def build_wait_assessment(
 
 def persist_recommendation_run(session: Session, request: RecommendationRequest, candidates: list[RecommendationCandidate]) -> None:
     top_result = candidates[0] if candidates else None
+    # Strip score_breakdown from persisted data to keep storage lean
+    def _strip(c: RecommendationCandidate) -> dict:
+        d = c.__dict__.copy()
+        d.pop("score_breakdown", None)
+        return d
+
     run = RecommendationRun(
         request_json=str(request.__dict__),
-        top_result_json=str(top_result.__dict__ if top_result else {}),
-        alternatives_json=str([candidate.__dict__ for candidate in candidates[1:3]]),
+        top_result_json=str(_strip(top_result) if top_result else {}),
+        alternatives_json=str([_strip(c) for c in candidates[1:3]]),
         wait_recommendation=not bool(candidates),
         model_version="v1",
     )

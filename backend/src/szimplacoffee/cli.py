@@ -166,7 +166,7 @@ def main() -> None:
             return
 
         if args.command == "recommend":
-            candidates = build_recommendations(
+            candidates, _ = build_recommendations(
                 session,
                 RecommendationRequest(
                     shot_style="modern_58mm",
