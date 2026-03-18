@@ -290,7 +290,7 @@ class BrewFeedback(Base):
     __tablename__ = "brew_feedback"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    purchase_id: Mapped[int] = mapped_column(ForeignKey("purchase_history.id"), index=True)
+    purchase_id: Mapped[Optional[int]] = mapped_column(ForeignKey("purchase_history.id"), nullable=True, index=True)
     shot_style: Mapped[str] = mapped_column(String(64))
     grinder: Mapped[str] = mapped_column(String(128), default="")
     basket: Mapped[str] = mapped_column(String(128), default="")
@@ -298,8 +298,26 @@ class BrewFeedback(Base):
     would_rebuy: Mapped[bool] = mapped_column(Boolean, default=True)
     difficulty_score: Mapped[float] = mapped_column(Float, default=0.5)
     notes: Mapped[str] = mapped_column(Text, default="")
+    # DE1 Visualizer telemetry (SC-79)
+    dose_grams: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    yield_grams: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    brew_time_seconds: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    water_temp_c: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    machine: Mapped[str] = mapped_column(String(64), default="")
+    product_id: Mapped[Optional[int]] = mapped_column(ForeignKey("products.id"), nullable=True)
+    visualizer_shot_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, unique=True)
 
-    purchase: Mapped[PurchaseHistory] = relationship(back_populates="brew_feedback")
+    purchase: Mapped[Optional[PurchaseHistory]] = relationship(back_populates="brew_feedback")
+
+
+class De1BridgeState(Base):
+    __tablename__ = "de1_bridge_state"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    last_seen_shot_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    last_poll_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    shots_imported: Mapped[int] = mapped_column(Integer, default=0)
+    auto_match: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
 class CrawlRun(Base):

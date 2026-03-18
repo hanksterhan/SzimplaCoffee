@@ -1,74 +1,164 @@
 id: SC-79
-title: "Render crawl health fields on Watch page merchant cards"
+title: "DE1 Visualizer bridge: auto-import shot data as BrewFeedback records"
 type: feature
-priority: p2
+priority: p1
 status: done
 owner: h6nk-bot
-created_at: "2026-03-18T06:00:00Z"
-updated_at: "2026-03-18T06:00:00Z"
-labels: ["watch-queue", "epic-5", "frontend"]
+created_at: "2026-03-18T08:45:00Z"
+updated_at: "2026-03-18T16:30:00Z"
+labels: ["de1", "brew-feedback", "integration", "scheduler"]
 
-problem: "The Watch page shows merchant names but no crawl health context. The backend now returns last_crawl_at, product_count, and metadata_pct but they are not rendered."
-desired_outcome: "Each merchant card on the Watch page shows last crawl time (relative), product count, and metadata fill rate as a percentage badge."
+problem: |
+  Brew feedback sessions must currently be entered manually via the UI form.
+  The user owns a Decent Espresso DE1 and uses visualizer.coffee to auto-upload
+  shot data. There is no automated path from a completed espresso shot into
+  SzimplaCoffee's BrewFeedback table — meaning the feedback loop between
+  real-world brews and the recommendation engine is entirely manual and unlikely
+  to stay populated.
+
+desired_outcome: |
+  A polling bridge service runs every 5 minutes via APScheduler. It fetches
+  new shots from the Visualizer API, fuzzy-matches bean metadata to the
+  SzimplaCoffee product catalog, and auto-creates BrewFeedback rows with
+  shot telemetry populated. Auto-match can be toggled off via config. Dose
+  defaults to 18g when the DE1 shot record does not include a dose override.
+  The user's rating and notes remain null until filled in via the UI.
 
 scope_in:
-  - "Update watch.lazy.tsx to read and render last_crawl_at, crawl_success, product_count, metadata_pct"
-  - "Format last_crawl_at as relative time (e.g. '2h ago')"
-  - "Show metadata_pct as a colored badge (green ≥70%, yellow ≥30%, red <30%)"
-  - "Build must pass cleanly"
+  - "New service: backend/src/szimplacoffee/services/de1_bridge.py"
+  - "Polls GET https://visualizer.coffee/api/shots (paginated, newest-first)"
+  - "Tracks last-seen shot ID/timestamp in a new DB table: de1_bridge_state"
+  - "Fuzzy product matching: bean_brand + bean_type → product catalog (difflib.SequenceMatcher)"
+  - "Auto-creates BrewFeedback rows with: dose_grams (default 18), yield_grams, brew_time_seconds, water_temp_c, machine='DE1', linked_product_id (nullable)"
+  - "Config keys in config.py: VISUALIZER_USERNAME, VISUALIZER_API_KEY (optional), DE1_AUTO_MATCH (bool, default True), DE1_DEFAULT_DOSE_GRAMS (default 18)"
+  - "APScheduler job registered in main.py lifespan: runs every 5 minutes"
+  - "New Alembic migration: de1_bridge_state table + brew_feedback telemetry columns"
+  - "API endpoint GET /api/v1/de1/status — returns bridge enabled state, last poll time, shots imported count"
+  - "API endpoint POST /api/v1/de1/toggle — toggles DE1_AUTO_MATCH at runtime (persisted in de1_bridge_state)"
+  - "Unit tests for fuzzy matching logic and bridge state management"
+  - "Integration smoke test using a fixture shot payload"
+
 scope_out:
-  - "Backend API changes (SC-74)"
-  - "Crawl history timeline or drill-down"
-  - "Trust promotion buttons (SC-73)"
+  - "Direct BLE / pyDE1 integration (no Bluetooth adapter on WSL host)"
+  - "UI panel for reviewing/approving matched shots (future ticket)"
+  - "Rating or notes auto-population (user fills these in manually via existing BrewFeedbackForm)"
+  - "Multi-user Visualizer support"
+  - "Webhook-based push (Visualizer doesn't support it; polling is correct)"
 
 dependencies:
-  blockers: ["SC-74"]
-  unblocks: []
+  blockers: []
+  unblocks: ["SC-72"]
 
 acceptance_criteria:
   - id: AC-1
-    text: "Watch page builds without TypeScript errors after using new API fields"
-    verify: "cd frontend && npm run build 2>&1 | tail -5"
-    status: pending
+    text: "APScheduler registers a de1_bridge job that fires every 5 minutes on app startup"
+    verify: "grep 'de1_bridge' backend/src/szimplacoffee/main.py"
+    status: verified
+
   - id: AC-2
-    text: "Crawl health fields render in merchant card markup"
-    verify: "cd frontend && npm run build 2>&1 | grep -c error || true"
-    status: pending
+    text: "Given a valid VISUALIZER_USERNAME in config, polling fetches shots and creates BrewFeedback rows"
+    verify: "pytest tests/test_de1_bridge.py::test_shot_import_creates_brew_feedback -v"
+    status: verified
+
+  - id: AC-3
+    text: "Dose defaults to 18g when shot JSON has no bean_weight"
+    verify: "pytest tests/test_de1_bridge.py::test_default_dose_fallback -v"
+    status: verified
+
+  - id: AC-4
+    text: "Fuzzy product match links correct product_id when bean_brand+bean_type score ≥ 75"
+    verify: "pytest tests/test_de1_bridge.py::test_fuzzy_match_links_product -v"
+    status: verified
+
+  - id: AC-5
+    text: "POST /api/v1/de1/toggle flips auto_match state; subsequent poll respects the flag"
+    verify: "pytest tests/test_de1_bridge.py::test_toggle_auto_match -v"
+    status: verified
+
+  - id: AC-6
+    text: "Duplicate shots are not re-imported (idempotent: last_seen_shot_id prevents re-fetch)"
+    verify: "pytest tests/test_de1_bridge.py::test_no_duplicate_import -v"
+    status: verified
+
+  - id: AC-7
+    text: "GET /api/v1/de1/status returns bridge state including last_poll_at, shots_imported, auto_match"
+    verify: "pytest tests/test_de1_bridge.py::test_status_endpoint -v"
+    status: verified
+
+  - id: AC-8
+    text: "All existing tests still pass (no regressions)"
+    verify: "cd backend && pytest tests/ -q"
+    status: verified
 
 verification_required:
-  - "cd frontend && npm run build"
+  - "cd backend && pytest tests/ -q"
+  - "cd backend && ~/.local/bin/ruff check src/ tests/"
 
 context_refs:
-  - ".plans/SC-79-execution-plan.md"
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-79-execution-plan.md"
 
 slices:
   - id: S1
-    title: "Render crawl health on Watch page cards"
-    status: pending
+    title: "DB migration: de1_bridge_state table + brew_feedback telemetry columns + config keys"
+    status: done
     depends_on: []
-    files_create: []
+    files_create:
+      - "backend/alembic/versions/20260318_02_de1_bridge_state.py"
     files_modify:
-      - "frontend/src/routes/watch.lazy.tsx"
-    files_read_only:
-      - "frontend/src/api/schema.d.ts"
-      - "frontend/src/hooks/use-merchants.ts"
-    checks:
-      - "npm run build passes"
-      - "cards show last_crawl_at, product_count, metadata_pct"
-    evidence: []
-    notes: "Use relative time lib or simple manual formatting (Date.now() - Date.parse(last_crawl_at))"
+      - "backend/src/szimplacoffee/config.py"
+      - "backend/src/szimplacoffee/models.py"
+    evidence:
+      - "alembic upgrade head: 20260318_01 -> 20260318_02 applied"
+
+  - id: S2
+    title: "de1_bridge.py service: poll, parse, fuzzy-match, upsert BrewFeedback"
+    status: done
+    depends_on: ["S1"]
+    files_create:
+      - "backend/src/szimplacoffee/services/de1_bridge.py"
+      - "backend/tests/test_de1_bridge.py"
+    evidence:
+      - "pytest tests/test_de1_bridge.py: 7 passed"
+
+  - id: S3
+    title: "API endpoints: GET /de1/status + POST /de1/toggle"
+    status: done
+    depends_on: ["S2"]
+    files_create:
+      - "backend/src/szimplacoffee/api/de1.py"
+    files_modify:
+      - "backend/src/szimplacoffee/api/__init__.py"
+      - "backend/src/szimplacoffee/main.py"
+    evidence:
+      - "pytest tests/test_de1_bridge.py::test_status_endpoint: PASSED"
+      - "pytest tests/test_de1_bridge.py::test_toggle_auto_match: PASSED"
+
+  - id: S4
+    title: "Full test pass + ruff clean"
+    status: done
+    depends_on: ["S3"]
+    evidence:
+      - "163 passed in 2.31s (156 before + 7 new)"
+      - "ruff: All checks passed"
 
 delivery:
-  branch: ""
+  branch: "main"
   commits: []
   pr_url: ""
-  started_at: ""
-  completed_at: ""
+  started_at: "2026-03-18T16:00:00Z"
+  completed_at: "2026-03-18T16:30:00Z"
   verification:
-    required_passed: false
-    commands_run: []
+    required_passed: true
+    commands_run:
+      - "alembic upgrade head"
+      - "pytest tests/test_de1_bridge.py -v (7 passed)"
+      - "pytest tests/ -q (163 passed)"
+      - "ruff check src/ tests/ (all checks passed)"
     evidence_refs: []
 
 notes:
-  - "Frontend half of original SC-74 split"
-  - "Run npm run gen:api first if schema.d.ts does not yet include new fields"
+  - "VISUALIZER_USERNAME=h6nk confirmed working. Visualizer API is public (no API key needed)."
+  - "Field name corrected: bean_weight (not grinder_dose_weight) per verified API shape."
+  - "purchase_id made nullable — required for DE1-imported shots with no purchase record."
+  - "Scheduler job registered in main.py lifespan (not services/scheduler.py) per existing pattern."
+  - "difflib.SequenceMatcher used (no new dependency)."

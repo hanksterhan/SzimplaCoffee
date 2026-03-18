@@ -27,4 +27,4 @@ notifications:
   # Set session_key to route run summaries via sessions_send.
   # Example: "agent:1:telegram:group:-1003759576826:topic:2"
   # Leave empty to disable notifications.
-  session_key: ""
+  session_key: "telegram:-1003759576826:topic:2"

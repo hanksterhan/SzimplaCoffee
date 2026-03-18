@@ -1,6 +1,13 @@
 {
   "entries": [
     {
+      "id": "SC-79-de1-bridge",
+      "path": ".memory/sprint-02/SC-79-de1-bridge.md",
+      "ticket": "SC-79",
+      "title": "DE1 Visualizer bridge — auto-import shots as BrewFeedback",
+      "date": "2026-03-18"
+    },
+    {
       "id": "SC-75-crawl-batch2",
       "path": ".memory/sprint-02/SC-75-crawl-batch2.md",
       "ticket": "SC-75",

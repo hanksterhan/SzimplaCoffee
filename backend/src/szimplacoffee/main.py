@@ -70,6 +70,17 @@ def _run_scheduled_crawls() -> None:
         logger.error("Scheduled crawl job error: %s", exc)
 
 
+def _run_de1_bridge_job() -> None:
+    """APScheduler job: poll Visualizer and import new shots."""
+    try:
+        with session_scope() as session:
+            from .services.de1_bridge import run_bridge
+            count = run_bridge(session)
+            logger.info("DE1 bridge job: imported %d shots", count)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("DE1 bridge job error: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     global _scheduler  # noqa: PLW0603
@@ -88,6 +99,18 @@ async def lifespan(_app: FastAPI):
         id="scheduled_crawl_loop",
         replace_existing=True,
     )
+
+    from .config import VISUALIZER_USERNAME as _VIZ_USERNAME
+    if _VIZ_USERNAME:
+        _scheduler.add_job(
+            _run_de1_bridge_job,
+            trigger="interval",
+            minutes=5,
+            id="de1_bridge",
+            replace_existing=True,
+        )
+        logger.info("DE1 bridge job registered (every 5 min)")
+
     _scheduler.start()
     logger.info("APScheduler started — crawl loop runs every 15 minutes")
 
