@@ -64,6 +64,7 @@ def create_purchase(
     )
     db.add(p)
     db.flush()
+    db.commit()
     db.refresh(p)
     return PurchaseDetail.model_validate(p)
 
@@ -165,6 +166,7 @@ def update_purchase(
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(p, field, value)
     db.flush()
+    db.commit()
     db.refresh(p)
     return PurchaseDetail.model_validate(p)
 
@@ -178,6 +180,7 @@ def delete_purchase(
     if p is None:
         raise HTTPException(status_code=404, detail="Purchase not found")
     db.delete(p)
+    db.commit()
 
 
 # ── Brew Feedback ─────────────────────────────────────────────────────────────
@@ -203,6 +206,7 @@ def create_feedback(
     )
     db.add(fb)
     db.flush()
+    db.commit()
     db.refresh(fb)
     return BrewFeedbackOut.model_validate(fb)
 
@@ -233,6 +237,7 @@ def update_feedback(
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(fb, field, value)
     db.flush()
+    db.commit()
     db.refresh(fb)
     return BrewFeedbackOut.model_validate(fb)
 
@@ -246,3 +251,4 @@ def delete_feedback(
     if fb is None:
         raise HTTPException(status_code=404, detail="Feedback not found")
     db.delete(fb)
+    db.commit()
