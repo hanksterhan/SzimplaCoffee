@@ -1,24 +1,31 @@
 {
   "entries": [
     {
+      "id": "SC-75-crawl-batch2",
+      "path": ".memory/sprint-02/SC-75-crawl-batch2.md",
+      "ticket": "SC-75",
+      "title": "Crawl batch 2 \u2014 Blue Bottle, Stumptown, Heart, George Howell, Passenger",
+      "date": "2026-03-18"
+    },
+    {
       "id": "SC-62-origin-parser-expansion",
       "path": ".memory/sprint-02/SC-62-origin-parser-expansion.md",
       "ticket": "SC-62",
-      "title": "Coffee parser origin expansion — demonyms, Hawaii variants, 24 new countries",
+      "title": "Coffee parser origin expansion \u2014 demonyms, Hawaii variants, 24 new countries",
       "date": "2026-03-18"
     },
     {
       "id": "SC-61-coffee-parser-audit",
       "path": ".memory/sprint-02/SC-61-coffee-parser-audit.md",
       "ticket": "SC-61",
-      "title": "Coffee parser audit — baseline fill rates and wiring confirmation",
+      "title": "Coffee parser audit \u2014 baseline fill rates and wiring confirmation",
       "date": "2026-03-18"
     },
     {
       "id": "SC-58-crawl-batch1",
       "path": ".memory/sprint-02/SC-58-crawl-batch1.md",
       "ticket": "SC-58",
-      "title": "Crawl batch 1 — Tier A anchors (Onyx, Intelligentsia, Counter Culture, Verve, Sightglass)",
+      "title": "Crawl batch 1 \u2014 Tier A anchors (Onyx, Intelligentsia, Counter Culture, Verve, Sightglass)",
       "date": "2026-03-18"
     },
     {

@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": null,
-  "last_delivered_task": "SC-66",
-  "completed_since_reflect": 3,
+  "last_delivered_task": "SC-75",
+  "completed_since_reflect": 4,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T08:10:00Z",
+  "last_run_at": "2026-03-18T08:45:24Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-66 delivered: Added 3 recommendation engine regression tests — build_recommendations with seeded offer_snapshot, POST /api/v1/recommendations endpoint shape assertion, and wait=False with 0g inventory. Also imported build_recommendations and build_wait_assessment to test module. 123 tests pass, ruff clean, pushed to main.",
-  "next_task_hint": "SC-75"
+  "last_run_summary": "SC-75 delivered: Verified scheduler-completed crawl batch for merchants 8-12, documented Blue Bottle as completed-but-empty generic crawl, confirmed products grew 597\u2192890, 123 tests passed, ruff clean, pushed to main.",
+  "next_task_hint": "SC-76"
 }

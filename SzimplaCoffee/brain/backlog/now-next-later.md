@@ -1,6 +1,6 @@
 # Now / Next / Later
 
-_Updated: 2026-03-15 after SC-53 delivery_
+_Updated: 2026-03-18 after SC-75 delivery_
 
 ## Top-500 Merchant Registry — Rollout Policy (SC-53)
 
@@ -32,9 +32,9 @@ _Updated: 2026-03-15 after SC-53 delivery_
 
 ## Now
 
-- Top-500 seed list in `SzimplaCoffee/brain/merchants/top-500-seed.md`
-- Add watch-toggle UI to merchant detail page (quick path for promoting to watchlist)
-- Decide whether custom platforms like Squarespace need a first-pass product crawler or should stay discovery-only
+- Finish merchant coverage with SC-76 (La Colombe, Coava, Huckleberry)
+- Review merchant crawl quality and trust promotion candidates in SC-60
+- Decide whether custom platforms like Blue Bottle need first-pass crawler support or should stay discovery-only
 
 ## Next
 
