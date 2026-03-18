@@ -1,0 +1,74 @@
+id: SC-78
+title: "Update PurchaseForm to accept and submit recommendation_run_id"
+type: feature
+priority: p2
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-18T06:00:00Z"
+updated_at: "2026-03-18T06:00:00Z"
+labels: ["purchase-loop", "epic-4", "frontend"]
+
+problem: "The purchase logging form has no way to link a purchase to the recommendation run that suggested it. The backend now supports the field but the form doesn't use it."
+desired_outcome: "PurchaseForm accepts an optional recommendationRunId prop. When provided it is submitted with the purchase. The field is hidden from the user (auto-populated, not manual entry)."
+
+scope_in:
+  - "Add optional recommendationRunId prop to PurchaseForm component"
+  - "Pass it through to the purchase API call"
+  - "Update purchases.lazy.tsx to pass recommendationRunId when opening the form from a recommendation"
+  - "Build must pass cleanly"
+scope_out:
+  - "Backend model/migration (SC-70)"
+  - "Displaying recommendation linkage in purchase history list"
+  - "Analytics on conversion rate"
+
+dependencies:
+  blockers: ["SC-70"]
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "PurchaseForm compiles with optional recommendationRunId prop"
+    verify: "cd frontend && npm run build 2>&1 | tail -5"
+    status: pending
+  - id: AC-2
+    text: "When recommendationRunId is passed, it is included in the POST body"
+    verify: "cd frontend && npm run build 2>&1 | grep -c error || true"
+    status: pending
+
+verification_required:
+  - "cd frontend && npm run build"
+
+context_refs:
+  - ".plans/SC-78-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Add recommendationRunId prop to PurchaseForm and wire to API"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "frontend/src/components/purchases/PurchaseForm.tsx"
+      - "frontend/src/routes/purchases.lazy.tsx"
+    files_read_only:
+      - "frontend/src/api/schema.d.ts"
+      - "frontend/src/hooks/use-purchases.ts"
+    checks:
+      - "npm run build passes"
+      - "no TypeScript errors"
+    evidence: []
+    notes: "Keep the field invisible in the form — it is context-injected, not user-entered"
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Frontend half of original SC-70 split"

@@ -1,0 +1,74 @@
+id: SC-79
+title: "Render crawl health fields on Watch page merchant cards"
+type: feature
+priority: p2
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-18T06:00:00Z"
+updated_at: "2026-03-18T06:00:00Z"
+labels: ["watch-queue", "epic-5", "frontend"]
+
+problem: "The Watch page shows merchant names but no crawl health context. The backend now returns last_crawl_at, product_count, and metadata_pct but they are not rendered."
+desired_outcome: "Each merchant card on the Watch page shows last crawl time (relative), product count, and metadata fill rate as a percentage badge."
+
+scope_in:
+  - "Update watch.lazy.tsx to read and render last_crawl_at, crawl_success, product_count, metadata_pct"
+  - "Format last_crawl_at as relative time (e.g. '2h ago')"
+  - "Show metadata_pct as a colored badge (green ≥70%, yellow ≥30%, red <30%)"
+  - "Build must pass cleanly"
+scope_out:
+  - "Backend API changes (SC-74)"
+  - "Crawl history timeline or drill-down"
+  - "Trust promotion buttons (SC-73)"
+
+dependencies:
+  blockers: ["SC-74"]
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Watch page builds without TypeScript errors after using new API fields"
+    verify: "cd frontend && npm run build 2>&1 | tail -5"
+    status: pending
+  - id: AC-2
+    text: "Crawl health fields render in merchant card markup"
+    verify: "cd frontend && npm run build 2>&1 | grep -c error || true"
+    status: pending
+
+verification_required:
+  - "cd frontend && npm run build"
+
+context_refs:
+  - ".plans/SC-79-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Render crawl health on Watch page cards"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "frontend/src/routes/watch.lazy.tsx"
+    files_read_only:
+      - "frontend/src/api/schema.d.ts"
+      - "frontend/src/hooks/use-merchants.ts"
+    checks:
+      - "npm run build passes"
+      - "cards show last_crawl_at, product_count, metadata_pct"
+    evidence: []
+    notes: "Use relative time lib or simple manual formatting (Date.now() - Date.parse(last_crawl_at))"
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Frontend half of original SC-74 split"
+  - "Run npm run gen:api first if schema.d.ts does not yet include new fields"
