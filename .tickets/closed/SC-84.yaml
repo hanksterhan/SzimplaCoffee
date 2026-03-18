@@ -1,0 +1,80 @@
+id: SC-84
+title: "Preserve recommendation context in purchase success and revisit flows"
+type: feature
+priority: p2
+status: done
+owner: h6nk-bot
+created_at: "2026-03-18T18:41:00Z"
+updated_at: "2026-03-18T18:41:00Z"
+labels: ["purchase-loop", "recommendations", "frontend"]
+
+problem: "SzimplaCoffee can hand a user from a recommendation result into the purchase form, but after submission or later revisit there is still no focused success-state guidance tying the purchase back to the originating recommendation context. The recommendation loop remains hard to audit end-to-end."
+desired_outcome: "After purchase linkage is visible, the purchases flow preserves enough recommendation context that users can recognize which recommendation led to a saved purchase and re-open that context without hunting through history."
+
+scope_in:
+  - "Tighten purchases-route search/state handling for recommendationRunId-driven entry"
+  - "Show concise success or context copy near the linked purchase workflow"
+  - "Preserve or restore navigation affordance back to the linked recommendation when data is present"
+  - "Keep non-recommendation purchase flows unchanged"
+scope_out:
+  - "New backend endpoints or schema changes"
+  - "Multi-step funnel analytics"
+  - "Cross-session attribution persistence beyond existing purchase linkage"
+
+dependencies:
+  blockers: ["SC-80"]
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Purchases entered with recommendation context retain a clear UI cue about the linked recommendation after save or revisit"
+    verify: "cd frontend && npm run build"
+    status: passed
+  - id: AC-2
+    text: "Users have an obvious way to navigate back to the linked recommendation when recommendation_run_id is present"
+    verify: "cd frontend && npm run build"
+    status: passed
+  - id: AC-3
+    text: "Standard purchase flows without recommendation context remain unchanged and the frontend build passes"
+    verify: "cd frontend && npm run build"
+    status: passed
+
+verification_required:
+  - "cd frontend && npm run build"
+
+context_refs:
+  - ".plans/SC-84-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Stabilize recommendation-aware purchase revisit flow"
+    status: passed
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "frontend/src/routes/purchases.lazy.tsx"
+      - "frontend/src/components/purchases/PurchaseDetailDrawer.tsx"
+    files_read_only:
+      - "frontend/src/components/purchases/PurchaseHistoryList.tsx"
+      - "frontend/src/routes/recommendations.lazy.tsx"
+      - "frontend/src/api/schema.d.ts"
+    checks:
+      - "recommendation-aware entry flow preserves contextual copy or navigation after save/revisit"
+      - "non-recommendation purchase flows are unchanged"
+      - "frontend build passes"
+    evidence: []
+    notes: "Keep the scope centered on context preservation and navigation, not form redesign."
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Sequence after SC-80 because the revisit flow depends on visible recommendation linkage in purchase history/detail surfaces."

@@ -1,6 +1,14 @@
 {
   "entries": [
     {
+      "id": "SC-84-recommendation-context-revisit",
+      "path": ".memory/sprint-02/SC-84-recommendation-context-revisit.md",
+      "ticket": "SC-84",
+      "sprint": "sprint-02",
+      "date": "2026-03-18",
+      "summary": "PurchaseDetailDrawer + post-save success state for recommendation-linked purchases"
+    },
+    {
       "id": "SC-83-recommendation-linked-filter",
       "path": ".memory/sprint-02/SC-83-recommendation-linked-filter.md",
       "ticket": "SC-83",

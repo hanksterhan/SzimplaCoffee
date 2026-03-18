@@ -1,0 +1,88 @@
+id: SC-82
+title: Add stale and failed crawl badges to Watch page merchant rows
+type: feature
+priority: p2
+status: done
+owner: h6nk-bot
+created_at: '2026-03-18T17:28:00Z'
+updated_at: '2026-03-18T18:03:33Z'
+labels:
+- watch-queue
+- frontend
+- crawl-health
+problem: The Watch page now shows last_crawl_at, product_count, and metadata_pct,
+  but operators still have to mentally infer whether a merchant is stale or whether
+  the last crawl failed. That slows review and hides the merchants that most need
+  attention.
+desired_outcome: Watch page merchant rows show clear status badges for never-crawled,
+  failed-last-crawl, and stale merchants so review attention can be prioritized at
+  a glance.
+scope_in:
+- Derive row-level crawl status from existing merchant fields already returned by
+  the API
+- Render badges or helper copy for never-crawled, failed-last-crawl, and stale merchants
+- Keep badge logic local to the Watch page without backend changes
+- Preserve existing trust controls and watchlist actions
+scope_out:
+- Backend API changes or schema regeneration
+- Auto-triggering crawls from the Watch page
+- Detailed crawl history timelines
+dependencies:
+  blockers:
+  - SC-74
+  unblocks: []
+acceptance_criteria:
+- id: AC-1
+  text: Merchants with no last_crawl_at render a visible never-crawled status
+  verify: cd frontend && npm run build
+  status: done
+- id: AC-2
+  text: Merchants whose last crawl failed render a visible failed status
+  verify: cd frontend && npm run build
+  status: done
+- id: AC-3
+  text: Merchants whose crawl data is stale render a visible stale status without
+    breaking existing row layout
+  verify: cd frontend && npm run build
+  status: done
+verification_required:
+- cd frontend && npm run build
+context_refs:
+- /home/h6nk/SzimplaCoffee/.plans/SC-82-execution-plan.md
+slices:
+- id: S1
+  title: Add local crawl-status helpers and badges to Watch page rows
+  status: done
+  depends_on: []
+  files_create: []
+  files_modify:
+  - frontend/src/routes/watch.lazy.tsx
+  files_read_only:
+  - frontend/src/hooks/use-watchlist.ts
+  - frontend/src/api/schema.d.ts
+  checks:
+  - never-crawled rows are visually distinct
+  - failed-last-crawl rows are visually distinct
+  - stale rows are visually distinct
+  - frontend build passes
+  evidence:
+  - Watch page shows never-crawled, failed, and stale crawl badges from existing merchant
+    fields
+  - frontend build passed
+  notes: Use a simple time threshold helper in the route file rather than introducing
+    a new abstraction unless the code clearly demands it.
+delivery:
+  branch: ''
+  commits: []
+  pr_url: ''
+  started_at: '2026-03-18T18:03:33Z'
+  completed_at: '2026-03-18T18:03:33Z'
+  verification:
+    required_passed: true
+    commands_run:
+    - cd frontend && npm run build
+    evidence_refs:
+    - frontend build passed on 2026-03-18
+notes:
+- This is the missing operator-visibility follow-on after SC-74 exposed crawl health
+  fields in the merchant API.

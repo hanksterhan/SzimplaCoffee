@@ -1,0 +1,82 @@
+id: SC-81
+title: "Add purchase handoff CTA from recommendation results"
+type: feature
+priority: p2
+status: done
+owner: h6nk-bot
+created_at: "2026-03-18T17:28:00Z"
+updated_at: "2026-03-18T17:48:29Z"
+labels: ["purchase-loop", "recommendations", "frontend"]
+
+problem: "Recommendation runs can now be linked to purchases, but the recommendations page has no direct handoff into purchase logging. Users have to manually navigate to /purchases, which breaks context and makes recommendation attribution easy to lose."
+desired_outcome: "A visible CTA on recommendation results opens the purchases flow with recommendationRunId preserved in route search so logging a buy from a recommendation is a one-step action."
+
+scope_in:
+  - "Add a purchase/log-buy CTA in the recommendation results surface when activeResult.run_id is present"
+  - "Navigate to /purchases with recommendationRunId in route search"
+  - "Keep history-loaded recommendation runs eligible for the same handoff"
+  - "Keep the recommendations page stable when no run_id is available"
+scope_out:
+  - "Prefilling product name or price in PurchaseForm"
+  - "Backend API or schema changes"
+  - "Conversion analytics dashboards"
+
+dependencies:
+  blockers: ["SC-78"]
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Active recommendation results render a CTA that routes to /purchases with recommendationRunId preserved"
+    verify: "cd frontend && npm run build"
+    status: done
+  - id: AC-2
+    text: "History-selected recommendation runs can use the same purchase handoff without errors"
+    verify: "cd frontend && npm run build"
+    status: done
+  - id: AC-3
+    text: "Recommendations page remains stable when no result is active"
+    verify: "cd frontend && npm run build"
+    status: done
+
+verification_required:
+  - "cd frontend && npm run build"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-81-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Add recommendation-to-purchase route handoff"
+    status: done
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "frontend/src/routes/recommend.lazy.tsx"
+    files_read_only:
+      - "frontend/src/routes/purchases.tsx"
+      - "frontend/src/routes/purchases.lazy.tsx"
+    checks:
+      - "CTA only renders when run_id exists"
+      - "navigation includes recommendationRunId search param"
+      - "frontend build passes"
+    evidence:
+      - "CTA routes to /purchases with recommendationRunId search param"
+      - "frontend build passed"
+    notes: "Prefer the narrowest UI change near the active result card/header; do not redesign the recommendations page."
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: "2026-03-18T17:48:29Z"
+  completed_at: "2026-03-18T17:48:29Z"
+  verification:
+    required_passed: true
+    commands_run:
+      - "cd frontend && npm run build"
+    evidence_refs:
+      - "frontend build passed on 2026-03-18"
+
+notes:
+  - "This is the missing UX follow-through after SC-78 added hidden recommendationRunId submission support."

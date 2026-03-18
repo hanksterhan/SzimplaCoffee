@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": "2026-03-18T18:41:00Z",
-  "last_delivered_task": "SC-83",
-  "completed_since_reflect": 1,
+  "last_delivered_task": "SC-84",
+  "completed_since_reflect": 2,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T19:00:00Z",
+  "last_run_at": "2026-03-18T19:25:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "Delivered SC-83: added recommendation-linked purchase filter toggle to Purchases page. Client-side filter, build passed, merged to main.",
-  "next_task_hint": "SC-84"
+  "last_run_summary": "Delivered SC-84: added PurchaseDetailDrawer and recommendation-linked post-save success state to Purchases page. Build passed, merged to main.",
+  "next_task_hint": "backlog_refill_needed"
 }
