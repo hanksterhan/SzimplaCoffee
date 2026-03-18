@@ -1,6 +1,6 @@
 id: SC-66
-title: "Fix recommendation engine to return results when offer_snapshots exist"
-type: bug
+title: "Add recommendation engine regression test with seeded offer_snapshot data"
+type: task
 priority: p1
 status: ready
 owner: h6nk-bot
@@ -8,22 +8,20 @@ created_at: "2026-03-18T00:00:00Z"
 updated_at: "2026-03-18T00:00:00Z"
 labels: ["recommendation", "epic-3", "bug"]
 
-problem: "The recommendation engine returns empty or wait even when offer_snapshots and products exist in the DB. The candidate selection pipeline filters out real products before scoring."
-desired_outcome: "When products with offer_snapshots exist, POST /api/v1/recommendations returns at least one ranked candidate. The fix is minimal and does not alter the scoring algorithm's quality-first intent."
+problem: "No regression test exists that seeds a merchant, product, variant, and offer_snapshot, then verifies the recommendation engine returns at least one ranked result. Without this, silent regressions in the candidate pipeline will go undetected."
+desired_outcome: "A pytest test seeds the minimum required data and asserts that build_recommendations returns at least 1 candidate with a valid score. This guards the full pipeline from breakage."
 
 scope_in:
-  - "Trace candidate selection in recommendations.py from DB query to output"
-  - "Identify and fix the filter or threshold that incorrectly eliminates all candidates"
-  - "Add/update tests to prevent regression"
-  - "Verify recommendations return results with real DB data"
+  - "Write pytest test that seeds merchant + quality_profile + product + variant + offer_snapshot"
+  - "Assert build_recommendations returns >= 1 candidate with score > 0"
+  - "Assert wait_recommendation is False for seeded data with inventory=0"
 scope_out:
-  - "Explain mode (SC-67)"
-  - "VariantDealFact population (SC-68)"
-  - "Scoring algorithm improvements"
+  - "Scoring algorithm changes"
   - "Frontend changes"
+  - "Explain mode (SC-67)"
 
 dependencies:
-  blockers: ["SC-65"]
+  blockers: []
   unblocks: ["SC-67"]
 
 acceptance_criteria:

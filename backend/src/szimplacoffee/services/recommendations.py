@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import timedelta
 from statistics import median
@@ -20,6 +21,8 @@ from ..models import (
     VariantDealFact,
 )
 from .discovery import meets_buying_threshold
+
+logger = logging.getLogger(__name__)
 
 
 QuantityMode = Literal["12-18 oz", "2 lb", "5 lb", "any"]
@@ -622,10 +625,15 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
     category_baseline = _catalog_price_per_oz_baseline_cents(session)
     products = session.scalars(select(Product).where(Product.is_active.is_(True)).order_by(Product.name.asc())).all()
 
+    logger.debug("build_recommendations: %d active products, %d deal facts, baseline=%s", len(products), len(fact_by_variant), category_baseline)
+
+    skipped_threshold = skipped_whole_bean = skipped_available = skipped_format = skipped_offer = skipped_fact = 0
+
     for product in products:
         merchant = product.merchant
         # SC-53: exclude merchants below buying threshold from recommendations
         if not meets_buying_threshold(merchant):
+            skipped_threshold += 1
             continue
         merchant_score = _merchant_score_with_shot_style(merchant, request.shot_style)
         shipping_policy = _latest_shipping_policy(session, merchant.id)
@@ -633,17 +641,22 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
         promo_bonus, promo_reasons = _promo_bonus(session, merchant.id)
         for variant in product.variants:
             if not variant.is_whole_bean:
+                skipped_whole_bean += 1
                 continue
             if not variant.is_available:
+                skipped_available += 1
                 continue
             format_haystack = f"{product.name} {variant.label}".lower()
             if any(term in format_haystack for term in ["instant", "pod", "capsule", "packet", "packets"]):
+                skipped_format += 1
                 continue
             offer = _latest_offer(session, variant.id)
             if offer is None or not offer.is_available:
+                skipped_offer += 1
                 continue
             fact = fact_by_variant.get(variant.id)
             if fact is None:
+                skipped_fact += 1
                 continue
 
             quantity_score = _quantity_score(variant.weight_grams, request.quantity_mode, request.bulk_allowed, request.current_inventory_grams)
@@ -697,6 +710,11 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
                 )
             )
 
+    logger.debug(
+        "build_recommendations: pipeline stats — skipped threshold=%d, not_whole_bean=%d, not_available=%d, format=%d, no_offer=%d, no_fact=%d, candidates=%d",
+        skipped_threshold, skipped_whole_bean, skipped_available, skipped_format, skipped_offer, skipped_fact, len(candidates),
+    )
+
     candidates.sort(key=lambda item: item.score, reverse=True)
     selected: list[RecommendationCandidate] = []
     per_merchant_counts: dict[str, int] = {}
@@ -708,6 +726,7 @@ def build_recommendations(session: Session, request: RecommendationRequest) -> l
         selected.append(candidate)
         if len(selected) >= 5:
             break
+    logger.debug("build_recommendations: selected %d results (per-merchant cap applied)", len(selected))
     return selected
 
 
