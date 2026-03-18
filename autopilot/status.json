@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": null,
-  "last_delivered_task": "SC-59",
-  "completed_since_reflect": 5,
+  "last_delivered_task": "SC-64",
+  "completed_since_reflect": 0,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T11:10:00Z",
+  "last_run_at": "2026-03-18T11:25:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-59 delivered: szimpla import-merchants --file FILE CLI command added. Reads newline-delimited URL files, skips comments/blanks, fast-rejects invalid URLs, skips duplicates. 129 tests green, ruff clean. Pushed to main.",
-  "next_task_hint": "SC-64"
+  "last_run_summary": "SC-64 delivered: metadata fill-rate fields added to /api/v1/dashboard + MetadataFillRate component on dashboard page. Reflection written (8 tasks delivered, 0 failures). 129 tests green.",
+  "next_task_hint": "SC-67"
 }
