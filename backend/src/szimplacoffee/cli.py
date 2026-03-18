@@ -41,6 +41,12 @@ def main() -> None:
         help="Generate or update quality profiles for all active merchants.",
     )
 
+    # SC-60: promote-tiers
+    subparsers.add_parser(
+        "promote-tiers",
+        help="Review merchant quality profiles and promote/demote crawl and trust tiers accordingly.",
+    )
+
     # SC-33: crawl-schedule + run-scheduled-crawls
     subparsers.add_parser(
         "crawl-schedule",
@@ -188,6 +194,129 @@ def main() -> None:
                     f"  metadata={r['metadata']:.2f}"
                     f"  espresso={r['espresso']:.2f}"
                 )
+            return
+
+        if args.command == "promote-tiers":
+            # SC-60: auto-promote/demote merchant tiers based on quality profiles
+            # Criteria:
+            #   crawl_tier=A: overall_score >= 0.7 AND product_count >= 20
+            #   crawl_tier=B: overall_score >= 0.4 AND product_count >= 5 (if not A-eligible)
+            #   crawl_tier=D: product_count == 0 AND crawl_run_count >= 1 (crawled but empty)
+            #   trust_tier=trusted: promoted when product_count meets tier threshold and was candidate
+            from sqlalchemy import func
+            from .models import CrawlRun, MerchantQualityProfile  # noqa: F401
+
+            TIER_A_MIN_SCORE = 0.7
+            TIER_A_MIN_PRODUCTS = 20
+            TIER_B_MIN_SCORE = 0.4
+            TIER_B_MIN_PRODUCTS = 5
+            # Demote to D after at least 1 completed crawl with zero results
+            ZERO_PRODUCT_MIN_CRAWLS = 1
+
+            merchants = session.scalars(select(Merchant).where(Merchant.is_active == True)).all()  # noqa: E712
+            promoted_a: list[tuple] = []
+            promoted_b: list[tuple] = []
+            demoted_d: list[tuple] = []
+            trust_promoted: list[tuple] = []
+            unchanged: list[tuple] = []
+
+            for merchant in merchants:
+                profile = merchant.quality_profile
+                overall_score = profile.overall_quality_score if profile else 0.0
+                product_count = len(merchant.products)
+                crawl_run_count = session.scalar(
+                    select(func.count(CrawlRun.id)).where(CrawlRun.merchant_id == merchant.id)
+                ) or 0
+
+                old_crawl_tier = merchant.crawl_tier
+                crawl_changed = False
+                trust_changed = False
+
+                # Demote to D: zero products after at least one completed crawl
+                if product_count == 0 and crawl_run_count >= ZERO_PRODUCT_MIN_CRAWLS:
+                    if merchant.crawl_tier != "D":
+                        merchant.crawl_tier = "D"
+                        crawl_changed = True
+                        demoted_d.append((merchant.name, old_crawl_tier, overall_score, product_count, crawl_run_count))
+                    else:
+                        unchanged.append((merchant.name, merchant.crawl_tier, overall_score, product_count, "already D"))
+                    continue
+
+                # Promote to A: high score + rich catalog
+                if overall_score >= TIER_A_MIN_SCORE and product_count >= TIER_A_MIN_PRODUCTS:
+                    if merchant.crawl_tier != "A":
+                        merchant.crawl_tier = "A"
+                        crawl_changed = True
+                        promoted_a.append((merchant.name, old_crawl_tier, overall_score, product_count))
+                    if merchant.trust_tier == "candidate":
+                        merchant.trust_tier = "trusted"
+                        trust_changed = True
+                        trust_promoted.append((merchant.name, overall_score, product_count))
+                    if not crawl_changed and not trust_changed:
+                        unchanged.append((merchant.name, merchant.crawl_tier, overall_score, product_count, "already A/trusted"))
+                    continue
+
+                # Promote to B: moderate score + decent catalog (if not A-eligible)
+                if overall_score >= TIER_B_MIN_SCORE and product_count >= TIER_B_MIN_PRODUCTS:
+                    if merchant.crawl_tier not in ("A", "B"):
+                        merchant.crawl_tier = "B"
+                        crawl_changed = True
+                        promoted_b.append((merchant.name, old_crawl_tier, overall_score, product_count))
+                    if merchant.trust_tier == "candidate":
+                        merchant.trust_tier = "trusted"
+                        trust_changed = True
+                        trust_promoted.append((merchant.name, overall_score, product_count))
+                    if not crawl_changed and not trust_changed:
+                        unchanged.append((merchant.name, merchant.crawl_tier, overall_score, product_count, "already A/B/trusted"))
+                    continue
+
+                    # Already at correct tier — check if trust_tier needs upgrade
+                if merchant.crawl_tier in ("A", "B") and merchant.trust_tier == "candidate" and product_count >= TIER_B_MIN_PRODUCTS:
+                    merchant.trust_tier = "trusted"
+                    trust_changed = True
+                    trust_promoted.append((merchant.name, overall_score, product_count))
+                    continue
+
+                unchanged.append((merchant.name, merchant.crawl_tier, overall_score, product_count, "below threshold"))
+
+            session.flush()
+
+            print("=== Tier Promotion Results ===")
+            if promoted_a:
+                print(f"\nPromoted to crawl_tier=A ({len(promoted_a)}):")
+                for name, old, score, products in promoted_a:
+                    print(f"  {name:<40} {old} → A  score={score:.2f}  products={products}")
+            if promoted_b:
+                print(f"\nPromoted to crawl_tier=B ({len(promoted_b)}):")
+                for name, old, score, products in promoted_b:
+                    print(f"  {name:<40} {old} → B  score={score:.2f}  products={products}")
+            if demoted_d:
+                print(f"\nDemoted to crawl_tier=D ({len(demoted_d)}):")
+                for name, old, score, products, runs in demoted_d:
+                    print(f"  {name:<40} {old} → D  score={score:.2f}  products={products}  crawl_runs={runs}")
+            if trust_promoted:
+                print(f"\nTrust promoted to trusted ({len(trust_promoted)}):")
+                for name, score, products in trust_promoted:
+                    print(f"  {name:<40} candidate → trusted  score={score:.2f}  products={products}")
+            if unchanged:
+                print(f"\nUnchanged ({len(unchanged)}):")
+                for entry in unchanged:
+                    name, tier, score, products, reason = entry
+                    print(f"  {name:<40} tier={tier}  score={score:.2f}  products={products}  ({reason})")
+
+            total_ab = session.scalar(
+                select(func.count(Merchant.id)).where(Merchant.crawl_tier.in_(["A", "B"]))
+            ) or 0
+            total_d = session.scalar(
+                select(func.count(Merchant.id)).where(Merchant.crawl_tier == "D")
+            ) or 0
+            print("\n=== Final Tier Distribution ===")
+            for tier in ["A", "B", "C", "D"]:
+                count = session.scalar(
+                    select(func.count(Merchant.id)).where(Merchant.crawl_tier == tier)
+                ) or 0
+                print(f"  Tier {tier}: {count} merchant(s)")
+            print(f"\nMerchants in A or B: {total_ab}  |  Excluded (D): {total_d}")
             return
 
         if args.command == "crawl-schedule":
