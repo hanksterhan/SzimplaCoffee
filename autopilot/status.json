@@ -3,11 +3,11 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": null,
-  "last_delivered_task": "SC-58",
-  "completed_since_reflect": 2,
+  "last_delivered_task": "SC-61",
+  "completed_since_reflect": 3,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T06:06:00Z",
+  "last_run_at": "2026-03-18T06:12:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-58 confirmed done (products 38→597, 5 merchants crawled). SC-61 delivery subagent spawned — auditing coffee_parser wiring and measuring fill rates."
+  "last_run_summary": "SC-61 delivered: coffee_parser already wired post-crawl. Baseline fill rates: origin_text=64.8%, process_text=34.0%, roast_level=1.8%, variety_text=23.6%. Critical finding: descriptions not stored in DB — SC-62/63 need description_html migration."
 }
