@@ -16,6 +16,7 @@ import { Route as PurchasesRouteImport } from './routes/purchases'
 import { Route as ProductsRouteImport } from './routes/products'
 import { Route as MerchantsRouteImport } from './routes/merchants'
 import { Route as DiscoveryRouteImport } from './routes/discovery'
+import { Route as De1RouteImport } from './routes/de1'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProductsProductIdRouteImport } from './routes/products.$productId'
 import { Route as MerchantsNewRouteImport } from './routes/merchants.new'
@@ -56,6 +57,11 @@ const DiscoveryRoute = DiscoveryRouteImport.update({
   path: '/discovery',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/discovery.lazy').then((d) => d.Route))
+const De1Route = De1RouteImport.update({
+  id: '/de1',
+  path: '/de1',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -83,6 +89,7 @@ const MerchantsMerchantIdRoute = MerchantsMerchantIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/de1': typeof De1Route
   '/discovery': typeof DiscoveryRoute
   '/merchants': typeof MerchantsRouteWithChildren
   '/products': typeof ProductsRouteWithChildren
@@ -96,6 +103,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/de1': typeof De1Route
   '/discovery': typeof DiscoveryRoute
   '/merchants': typeof MerchantsRouteWithChildren
   '/products': typeof ProductsRouteWithChildren
@@ -110,6 +118,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/de1': typeof De1Route
   '/discovery': typeof DiscoveryRoute
   '/merchants': typeof MerchantsRouteWithChildren
   '/products': typeof ProductsRouteWithChildren
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/de1'
     | '/discovery'
     | '/merchants'
     | '/products'
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/de1'
     | '/discovery'
     | '/merchants'
     | '/products'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/de1'
     | '/discovery'
     | '/merchants'
     | '/products'
@@ -165,6 +177,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  De1Route: typeof De1Route
   DiscoveryRoute: typeof DiscoveryRoute
   MerchantsRoute: typeof MerchantsRouteWithChildren
   ProductsRoute: typeof ProductsRouteWithChildren
@@ -223,6 +236,13 @@ declare module '@tanstack/react-router' {
       path: '/discovery'
       fullPath: '/discovery'
       preLoaderRoute: typeof DiscoveryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/de1': {
+      id: '/de1'
+      path: '/de1'
+      fullPath: '/de1'
+      preLoaderRoute: typeof De1RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -284,6 +304,7 @@ const ProductsRouteWithChildren = ProductsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  De1Route: De1Route,
   DiscoveryRoute: DiscoveryRoute,
   MerchantsRoute: MerchantsRouteWithChildren,
   ProductsRoute: ProductsRouteWithChildren,
