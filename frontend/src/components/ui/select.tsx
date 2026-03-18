@@ -73,7 +73,7 @@ const SelectTrigger = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
 >(({ className, children, onClick, onPointerDown, ...props }, ref) => {
   const debugName = React.useContext(SelectDebugContext);
-  const pointerTypeRef = React.useRef<string>("touch");
+  const pointerTypeRef = React.useRef<string>("mouse");
 
   return (
     <SelectPrimitive.Trigger
@@ -89,10 +89,6 @@ const SelectTrigger = React.forwardRef<
           button: e.button,
           ctrlKey: e.ctrlKey,
         });
-        // Block Radix's internal pointerdown handler (it checks defaultPrevented).
-        // Without this, React 19 fires both pointerdown (Radix opens) and click
-        // (something closes), net-cancelling the toggle. onClick drives open state.
-        e.preventDefault();
         onPointerDown?.(e);
       }}
       onClick={(e) => {
