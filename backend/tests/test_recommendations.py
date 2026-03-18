@@ -28,6 +28,8 @@ from szimplacoffee.services.recommendations import (
     _discounted_price_cents,
     _espresso_fit,
     build_biggest_sales,
+    build_recommendations,
+    build_wait_assessment,
     materialize_variant_deal_facts,
     _price_per_oz_cents,
     _quantity_score,
@@ -377,3 +379,68 @@ def test_biggest_sales_endpoint_returns_explainable_candidates(deal_test_client)
     assert payload[0]["best_promo_label"] == "10% off"
     assert payload[0]["score"] > 0.58
     assert payload[0]["reasons"]
+
+
+# SC-66: Regression tests — build_recommendations returns results with seeded data
+def test_build_recommendations_returns_candidate_with_seeded_offer_snapshot(deal_test_client) -> None:
+    """Guard the full recommendation pipeline: seeded offer_snapshot must produce >= 1 candidate."""
+    _client, engine, seeded = deal_test_client
+
+    with Session(engine) as session:
+        request = RecommendationRequest(
+            shot_style="modern_58mm",
+            quantity_mode="12-18 oz",
+            bulk_allowed=False,
+            current_inventory_grams=0,
+        )
+        results = build_recommendations(session, request)
+
+    assert len(results) >= 1, (
+        "Expected at least 1 recommendation candidate but got none. "
+        "Check meets_buying_threshold, offer_snapshot presence, and VariantDealFact materialization."
+    )
+    scores = [r.score for r in results]
+    assert all(s > 0 for s in scores), f"All scores must be positive, got: {scores}"
+
+
+def test_recommendations_endpoint_returns_ranked_results_with_seeded_data(deal_test_client) -> None:
+    """SC-66 AC-1: POST /api/v1/recommendations returns >= 1 ranked result when offer_snapshots exist."""
+    client, _engine, _seeded = deal_test_client
+
+    response = client.post(
+        "/api/v1/recommendations",
+        json={"current_inventory_grams": 0},
+    )
+
+    assert response.status_code in (200, 201)
+    payload = response.json()
+    # API returns {top_result, alternatives, ...} shape
+    top_result = payload.get("top_result")
+    alternatives = payload.get("alternatives", [])
+    all_results = ([top_result] if top_result else []) + alternatives
+    assert len(all_results) >= 1, (
+        f"Expected >= 1 recommendation but got 0. Full response: {payload}"
+    )
+    assert all_results[0]["score"] > 0
+
+
+def test_wait_is_false_when_inventory_is_zero(deal_test_client) -> None:
+    """SC-66: wait_recommendation must be False when current_inventory_grams=0."""
+    _client, engine, _seeded = deal_test_client
+
+    with Session(engine) as session:
+        request = RecommendationRequest(
+            shot_style="modern_58mm",
+            quantity_mode="12-18 oz",
+            bulk_allowed=False,
+            current_inventory_grams=0,
+        )
+        candidates = build_recommendations(session, request)
+
+    wait, rationale = build_wait_assessment(
+        candidates,
+        no_candidates=len(candidates) == 0,
+        current_inventory_grams=0,
+    )
+
+    assert not wait, f"Expected wait=False with 0g inventory but got wait=True. Rationale: {rationale}"
