@@ -33,6 +33,33 @@ function TrustBadge({ tier }: { tier: string }) {
   );
 }
 
+function relativeTime(isoString: string | null | undefined): string {
+  if (!isoString) return "Never";
+  const diffMs = Date.now() - Date.parse(isoString);
+  if (diffMs < 0) return "Just now";
+  const mins = Math.floor(diffMs / 60_000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+function MetadataBadge({ pct }: { pct: number }) {
+  const color =
+    pct >= 70
+      ? "bg-green-100 text-green-800 border-green-300"
+      : pct >= 30
+        ? "bg-yellow-100 text-yellow-800 border-yellow-300"
+        : "bg-red-100 text-red-800 border-red-300";
+  return (
+    <Badge variant="outline" className={`text-xs ${color}`}>
+      {pct}% meta
+    </Badge>
+  );
+}
+
 function MerchantRow({
   merchant,
   action,
@@ -59,6 +86,15 @@ function MerchantRow({
         <p className="text-xs text-muted-foreground mt-0.5">
           {merchant.canonical_domain} · {merchant.platform_type}
         </p>
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <span className="text-xs text-muted-foreground">
+            🕐 {relativeTime(merchant.last_crawl_at)}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            📦 {merchant.product_count} products
+          </span>
+          <MetadataBadge pct={merchant.metadata_pct} />
+        </div>
       </div>
       {action}
     </div>
