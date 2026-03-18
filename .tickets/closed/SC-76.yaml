@@ -2,10 +2,10 @@ id: SC-76
 title: "Crawl batch 3 — La Colombe, Coava, Huckleberry (final batch)"
 type: task
 priority: p1
-status: ready
+status: done
 owner: h6nk-bot
 created_at: "2026-03-18T05:50:00Z"
-updated_at: "2026-03-18T05:50:00Z"
+updated_at: "2026-03-18T09:11:00Z"
 labels: ["merchant-coverage", "epic-1", "crawling"]
 
 problem: "Merchants 13-15 (La Colombe, Coava, Huckleberry) have no product data yet."
@@ -28,11 +28,13 @@ acceptance_criteria:
   - id: AC-1
     text: "crawl_runs has at least one row for each of merchants 13-15"
     verify: "cd backend && .venv/bin/python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; print(engine.connect().execute(text('SELECT merchant_id, status FROM crawl_runs WHERE merchant_id BETWEEN 13 AND 15')).fetchall())\""
-    status: pending
+    status: passed
+    evidence: "All 3 merchants (13, 14, 15) have status=completed crawl_runs rows."
   - id: AC-2
     text: "At least 8 of 15 merchants produced at least 1 product (>50% success rate)"
     verify: "cd backend && .venv/bin/python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; print(engine.connect().execute(text('SELECT COUNT(DISTINCT merchant_id) FROM products')).scalar())\""
-    status: pending
+    status: passed
+    evidence: "14/15 merchants have products. Blue Bottle is the only zero (generic crawl empty)."
 
 verification_required:
   - "cd backend && .venv/bin/pytest tests/ -q"
@@ -40,11 +42,12 @@ verification_required:
 
 context_refs:
   - ".plans/SC-76-execution-plan.md"
+  - ".memory/session-checkpoints/2026-03-18T09-11.md"
 
 slices:
   - id: S1
     title: "Crawl merchants 13-15 and produce coverage summary"
-    status: pending
+    status: done
     depends_on: []
     files_create: []
     files_modify: []
@@ -52,22 +55,30 @@ slices:
       - "backend/src/szimplacoffee/services/crawlers.py"
       - "backend/src/szimplacoffee/cli.py"
     checks:
-      - "crawl_runs populated for merchants 13-15"
-      - "coverage summary written to memory"
-    evidence: []
-    notes: "Coava uses non-standard Shopify layout — may need adapter fix. Document for SC-60."
+      - "crawl_runs populated for merchants 13-15 ✅"
+      - "coverage summary written to memory ✅"
+    evidence:
+      - "crawl_runs: merchant 13 completed (20 products), 14 completed (1 product), 15 completed (30 products)"
+      - "14/15 merchants with products — 93% success rate"
+      - "123 tests passed, ruff clean"
+    notes: "Coava (merchant 14) yielded only 1 product due to non-standard Shopify layout. Blue Bottle (8) still empty from generic crawl. Both documented for adapter-fix follow-up."
 
 delivery:
-  branch: ""
+  branch: "main"
   commits: []
   pr_url: ""
-  started_at: ""
-  completed_at: ""
+  started_at: "2026-03-18T09:11:00Z"
+  completed_at: "2026-03-18T09:11:00Z"
   verification:
-    required_passed: false
-    commands_run: []
-    evidence_refs: []
+    required_passed: true
+    commands_run:
+      - "pytest tests/ -q → 123 passed"
+      - "ruff check src/ tests/ → All checks passed"
+    evidence_refs:
+      - ".memory/session-checkpoints/2026-03-18T09-11.md"
 
 notes:
-  - "Final crawl batch. After this, SC-60 (trust promotion) and SC-61 (metadata audit) unblock."
-  - "Batch 1: SC-58. Batch 2: SC-75."
+  - "Final crawl batch. SC-60 (trust promotion) and SC-61 (metadata audit) are now unblocked."
+  - "Batch 1: SC-58. Batch 2: SC-75. Batch 3: SC-76 (this ticket)."
+  - "Coverage summary: 890 total products, 14/15 merchants active."
+  - "Blue Bottle and Coava need adapter-fix follow-ups."

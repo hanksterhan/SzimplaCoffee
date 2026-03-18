@@ -1,11 +1,11 @@
 id: SC-60
 title: "Review and promote crawled merchants based on crawl quality"
 type: task
-priority: p2
+priority: p1
 status: ready
 owner: h6nk-bot
 created_at: "2026-03-18T00:00:00Z"
-updated_at: "2026-03-18T00:00:00Z"
+updated_at: "2026-03-18T09:11:00Z"
 labels: ["merchant-coverage", "epic-1", "quality"]
 
 problem: "After initial crawls, all new merchants sit at default trust_tier=C. High-quality merchants with successful crawls and rich product data should be promoted to Tier A or B so they appear in recommendations."
