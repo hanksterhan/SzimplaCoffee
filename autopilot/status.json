@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": null,
-  "last_delivered_task": "SC-67",
-  "completed_since_reflect": 1,
+  "last_delivered_task": "SC-77",
+  "completed_since_reflect": 2,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T11:45:00Z",
+  "last_run_at": "2026-03-18T12:20:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-67 delivered: explain_scores flag added to recommendation API — score_breakdown per candidate + filtered_candidates list with filter reasons. 132 tests green. Pushed to main.",
-  "next_task_hint": "SC-77"
+  "last_run_summary": "SC-77 delivered: explain toggle added to Recommendations page — 'Explain scores' checkbox, per-candidate ScoreBreakdownPanel with dimension bars and weights, filtered_candidates table. Schema types updated. Build clean, 132 tests green. Pushed to main.",
+  "next_task_hint": "SC-78"
 }
