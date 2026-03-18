@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": null,
-  "last_delivered_task": "SC-70",
-  "completed_since_reflect": 4,
+  "last_delivered_task": "SC-71",
+  "completed_since_reflect": 5,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T14:49:00Z",
+  "last_run_at": "2026-03-18T15:30:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-70 delivered: added recommendation_run_id nullable FK to PurchaseHistory model, Alembic migration 20260318_01 applied cleanly, schemas and API updated, 6 new tests added, 153 tests green, pushed to main.",
-  "next_task_hint": "SC-71"
+  "last_run_summary": "SC-71 delivered: added GET /api/v1/history/brew-feedback global endpoint, 3 new tests verifying seeded rows, 156 tests green, pushed to main.",
+  "next_task_hint": "SC-72"
 }
