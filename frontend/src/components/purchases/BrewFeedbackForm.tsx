@@ -52,8 +52,6 @@ export function BrewFeedbackForm({
 }: BrewFeedbackFormProps) {
   const [form, setForm] = useState<BrewFeedbackCreate>(DEFAULT_FORM);
   const { mutate: addFeedback, isPending } = useAddFeedback();
-  const [shotStyleOpen, setShotStyleOpen] = useState(false);
-  const [basketOpen, setBasketOpen] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -81,12 +79,11 @@ export function BrewFeedbackForm({
           <div className="space-y-1">
             <label className="text-sm font-medium">Shot Style</label>
             <Select
+              debugName="brew-feedback.shot-style"
               value={form.shot_style}
               onValueChange={(v) => setForm((f) => ({ ...f, shot_style: v }))}
-              open={shotStyleOpen}
-              onOpenChange={setShotStyleOpen}
             >
-              <SelectTrigger onOpenToggle={() => setShotStyleOpen(true)}>
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -113,12 +110,11 @@ export function BrewFeedbackForm({
           <div className="space-y-1">
             <label className="text-sm font-medium">Basket</label>
             <Select
+              debugName="brew-feedback.basket"
               value={form.basket}
               onValueChange={(v) => setForm((f) => ({ ...f, basket: v }))}
-              open={basketOpen}
-              onOpenChange={setBasketOpen}
             >
-              <SelectTrigger onOpenToggle={() => setBasketOpen(true)}>
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

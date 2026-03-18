@@ -204,7 +204,6 @@ function PurchasesPage() {
   const [logOpen, setLogOpen] = useState(false);
   const [editPurchase, setEditPurchase] = useState<PurchaseSummary | null>(null);
   const [filterMerchantId, setFilterMerchantId] = useState<string>("");
-  const [merchantFilterOpen, setMerchantFilterOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -248,12 +247,11 @@ function PurchasesPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <Select
+          debugName="purchases.filter-merchant"
           value={filterMerchantId}
           onValueChange={setFilterMerchantId}
-          open={merchantFilterOpen}
-          onOpenChange={setMerchantFilterOpen}
         >
-          <SelectTrigger className="w-full sm:w-48" onOpenToggle={() => setMerchantFilterOpen(true)}>
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="All merchants" />
           </SelectTrigger>
           <SelectContent>

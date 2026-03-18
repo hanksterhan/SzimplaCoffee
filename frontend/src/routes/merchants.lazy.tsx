@@ -1,5 +1,4 @@
 import { createLazyFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
 import { useMerchants, useTriggerCrawl } from "@/hooks/use-merchants";
 import { TrustBadge } from "@/components/ui/trust-badge";
 import { CrawlTierBadge } from "@/components/merchants/CrawlTierBadge";
@@ -29,8 +28,6 @@ function MerchantsPage() {
   const navigate = useNavigate({ from: "/merchants" });
   const search = Route.useSearch();
   const platformType = search.platform_type ?? "";
-  const [platformOpen, setPlatformOpen] = useState(false);
-  const [trustOpen, setTrustOpen] = useState(false);
   const trustTier = search.trust_tier ?? "";
 
   const { data, isLoading } = useMerchants({
@@ -67,12 +64,11 @@ function MerchantsPage() {
       {/* Filter bar */}
       <div className="flex gap-3 flex-wrap">
         <Select
+          debugName="merchants.platform"
           value={platformType || "_all"}
           onValueChange={(v) => setFilter("platform_type", v === "_all" ? "" : v)}
-          open={platformOpen}
-          onOpenChange={setPlatformOpen}
         >
-          <SelectTrigger className="w-44" onOpenToggle={() => setPlatformOpen(true)}>
+          <SelectTrigger className="w-44">
             <SelectValue placeholder="All Platforms" />
           </SelectTrigger>
           <SelectContent>
@@ -84,12 +80,11 @@ function MerchantsPage() {
         </Select>
 
         <Select
+          debugName="merchants.trust"
           value={trustTier || "_all"}
           onValueChange={(v) => setFilter("trust_tier", v === "_all" ? "" : v)}
-          open={trustOpen}
-          onOpenChange={setTrustOpen}
         >
-          <SelectTrigger className="w-40" onOpenToggle={() => setTrustOpen(true)}>
+          <SelectTrigger className="w-40">
             <SelectValue placeholder="All Trust" />
           </SelectTrigger>
           <SelectContent>
