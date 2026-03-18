@@ -22,3 +22,9 @@ escalation:
     - "same task fails twice"
 reflection:
   every_n_completed: 5
+
+notifications:
+  # Set session_key to route run summaries via sessions_send.
+  # Example: "agent:1:telegram:group:-1003759576826:topic:2"
+  # Leave empty to disable notifications.
+  session_key: ""

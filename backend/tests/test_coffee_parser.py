@@ -516,3 +516,55 @@ def test_origin_count_demonym_blend() -> None:
     """Two demonyms → blend, not single-origin."""
     r = parse_coffee_metadata("Blend", "Ethiopian and Colombian coffees in this blend.")
     assert r.is_single_origin is False
+
+
+# ---------------------------------------------------------------------------
+# SC-63: Process pattern tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("name,desc,expected_family", [
+    ("Kenya Boma Washed", "Washed. Citrus and floral.", "washed"),
+    ("Ethiopia Natural", "Naturally processed. Blueberry notes.", "natural"),
+    ("Colombia White Honey Process", "White honey process. Sweet caramel.", "honey"),
+    ("El Salvador Anaerobic Washed", "Anaerobic fermentation. Complex.", "anaerobic"),
+    ("Guatemala Carbonic Maceration", "Carbonic maceration washed. Clean.", "anaerobic"),
+    ("Brazil Natural Pulped", "Pulped natural process.", "honey"),
+    ("Sumatra Wet-Hulled", "Wet-hulled processing.", "wet-hulled"),
+    ("Colombia Dry Process Natural", "Dry process. Fruity notes.", "natural"),
+    ("Honduras Wet Process", "Wet process. Clean cup.", "washed"),
+    ("Panama Gesha Washed", "", "washed"),
+])
+def test_process_family_patterns_sc63(name: str, desc: str, expected_family: str) -> None:
+    result = parse_coffee_metadata(name, desc)
+    assert result.process_family == expected_family, (
+        f"Expected process_family={expected_family!r} for {name!r}, got {result.process_family!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# SC-63: Roast level tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("name,desc,expected_level", [
+    # Explicit pattern matches
+    ("Ethiopia Yirgacheffe", "Light roast. Floral and citrus.", "light"),
+    ("Colombia Espresso Roast", "Espresso roast blend.", "medium-dark"),
+    ("House Dark Blend", "Dark roast. Chocolate and tobacco.", "dark"),
+    ("Brazil Medium", "Medium roast. Balanced.", "medium"),
+    ("Omni Roast House", "Omni roast. All-purpose filter and espresso.", "light-medium"),
+    ("Bolivia All-Purpose", "All-purpose roast level.", "light-medium"),
+    ("Full City Roast", "Full city roast profile.", "medium-dark"),
+    # Implicit inference: single origin → light
+    ("Kenya Kirinyaga Washed", "", "light"),
+    ("Ethiopia Bochesa Washed", "Washed process. Citrus, jasmine.", "light"),
+    ("Colombia Gesha Natural", "Natural process. Complex fruity.", "light"),
+    # Blend → medium-dark
+    ("Morning Sun Blend", "A blend of African and Latin American coffees.", "medium-dark"),
+    # Explicit dark wins over inference
+    ("Rwanda Natural", "French roast.", "dark"),
+])
+def test_roast_level_patterns_sc63(name: str, desc: str, expected_level: str) -> None:
+    result = parse_coffee_metadata(name, desc)
+    assert result.roast_level == expected_level, (
+        f"Expected roast_level={expected_level!r} for {name!r}, got {result.roast_level!r}"
+    )

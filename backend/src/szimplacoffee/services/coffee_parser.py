@@ -117,11 +117,19 @@ _VARIETY_KEYWORDS: list[str] = [
     "74110", "74112", "catimor", "java",
 ]
 
-_ROAST_LIGHT: list[str] = ["light roast", "filter roast", "omni roast", "nordic roast", "nordic", "omni"]
-_ROAST_MEDIUM: list[str] = ["medium roast", "all-purpose", "all purpose", "balanced roast"]
+_ROAST_LIGHT: list[str] = [
+    "light roast", "filter roast", "omni roast", "nordic roast", "nordic", "omni",
+    "lightly roasted", "pour over roast", "pourover roast", "pour-over roast",
+    "light filter",
+]
+_ROAST_MEDIUM: list[str] = [
+    "medium roast", "all-purpose", "all purpose", "balanced roast",
+    "medium-light", "medium light", "all-rounder", "everyday coffee",
+]
 _ROAST_DARK_ESPRESSO: list[str] = [
     "espresso roast", "dark roast", "dark-roast",
     "french roast", "italian roast", "bold roast",
+    "full city", "full-city", "vienna roast",
 ]
 
 _TASTING_PATTERNS: list[str] = [
@@ -300,19 +308,56 @@ def _extract_roast_cues(text: str) -> str | None:
     return ", ".join(deduped)
 
 
-def _normalize_roast_level(roast_cues: str | None, text: str) -> str:
+# Implicit dark / espresso signals used for roast inference
+_DARK_ROAST_IMPLICIT_SIGNALS: list[str] = [
+    "espresso", "dark chocolate", "dark cocoa", "bittersweet",
+    "full city",
+]
+
+
+def _infer_roast_from_context(
+    is_single_origin: bool,
+    is_blend: bool,
+    text: str,
+) -> str:
+    """Infer roast level when explicit cue patterns return nothing.
+
+    Rules (ordered by confidence):
+    1. Dark/espresso implicit signals in text → medium-dark
+    2. Blend (not single origin) → medium-dark
+    3. Single origin specialty → light (specialty roasters default)
+    4. Otherwise → unknown
+    """
+    haystack = text.lower()
+    if any(sig in haystack for sig in _DARK_ROAST_IMPLICIT_SIGNALS):
+        return "medium-dark"
+    if is_blend:
+        return "medium-dark"
+    if is_single_origin:
+        return "light"
+    return "unknown"
+
+
+def _normalize_roast_level(
+    roast_cues: str | None,
+    text: str,
+    *,
+    is_single_origin: bool = False,
+    is_blend: bool = False,
+) -> str:
     haystack = " ".join(part for part in [roast_cues or "", text] if part).lower()
     if any(term in haystack for term in ["french roast", "italian roast", "dark roast", "dark-roast"]):
         return "dark"
-    if any(term in haystack for term in ["espresso roast", "bold roast", "medium-dark"]):
+    if any(term in haystack for term in ["espresso roast", "bold roast", "medium-dark", "full city", "full-city", "vienna roast"]):
         return "medium-dark"
-    if any(term in haystack for term in ["omni roast", "all-purpose", "all purpose", "light to medium", "light-medium"]):
+    if any(term in haystack for term in ["omni roast", "all-purpose", "all purpose", "light to medium", "light-medium", "medium-light", "all-rounder"]):
         return "light-medium"
-    if any(term in haystack for term in ["medium roast", "balanced roast"]):
+    if any(term in haystack for term in ["medium roast", "balanced roast", "everyday coffee"]):
         return "medium"
-    if any(term in haystack for term in ["light roast", "filter roast", "nordic roast", "nordic"]):
+    if any(term in haystack for term in ["light roast", "filter roast", "nordic roast", "nordic", "lightly roasted", "pour over roast", "pourover roast", "pour-over roast", "omni"]):
         return "light"
-    return "unknown"
+    # Implicit inference from specialty coffee context
+    return _infer_roast_from_context(is_single_origin, is_blend, text)
 
 
 def _normalize_note(note: str) -> str:
@@ -459,7 +504,7 @@ def parse_coffee_metadata(name: str, description: str) -> ParsedCoffeeMetadata:
     espresso_rec = _is_espresso_recommended(roast_cues, process, full_text)
     origin_country, origin_region = _normalize_origin_parts(origin, full_text)
     process_family = _normalize_process_family(process, full_text, is_blend)
-    roast_level = _normalize_roast_level(roast_cues, full_text)
+    roast_level = _normalize_roast_level(roast_cues, full_text, is_single_origin=is_single_origin, is_blend=is_blend)
 
     # -- Confidence --
     filled_count = sum(1 for v in [origin, process, variety, roast_cues, tasting_notes] if v)

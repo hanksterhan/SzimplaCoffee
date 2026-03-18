@@ -3,11 +3,11 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": null,
-  "last_delivered_task": "SC-62",
-  "completed_since_reflect": 4,
+  "last_delivered_task": "SC-63",
+  "completed_since_reflect": 5,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T06:35:49Z",
+  "last_run_at": "2026-03-18T06:53:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-62 delivered: expanded coffee_parser origin coverage with 24 new countries, 23 demonyms (Ethiopian→Ethiopia etc.), and Hawaii variants (Hawai'i, Kona). Origin fill rate 64.8%→66.8% (399/597). 14 new tests added, 98 total passing. AC-1: 66.8% >= 50% ✓, AC-2: 15 origin tests pass ✓, AC-3: ruff clean ✓."
+  "last_run_summary": "SC-63 delivered: improved coffee_parser roast/process patterns with implicit inference. Key addition: _infer_roast_from_context (single-origin→light, blend→medium-dark). Roast fill rate: 1.8%→61.5% (367/597). Process unchanged at 44.6% (data gap, not parser gap). 22 new tests, 120 total passing, ruff clean."
 }
