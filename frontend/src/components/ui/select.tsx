@@ -7,7 +7,20 @@ type SelectProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root> &
   debugName?: string;
 };
 
+// ── Debug context (name only) ──────────────────────────────────────────────────
 const SelectDebugContext = React.createContext<string | null>(null);
+
+// ── Selection shim context ─────────────────────────────────────────────────────
+// Carries the callbacks needed to drive value+open changes from SelectItem.onClick
+// when Radix's own pointerup-based selection is swallowed by React 19.
+type SelectShimCtx = {
+  onValueChange: ((v: string) => void) | undefined;
+  setOpen: (open: boolean) => void;
+};
+const SelectShimContext = React.createContext<SelectShimCtx>({
+  onValueChange: undefined,
+  setOpen: () => {},
+});
 
 function logSelect(debugName: string | null, message: string, payload?: Record<string, unknown>) {
   if (!debugName) return;
@@ -30,6 +43,14 @@ function Select({
   const [observedOpen, setObservedOpen] = React.useState(false);
   const resolvedOpen = open ?? observedOpen;
 
+  const setOpen = React.useCallback(
+    (nextOpen: boolean) => {
+      setObservedOpen(nextOpen);
+      onOpenChange?.(nextOpen);
+    },
+    [onOpenChange]
+  );
+
   const handleOpenChange = React.useCallback(
     (nextOpen: boolean) => {
       logSelect(debugName ?? null, "onOpenChange", {
@@ -37,30 +58,39 @@ function Select({
         nextOpen,
         value,
       });
-      setObservedOpen(nextOpen);
-      onOpenChange?.(nextOpen);
+      setOpen(nextOpen);
     },
-    [debugName, onOpenChange, resolvedOpen, value]
+    [debugName, resolvedOpen, value, setOpen]
   );
 
   React.useEffect(() => {
     logSelect(debugName ?? null, "props changed", { open: resolvedOpen, value });
   }, [debugName, resolvedOpen, value]);
 
+  const shimCtx = React.useMemo<SelectShimCtx>(
+    () => ({
+      onValueChange,
+      setOpen,
+    }),
+    [onValueChange, setOpen]
+  );
+
   return (
     <SelectDebugContext.Provider value={debugName ?? null}>
-      <SelectPrimitive.Root
-        {...props}
-        {...(open !== undefined ? { open } : {})}
-        value={value}
-        onOpenChange={handleOpenChange}
-        onValueChange={(nextValue) => {
-          logSelect(debugName ?? null, "onValueChange", { previousValue: value, nextValue, open: resolvedOpen });
-          onValueChange?.(nextValue);
-        }}
-      >
-        {children}
-      </SelectPrimitive.Root>
+      <SelectShimContext.Provider value={shimCtx}>
+        <SelectPrimitive.Root
+          {...props}
+          {...(open !== undefined ? { open } : {})}
+          value={value}
+          onOpenChange={handleOpenChange}
+          onValueChange={(nextValue) => {
+            logSelect(debugName ?? null, "onValueChange (radix)", { previousValue: value, nextValue, open: resolvedOpen });
+            onValueChange?.(nextValue);
+          }}
+        >
+          {children}
+        </SelectPrimitive.Root>
+      </SelectShimContext.Provider>
     </SelectDebugContext.Provider>
   );
 }
@@ -204,8 +234,12 @@ SelectLabel.displayName = SelectPrimitive.Label.displayName;
 const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
->(({ className, children, ...props }, ref) => {
+>(({ className, children, onClick, ...props }, ref) => {
   const debugName = React.useContext(SelectDebugContext);
+  // Shim: drive value+close directly on click for mouse events.
+  // Radix drives selection via pointerup for mouse, but React 19 swallows
+  // pointerup events on portal content — onClick is reliable on all inputs.
+  const { onValueChange, setOpen } = React.useContext(SelectShimContext);
 
   return (
     <SelectPrimitive.Item
@@ -214,6 +248,17 @@ const SelectItem = React.forwardRef<
         "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className
       )}
+      onClick={(e) => {
+        logSelect(debugName, "item click (shim)", {
+          value: typeof props.value === "string" ? props.value : undefined,
+        });
+        // Fire our shim directly — Radix's pointerup path may be swallowed.
+        if (!props.disabled && typeof props.value === "string") {
+          onValueChange?.(props.value);
+          setOpen(false);
+        }
+        onClick?.(e);
+      }}
       onPointerUp={() => {
         logSelect(debugName, "item pointerup", {
           value: typeof props.value === "string" ? props.value : undefined,
