@@ -400,6 +400,7 @@ function ProductsPage() {
                 <Button
                   variant="outline"
                   className="gap-2"
+                  onPointerDown={(e) => e.preventDefault()}
                   onClick={() => setCategoriesOpen((v) => !v)}
                 >
                   Categories
@@ -427,7 +428,7 @@ function ProductsPage() {
 
             <DropdownMenu modal={false} open={merchantsOpen} onOpenChange={setMerchantsOpen}>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2" onClick={() => setMerchantsOpen((v) => !v)}>
+                <Button variant="outline" className="gap-2" onPointerDown={(e) => e.preventDefault()} onClick={() => setMerchantsOpen((v) => !v)}>
                   Merchants
                   <span className="text-muted-foreground">{merchantMenuLabel}</span>
                   <ChevronDown className="h-4 w-4" />
@@ -457,7 +458,7 @@ function ProductsPage() {
 
             <DropdownMenu modal={false} open={sortOpen} onOpenChange={setSortOpen}>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2" onClick={() => setSortOpen((v) => !v)}>
+                <Button variant="outline" className="gap-2" onPointerDown={(e) => e.preventDefault()} onClick={() => setSortOpen((v) => !v)}>
                   Sort
                   <span className="text-muted-foreground">{sortBy.replaceAll("_", " ")}</span>
                   <ChevronDown className="h-4 w-4" />
@@ -480,7 +481,6 @@ function ProductsPage() {
                     type="button"
                     className={`flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-sm hover:bg-accent ${sortBy === value ? "bg-accent" : ""}`}
                     onClick={() => {
-                      console.log("[Filter:Sort] clicked — value:", value);
                       setSortBy(value as typeof sortBy);
                     }}
                   >
