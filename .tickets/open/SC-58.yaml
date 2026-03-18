@@ -1,77 +1,61 @@
 id: SC-58
-title: "Run crawls on all newly imported merchants and verify product ingestion"
+title: "Crawl batch 1 — Tier A anchors (Onyx, Intelligentsia, Counter Culture, Verve, Sightglass)"
 type: task
 priority: p1
 status: ready
 owner: h6nk-bot
 created_at: "2026-03-18T00:00:00Z"
-updated_at: "2026-03-18T00:00:00Z"
+updated_at: "2026-03-18T05:50:00Z"
 labels: ["merchant-coverage", "epic-1", "crawling"]
 
-problem: "Merchants imported in SC-57 have no product data. Without crawling them we cannot generate recommendations or validate crawl adapter quality."
-desired_outcome: "All newly imported merchants have been crawled at least once. The products table grows and crawl_runs records show success or failure per merchant."
+problem: "5 high-quality Tier A merchants were imported in SC-57 but have no product data yet. These are the best candidates for recommendations and should be crawled first."
+desired_outcome: "Merchants 3-7 (Onyx, Intelligentsia, Counter Culture, Verve, Sightglass) have been crawled. crawl_runs records exist for each. products table grows."
 
 scope_in:
-  - "Run szimpla crawl-all to trigger crawls on all active merchants"
-  - "Verify products table row count increases after crawl"
-  - "Check crawl_runs for each new merchant — success vs failure"
-  - "Log failing merchants with error reason"
+  - "Crawl merchants with IDs 3, 4, 5, 6, 7 only"
+  - "Verify crawl_runs rows created for each"
+  - "Log product count before and after"
+  - "Document failures with error reason"
 scope_out:
-  - "Fixing broken adapters (tracked separately)"
+  - "Merchants 8-15 (handled in SC-75 and SC-76)"
+  - "Fixing broken adapters"
   - "Metadata parsing (SC-61 to SC-63)"
-  - "Trust tier promotion (SC-60)"
 
 dependencies:
   blockers: ["SC-57"]
-  unblocks: ["SC-60", "SC-61"]
+  unblocks: ["SC-75"]
 
 acceptance_criteria:
   - id: AC-1
-    text: "products table has more rows after crawl-all than before"
-    verify: "cd backend && python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; print(engine.connect().execute(text('SELECT COUNT(*) FROM products')).scalar())\""
+    text: "crawl_runs has at least one row for each of merchants 3-7"
+    verify: "cd backend && .venv/bin/python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; print(engine.connect().execute(text('SELECT merchant_id, status FROM crawl_runs WHERE merchant_id BETWEEN 3 AND 7')).fetchall())\""
     status: pending
   - id: AC-2
-    text: "crawl_runs table has at least one row per newly imported merchant"
-    verify: "cd backend && python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; print(engine.connect().execute(text('SELECT merchant_id, status, COUNT(*) FROM crawl_runs GROUP BY merchant_id, status')).fetchall())\""
-    status: pending
-  - id: AC-3
-    text: "At least 50% of newly imported merchants produce at least 1 product"
-    verify: "cd backend && python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; print(engine.connect().execute(text('SELECT COUNT(DISTINCT merchant_id) FROM products')).scalar())\""
+    text: "products table has more rows after crawl than before"
+    verify: "cd backend && .venv/bin/python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; print(engine.connect().execute(text('SELECT COUNT(*) FROM products')).scalar())\""
     status: pending
 
 verification_required:
-  - "pytest tests/ -v"
-  - "ruff check src/ tests/"
+  - "cd backend && .venv/bin/pytest tests/ -q"
+  - "cd backend && .venv/bin/ruff check src/ tests/"
 
 context_refs:
-  - "/home/h6nk/SzimplaCoffee/.plans/SC-58-execution-plan.md"
+  - ".plans/SC-58-execution-plan.md"
 
 slices:
   - id: S1
-    title: "Run crawl-all and capture output"
+    title: "Crawl merchants 3-7 and record results"
     status: pending
     depends_on: []
     files_create: []
     files_modify: []
     files_read_only:
       - "backend/src/szimplacoffee/services/crawlers.py"
+      - "backend/src/szimplacoffee/cli.py"
     checks:
       - "szimpla crawl-all exits without unhandled exception"
     evidence: []
-    notes: "Capture stdout/stderr to log for analysis"
-  - id: S2
-    title: "Verify product and crawl_run row counts"
-    status: pending
-    depends_on: ["S1"]
-    files_create: []
-    files_modify:
-      - "backend/tests/"
-    files_read_only: []
-    checks:
-      - "products count > pre-crawl baseline"
-      - "crawl_runs has rows for new merchants"
-    evidence: []
-    notes: "Write a quick pytest or inline assertion to document the result"
+    notes: "Use szimpla crawl-all or individual szimpla add-merchant --crawl-only per merchant ID"
 
 delivery:
   branch: ""
@@ -85,5 +69,5 @@ delivery:
     evidence_refs: []
 
 notes:
-  - "Depends on SC-57 completing first"
-  - "Failures are expected — goal is to document the baseline, not achieve 100% success"
+  - "Split from original SC-58 (all-15 crawl) to limit each run to 5 merchants"
+  - "Batch 2: SC-75 (merchants 8-11). Batch 3: SC-76 (merchants 12-15)"

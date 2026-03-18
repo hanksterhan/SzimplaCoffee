@@ -1,0 +1,73 @@
+id: SC-76
+title: "Crawl batch 3 — La Colombe, Coava, Huckleberry (final batch)"
+type: task
+priority: p1
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-18T05:50:00Z"
+updated_at: "2026-03-18T05:50:00Z"
+labels: ["merchant-coverage", "epic-1", "crawling"]
+
+problem: "Merchants 13-15 (La Colombe, Coava, Huckleberry) have no product data yet."
+desired_outcome: "All 15 imported merchants have been crawled at least once. crawl_runs records exist for merchants 13-15. Any failures documented."
+
+scope_in:
+  - "Crawl merchants with IDs 13, 14, 15 only"
+  - "Verify crawl_runs rows created for each"
+  - "Produce final crawl coverage summary: how many of 15 merchants produced products"
+  - "Document persistent failures for adapter-fix follow-up"
+scope_out:
+  - "Merchants 3-12 (SC-58 and SC-75)"
+  - "Fixing broken adapters (separate ticket)"
+
+dependencies:
+  blockers: ["SC-75"]
+  unblocks: ["SC-60", "SC-61"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "crawl_runs has at least one row for each of merchants 13-15"
+    verify: "cd backend && .venv/bin/python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; print(engine.connect().execute(text('SELECT merchant_id, status FROM crawl_runs WHERE merchant_id BETWEEN 13 AND 15')).fetchall())\""
+    status: pending
+  - id: AC-2
+    text: "At least 8 of 15 merchants produced at least 1 product (>50% success rate)"
+    verify: "cd backend && .venv/bin/python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; print(engine.connect().execute(text('SELECT COUNT(DISTINCT merchant_id) FROM products')).scalar())\""
+    status: pending
+
+verification_required:
+  - "cd backend && .venv/bin/pytest tests/ -q"
+  - "cd backend && .venv/bin/ruff check src/ tests/"
+
+context_refs:
+  - ".plans/SC-76-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Crawl merchants 13-15 and produce coverage summary"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify: []
+    files_read_only:
+      - "backend/src/szimplacoffee/services/crawlers.py"
+      - "backend/src/szimplacoffee/cli.py"
+    checks:
+      - "crawl_runs populated for merchants 13-15"
+      - "coverage summary written to memory"
+    evidence: []
+    notes: "Coava uses non-standard Shopify layout — may need adapter fix. Document for SC-60."
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Final crawl batch. After this, SC-60 (trust promotion) and SC-61 (metadata audit) unblock."
+  - "Batch 1: SC-58. Batch 2: SC-75."

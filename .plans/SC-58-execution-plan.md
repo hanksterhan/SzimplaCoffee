@@ -1,52 +1,35 @@
 # SC-58 Execution Plan
 
 ## Goal
-Run crawls on all newly imported merchants and verify that product data is ingested. Document crawl success/failure per merchant.
+Crawl the first 5 Tier A merchants (Onyx, Intelligentsia, Counter Culture, Verve, Sightglass) and verify product ingestion.
 
 ## Context
-After SC-57 imports 15+ merchants, this ticket exercises the full crawl pipeline. The goal is to establish a baseline product count and identify which merchants need adapter fixes.
+Part 1 of a 3-batch crawl split. Batch 2: SC-75 (merchants 8-12). Batch 3: SC-76 (merchants 13-15).
+Merchants were imported in SC-57.
 
 ## Files / Areas Expected to Change
-- `backend/src/szimplacoffee/services/crawlers.py` (read for diagnosis)
-- `backend/tests/` (add baseline assertion test if helpful)
+- `data/szimplacoffee.db` — crawl_runs and products rows added
+- No source code changes expected
 
 ## Implementation Steps
-1. Record pre-crawl product count:
-   ```bash
-   cd backend && python -c "from szimplacoffee.db import engine; from sqlalchemy import text; print(engine.connect().execute(text('SELECT COUNT(*) FROM products')).scalar())"
-   ```
-2. Run crawl-all:
-   ```bash
-   cd backend && . .venv/bin/activate && szimpla crawl-all 2>&1 | tee /tmp/crawl-all.log
-   ```
-3. Record post-crawl product count
-4. Query crawl_runs for per-merchant outcomes:
-   ```bash
-   cd backend && python -c "
-   from szimplacoffee.db import engine
-   from sqlalchemy import text
-   rows = engine.connect().execute(text('SELECT merchant_id, status, COUNT(*) as n FROM crawl_runs GROUP BY merchant_id, status ORDER BY merchant_id')).fetchall()
-   for r in rows: print(r)
-   "
-   ```
-5. List merchants with zero products
-6. Document results in delivery memory
+1. Activate backend venv: `cd backend && source .venv/bin/activate`
+2. Check pre-crawl product count baseline
+3. Run crawls for merchants 3-7 (`szimpla crawl-all` or individual merchant crawl triggers)
+4. Verify crawl_runs rows: `SELECT merchant_id, status FROM crawl_runs WHERE merchant_id BETWEEN 3 AND 7`
+5. Verify product count increased
+6. Document any failures in delivery notes
 
 ## Risks / Notes
-- Some adapters may fail for merchants on platforms not yet supported
-- crawl-all may take several minutes; run with sufficient timeout
-- Failures are expected — goal is documentation, not 100% success
+- All 5 merchants are Tier A Shopify — low risk of adapter failure
+- Intelligentsia has a large catalog — crawl may take a few minutes
+- If crawl-all triggers all merchants (including 1 and 2), that is fine — Olympia and Camber will just get refreshed
 
 ## Verification
-```bash
-# product count grew
-cd backend && python -c "from szimplacoffee.db import engine; from sqlalchemy import text; print(engine.connect().execute(text('SELECT COUNT(*) FROM products')).scalar())"
-
-# crawl_runs populated
-cd backend && python -c "from szimplacoffee.db import engine; from sqlalchemy import text; print(engine.connect().execute(text('SELECT COUNT(DISTINCT merchant_id) FROM crawl_runs')).scalar())"
-```
+- `pytest tests/ -q`
+- `ruff check src/ tests/`
+- Query confirms crawl_runs rows for merchants 3-7
 
 ## Out of Scope
-- Fixing broken adapters
+- Merchants 8-15 (SC-75 and SC-76)
+- Fixing failed adapters
 - Metadata parsing
-- Trust tier promotion (SC-60)
