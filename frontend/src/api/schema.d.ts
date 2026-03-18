@@ -110,6 +110,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/merchants/{merchant_id}/crawl-quality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Crawl Quality
+         * @description Return crawl-quality metrics for the most recent completed crawl run (SC-51).
+         */
+        get: operations["get_crawl_quality_api_v1_merchants__merchant_id__crawl_quality_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchants/low-confidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Low Confidence Merchants
+         * @description List merchants with low crawl quality — for the review queue (SC-51/SC-52).
+         */
+        get: operations["list_low_confidence_merchants_api_v1_merchants_low_confidence_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchants/registry-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Registry Summary
+         * @description SC-53: Registry health summary — tier distribution, buying-eligible count.
+         */
+        get: operations["get_registry_summary_api_v1_merchants_registry_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchants/watchlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Watchlist
+         * @description SC-52: Return merchants on the watch list.
+         */
+        get: operations["list_watchlist_api_v1_merchants_watchlist_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchants/{merchant_id}/watch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add To Watchlist
+         * @description SC-52: Add a merchant to the watch list.
+         */
+        post: operations["add_to_watchlist_api_v1_merchants__merchant_id__watch_post"];
+        /**
+         * Remove From Watchlist
+         * @description SC-52: Remove a merchant from the watch list.
+         */
+        delete: operations["remove_from_watchlist_api_v1_merchants__merchant_id__watch_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/merchants/{merchant_id}/promos": {
         parameters: {
             query?: never;
@@ -153,6 +257,23 @@ export interface paths {
         };
         /** Search Products */
         get: operations["search_products_api_v1_products_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/merchant-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Product Merchant Options */
+        get: operations["list_product_merchant_options_api_v1_products_merchant_options_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -207,6 +328,46 @@ export interface paths {
         put?: never;
         /** Create Recommendation */
         post: operations["create_recommendation_api_v1_recommendations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recommendations/today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Today Buying Brief
+         * @description SC-52: Return a Today buying brief — best current option + notable sales.
+         *
+         *     This is designed for the daily utility dashboard: single call answers
+         *     'what should I buy today?' without requiring a full recommendation run.
+         */
+        get: operations["today_buying_brief_api_v1_recommendations_today_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recommendations/biggest-sales": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Biggest Sales Today */
+        get: operations["biggest_sales_today_api_v1_recommendations_biggest_sales_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -586,6 +747,43 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** BiggestSaleCandidateOut */
+        BiggestSaleCandidateOut: {
+            /** Merchant Name */
+            merchant_name: string;
+            /** Product Name */
+            product_name: string;
+            /** Variant Label */
+            variant_label: string;
+            /** Product Url */
+            product_url: string;
+            /** Image Url */
+            image_url: string;
+            /** Weight Grams */
+            weight_grams: number | null;
+            /** Current Price Cents */
+            current_price_cents: number;
+            /** Landed Price Cents */
+            landed_price_cents: number;
+            /** Landed Price Per Oz Cents */
+            landed_price_per_oz_cents: number | null;
+            /** Compare At Discount Percent */
+            compare_at_discount_percent: number;
+            /** Price Drop 7D Percent */
+            price_drop_7d_percent: number;
+            /** Price Drop 30D Percent */
+            price_drop_30d_percent: number;
+            /** Historical Low Cents */
+            historical_low_cents: number;
+            /** Best Promo Label */
+            best_promo_label: string | null;
+            /** Discounted Landed Price Cents */
+            discounted_landed_price_cents: number | null;
+            /** Score */
+            score: number;
+            /** Reasons */
+            reasons: string[];
+        };
         /** Body_create_merchant_form_merchants_new_post */
         Body_create_merchant_form_merchants_new_post: {
             /** Url */
@@ -691,6 +889,31 @@ export interface components {
             records_written: number;
             /** Error Summary */
             error_summary: string;
+            /**
+             * Catalog Strategy
+             * @default none
+             */
+            catalog_strategy: string;
+            /**
+             * Promo Strategy
+             * @default none
+             */
+            promo_strategy: string;
+            /**
+             * Shipping Strategy
+             * @default none
+             */
+            shipping_strategy: string;
+            /**
+             * Metadata Strategy
+             * @default none
+             */
+            metadata_strategy: string;
+            /**
+             * Crawl Quality Score
+             * @default 0
+             */
+            crawl_quality_score: number;
             /** Duration Seconds */
             readonly duration_seconds: number | null;
         };
@@ -808,6 +1031,11 @@ export interface components {
             country_code: string;
             /** Is Active */
             is_active: boolean;
+            /**
+             * Is Watched
+             * @default false
+             */
+            is_watched: boolean;
             /** Crawl Tier */
             crawl_tier: string;
             /** Trust Tier */
@@ -922,6 +1150,11 @@ export interface components {
             country_code: string;
             /** Is Active */
             is_active: boolean;
+            /**
+             * Is Watched
+             * @default false
+             */
+            is_watched: boolean;
             /** Crawl Tier */
             crawl_tier: string;
             /** Trust Tier */
@@ -995,10 +1228,37 @@ export interface components {
             image_url: string;
             /** Origin Text */
             origin_text: string;
+            /** Origin Country */
+            origin_country?: string | null;
+            /** Origin Region */
+            origin_region?: string | null;
             /** Process Text */
             process_text: string;
+            /**
+             * Process Family
+             * @default unknown
+             * @enum {string}
+             */
+            process_family: "washed" | "natural" | "honey" | "anaerobic" | "wet-hulled" | "blend" | "unknown";
             /** Tasting Notes Text */
             tasting_notes_text: string;
+            /**
+             * Roast Level
+             * @default unknown
+             * @enum {string}
+             */
+            roast_level: "light" | "light-medium" | "medium" | "medium-dark" | "dark" | "unknown";
+            /**
+             * Metadata Confidence
+             * @default 0
+             */
+            metadata_confidence: number;
+            /**
+             * Metadata Source
+             * @default unknown
+             * @enum {string}
+             */
+            metadata_source: "unknown" | "structured" | "parser" | "agentic" | "override";
             /** Product Category */
             product_category: string;
             /** Is Single Origin */
@@ -1007,6 +1267,19 @@ export interface components {
             is_espresso_recommended: boolean;
             /** Is Active */
             is_active: boolean;
+            /** Latest Price Cents */
+            latest_price_cents?: number | null;
+            /** Latest Compare At Price Cents */
+            latest_compare_at_price_cents?: number | null;
+            /** Latest Discount Percent */
+            latest_discount_percent?: number | null;
+            /** Primary Weight Grams */
+            primary_weight_grams?: number | null;
+            /**
+             * Primary Is Whole Bean
+             * @default false
+             */
+            primary_is_whole_bean: boolean;
             /**
              * First Seen At
              * Format: date-time
@@ -1027,6 +1300,13 @@ export interface components {
              */
             variants: components["schemas"]["ProductVariantSchema"][];
         };
+        /** ProductMerchantOption */
+        ProductMerchantOption: {
+            /** Merchant Id */
+            merchant_id: number;
+            /** Merchant Name */
+            merchant_name: string;
+        };
         /** ProductSummary */
         ProductSummary: {
             /** Id */
@@ -1046,10 +1326,37 @@ export interface components {
             image_url: string;
             /** Origin Text */
             origin_text: string;
+            /** Origin Country */
+            origin_country?: string | null;
+            /** Origin Region */
+            origin_region?: string | null;
             /** Process Text */
             process_text: string;
+            /**
+             * Process Family
+             * @default unknown
+             * @enum {string}
+             */
+            process_family: "washed" | "natural" | "honey" | "anaerobic" | "wet-hulled" | "blend" | "unknown";
             /** Tasting Notes Text */
             tasting_notes_text: string;
+            /**
+             * Roast Level
+             * @default unknown
+             * @enum {string}
+             */
+            roast_level: "light" | "light-medium" | "medium" | "medium-dark" | "dark" | "unknown";
+            /**
+             * Metadata Confidence
+             * @default 0
+             */
+            metadata_confidence: number;
+            /**
+             * Metadata Source
+             * @default unknown
+             * @enum {string}
+             */
+            metadata_source: "unknown" | "structured" | "parser" | "agentic" | "override";
             /** Product Category */
             product_category: string;
             /** Is Single Origin */
@@ -1058,6 +1365,19 @@ export interface components {
             is_espresso_recommended: boolean;
             /** Is Active */
             is_active: boolean;
+            /** Latest Price Cents */
+            latest_price_cents?: number | null;
+            /** Latest Compare At Price Cents */
+            latest_compare_at_price_cents?: number | null;
+            /** Latest Discount Percent */
+            latest_discount_percent?: number | null;
+            /** Primary Weight Grams */
+            primary_weight_grams?: number | null;
+            /**
+             * Primary Is Whole Bean
+             * @default false
+             */
+            primary_is_whole_bean: boolean;
             /**
              * First Seen At
              * Format: date-time
@@ -1268,6 +1588,11 @@ export interface components {
              * @default false
              */
             allow_decaf: boolean;
+            /**
+             * Current Inventory Grams
+             * @default 0
+             */
+            current_inventory_grams: number;
         };
         /** RecommendationResultResponse */
         RecommendationResultResponse: {
@@ -1276,6 +1601,8 @@ export interface components {
             alternatives: components["schemas"]["RecommendationCandidateOut"][];
             /** Wait Recommendation */
             wait_recommendation: boolean;
+            /** Wait Rationale */
+            wait_rationale?: string | null;
             /** Run Id */
             run_id: number;
         };
@@ -1575,6 +1902,179 @@ export interface operations {
             };
         };
     };
+    get_crawl_quality_api_v1_merchants__merchant_id__crawl_quality_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                merchant_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_low_confidence_merchants_api_v1_merchants_low_confidence_get: {
+        parameters: {
+            query?: {
+                max_quality_score?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MerchantSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_registry_summary_api_v1_merchants_registry_summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    list_watchlist_api_v1_merchants_watchlist_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MerchantSummary"][];
+                };
+            };
+        };
+    };
+    add_to_watchlist_api_v1_merchants__merchant_id__watch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                merchant_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_from_watchlist_api_v1_merchants__merchant_id__watch_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                merchant_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_merchant_promos_api_v1_merchants__merchant_id__promos_get: {
         parameters: {
             query?: {
@@ -1714,6 +2214,39 @@ export interface operations {
             };
         };
     };
+    list_product_merchant_options_api_v1_products_merchant_options_get: {
+        parameters: {
+            query?: {
+                category?: string | null;
+                /** @description Optional search term to narrow merchant options */
+                q?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductMerchantOption"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_product_api_v1_products__product_id__get: {
         parameters: {
             query?: never;
@@ -1829,6 +2362,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RecommendationResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    today_buying_brief_api_v1_recommendations_today_get: {
+        parameters: {
+            query?: {
+                shot_style?: string;
+                quantity_mode?: string;
+                limit?: number;
+                current_inventory_grams?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    biggest_sales_today_api_v1_recommendations_biggest_sales_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BiggestSaleCandidateOut"][];
                 };
             };
             /** @description Validation Error */

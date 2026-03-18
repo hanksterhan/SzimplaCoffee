@@ -247,7 +247,7 @@ function PurchasesPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <Select
-          debugName="purchases.filter-merchant"
+         
           value={filterMerchantId}
           onValueChange={setFilterMerchantId}
         >

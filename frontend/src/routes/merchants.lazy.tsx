@@ -64,7 +64,7 @@ function MerchantsPage() {
       {/* Filter bar */}
       <div className="flex gap-3 flex-wrap">
         <Select
-          debugName="merchants.platform"
+         
           value={platformType || "_all"}
           onValueChange={(v) => setFilter("platform_type", v === "_all" ? "" : v)}
         >
@@ -80,7 +80,7 @@ function MerchantsPage() {
         </Select>
 
         <Select
-          debugName="merchants.trust"
+         
           value={trustTier || "_all"}
           onValueChange={(v) => setFilter("trust_tier", v === "_all" ? "" : v)}
         >

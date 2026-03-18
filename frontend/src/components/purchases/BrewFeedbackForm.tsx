@@ -79,7 +79,7 @@ export function BrewFeedbackForm({
           <div className="space-y-1">
             <label className="text-sm font-medium">Shot Style</label>
             <Select
-              debugName="brew-feedback.shot-style"
+             
               value={form.shot_style}
               onValueChange={(v) => setForm((f) => ({ ...f, shot_style: v }))}
             >
@@ -110,7 +110,7 @@ export function BrewFeedbackForm({
           <div className="space-y-1">
             <label className="text-sm font-medium">Basket</label>
             <Select
-              debugName="brew-feedback.basket"
+             
               value={form.basket}
               onValueChange={(v) => setForm((f) => ({ ...f, basket: v }))}
             >

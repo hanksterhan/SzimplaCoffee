@@ -362,7 +362,7 @@ function RecommendPage() {
               {/* Shot Style */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Shot Style</label>
-                <Select debugName="recommend.shot-style" value={shotStyle} onValueChange={setShotStyle}>
+                <Select value={shotStyle} onValueChange={setShotStyle}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -379,7 +379,7 @@ function RecommendPage() {
               {/* Bag Size */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Bag Size</label>
-                <Select debugName="recommend.quantity-mode" value={quantityMode} onValueChange={setQuantityMode}>
+                <Select value={quantityMode} onValueChange={setQuantityMode}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

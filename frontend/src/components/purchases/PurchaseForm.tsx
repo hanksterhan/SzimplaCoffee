@@ -140,7 +140,7 @@ export function PurchaseForm({ open, onOpenChange, editPurchase }: PurchaseFormP
           <div className="space-y-1">
             <label className="text-sm font-medium">Merchant *</label>
             <Select
-              debugName="purchase-form.merchant"
+             
               value={form.merchant_id}
               onValueChange={(v) => set("merchant_id", v)}
             >
@@ -205,7 +205,7 @@ export function PurchaseForm({ open, onOpenChange, editPurchase }: PurchaseFormP
             <div className="space-y-1">
               <label className="text-sm font-medium">Weight</label>
               <Select
-                debugName="purchase-form.weight"
+               
                 value={form.weight_preset}
                 onValueChange={(v) => set("weight_preset", v)}
               >

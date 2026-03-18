@@ -190,7 +190,7 @@ function TodayPage() {
       <div className="flex flex-wrap gap-3">
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Shot style</label>
-          <Select debugName="today.shot-style" value={shotStyle} onValueChange={setShotStyle}>
+          <Select value={shotStyle} onValueChange={setShotStyle}>
             <SelectTrigger className="w-44">
               <SelectValue />
             </SelectTrigger>
@@ -205,7 +205,7 @@ function TodayPage() {
 
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Bag size</label>
-          <Select debugName="today.quantity-mode" value={quantityMode} onValueChange={setQuantityMode}>
+          <Select value={quantityMode} onValueChange={setQuantityMode}>
             <SelectTrigger className="w-36">
               <SelectValue />
             </SelectTrigger>
