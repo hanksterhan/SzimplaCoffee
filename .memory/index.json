@@ -1,6 +1,41 @@
 {
   "entries": [
     {
+      "id": "SC-83-recommendation-linked-filter",
+      "path": ".memory/sprint-02/SC-83-recommendation-linked-filter.md",
+      "ticket": "SC-83",
+      "title": "Recommendation-linked purchase filter toggle",
+      "date": "2026-03-18"
+    },
+    {
+      "id": "SC-80-purchase-history-recommendation-linkage",
+      "path": ".memory/sprint-02/SC-80-purchase-history-recommendation-linkage.md",
+      "ticket": "SC-80",
+      "title": "Purchase history recommendation linkage",
+      "date": "2026-03-18"
+    },
+    {
+      "id": "SC-72-brew-feedback-ranking",
+      "path": ".memory/sprint-02/SC-72-brew-feedback-ranking.md",
+      "ticket": "SC-72",
+      "title": "Brew feedback penalty in recommendation ranking",
+      "date": "2026-03-18"
+    },
+    {
+      "id": "SC-82-watch-crawl-status-badges",
+      "path": ".memory/sprint-02/SC-82-watch-crawl-status-badges.md",
+      "ticket": "SC-82",
+      "title": "Watch-page crawl status badges",
+      "date": "2026-03-18"
+    },
+    {
+      "id": "SC-81-recommendation-purchase-handoff",
+      "path": ".memory/sprint-02/SC-81-recommendation-purchase-handoff.md",
+      "ticket": "SC-81",
+      "title": "Recommendation-to-purchase handoff",
+      "date": "2026-03-18"
+    },
+    {
       "id": "SC-78-purchase-form-recommendation-linkage",
       "path": ".memory/sprint-02/SC-78-purchase-form-recommendation-linkage.md",
       "ticket": "SC-78",

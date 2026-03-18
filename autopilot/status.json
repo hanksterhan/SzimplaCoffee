@@ -2,13 +2,13 @@
   "goal_status": "active",
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
-  "last_refill_at": "2026-03-18T16:41:51Z",
-  "last_delivered_task": "SC-78",
+  "last_refill_at": "2026-03-18T18:41:00Z",
+  "last_delivered_task": "SC-83",
   "completed_since_reflect": 1,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T16:47:49Z",
+  "last_run_at": "2026-03-18T19:00:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-78 delivered: PurchaseForm now accepts hidden recommendation context, submits recommendation_run_id, and /purchases supports recommendationRunId route context. Frontend build passed; SC-80 added as follow-on backlog ticket.",
-  "next_task_hint": "SC-72"
+  "last_run_summary": "Delivered SC-83: added recommendation-linked purchase filter toggle to Purchases page. Client-side filter, build passed, merged to main.",
+  "next_task_hint": "SC-84"
 }

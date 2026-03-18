@@ -1,0 +1,81 @@
+id: SC-83
+title: "Add recommendation-linked purchase filter to Purchases page"
+type: feature
+priority: p2
+status: done
+owner: h6nk-bot
+created_at: "2026-03-18T18:41:00Z"
+updated_at: "2026-03-18T18:41:00Z"
+labels: ["purchase-loop", "recommendations", "frontend"]
+
+problem: "Once recommendation linkage is visible on individual purchases, users still have no fast way to isolate recommendation-driven buys from the broader purchase history. Auditing conversion from recommendation to purchase remains tedious as purchase volume grows."
+desired_outcome: "The Purchases page supports a lightweight filter for recommendation-linked purchases so users can review recommendation-driven buying decisions without manual scanning."
+
+scope_in:
+  - "Add a Purchases-page filter or toggle for recommendation-linked purchases"
+  - "Filter the existing purchase list client-side or via existing query state without backend API changes"
+  - "Keep the default unfiltered view unchanged"
+  - "Provide sensible empty-state copy when no linked purchases match"
+scope_out:
+  - "Backend search/filter API changes"
+  - "Conversion analytics dashboards or aggregate reporting"
+  - "Editing recommendation linkage after purchase creation"
+
+dependencies:
+  blockers: ["SC-80"]
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Users can toggle or select a view that shows only purchases with recommendation_run_id present"
+    verify: "cd frontend && npm run build"
+    status: done
+  - id: AC-2
+    text: "Default purchase history remains unchanged when the filter is off"
+    verify: "cd frontend && npm run build"
+    status: done
+  - id: AC-3
+    text: "Filtered empty state is explicit and the frontend build passes"
+    verify: "cd frontend && npm run build"
+    status: done
+
+verification_required:
+  - "cd frontend && npm run build"
+
+context_refs:
+  - ".plans/SC-83-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Add recommendation-linked purchase filter control"
+    status: done
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "frontend/src/routes/purchases.lazy.tsx"
+      - "frontend/src/components/purchases/PurchaseHistoryList.tsx"
+    files_read_only:
+      - "frontend/src/components/purchases/PurchaseDetailDrawer.tsx"
+      - "frontend/src/hooks/use-purchases.ts"
+      - "frontend/src/api/schema.d.ts"
+    checks:
+      - "filter control only narrows the visible list when enabled"
+      - "purchases with null recommendation_run_id are hidden only in filtered mode"
+      - "frontend build passes"
+    evidence: []
+    notes: "Prefer the smallest control that fits the existing Purchases page patterns; avoid adding new routes or backend contracts."
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: true
+    commands_run:
+      - "cd frontend && npm run build"
+    evidence_refs: []
+
+notes:
+  - "Sequence after SC-80 so linkage is already visible before adding filtering affordances."
