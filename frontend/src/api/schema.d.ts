@@ -971,6 +971,26 @@ export interface components {
              * @default 0
              */
             merchants_due_for_crawl: number;
+            /**
+             * Total Products
+             * @default 0
+             */
+            total_products: number;
+            /**
+             * Products With Origin
+             * @default 0
+             */
+            products_with_origin: number;
+            /**
+             * Products With Process
+             * @default 0
+             */
+            products_with_process: number;
+            /**
+             * Products With Roast Level
+             * @default 0
+             */
+            products_with_roast_level: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {

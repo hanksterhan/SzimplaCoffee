@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { useCrawlDue, useRunDueCrawls } from "@/hooks/use-crawl-schedule";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
+import { MetadataFillRate } from "@/components/dashboard/MetadataFillRate";
 import { MerchantOverviewTable } from "@/components/dashboard/MerchantOverviewTable";
 
 export const Route = createFileRoute("/")({
@@ -62,6 +63,7 @@ function DashboardPage() {
         <p className="text-muted-foreground">SzimplaCoffee sourcing overview</p>
       </div>
       <MetricsGrid stats={stats} loading={isLoading} />
+      <MetadataFillRate stats={stats} loading={isLoading} />
       <CrawlStatusBanner />
       <MerchantOverviewTable />
     </div>
