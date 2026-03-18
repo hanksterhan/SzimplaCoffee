@@ -1,0 +1,77 @@
+id: SC-69
+title: "Log 5 real purchases through the UI and verify they appear in purchase_history table"
+type: task
+priority: p2
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-18T00:00:00Z"
+updated_at: "2026-03-18T00:00:00Z"
+labels: ["purchase-loop", "epic-4", "ux"]
+
+problem: "The purchase logging form exists but has never been exercised with real data. Without real purchase records the recommendation feedback loop cannot function."
+desired_outcome: "At least 5 purchases are logged through the PurchaseForm UI. Each row appears in purchase_history table and is retrievable via GET /api/v1/history/purchases."
+
+scope_in:
+  - "Exercise PurchaseForm in the UI with 5 distinct product purchases"
+  - "Verify rows appear in purchase_history table via DB query"
+  - "Verify rows are returned by GET /api/v1/history/purchases"
+  - "Fix any form submission errors discovered during exercise"
+scope_out:
+  - "Purchase-to-recommendation feedback linkage (SC-70)"
+  - "Brew feedback (SC-71)"
+  - "UI redesign of the form"
+
+dependencies:
+  blockers: ["SC-58"]
+  unblocks: ["SC-70", "SC-72"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "purchase_history table has at least 5 rows"
+    verify: "cd backend && python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; print(engine.connect().execute(text('SELECT COUNT(*) FROM purchase_history')).scalar())\""
+    status: pending
+  - id: AC-2
+    text: "GET /api/v1/history/purchases returns at least 5 items"
+    verify: "curl -s http://localhost:8000/api/v1/history/purchases | python -c \"import json,sys; d=json.load(sys.stdin); items=d if isinstance(d,list) else d.get('items', d.get('purchases',[])); print(len(items))\""
+    status: pending
+  - id: AC-3
+    text: "PurchaseForm submits without console error in browser devtools"
+    verify: "cd frontend && npm run build 2>&1 | grep -i 'error' | head -5 || echo 'build clean'"
+    status: pending
+
+verification_required:
+  - "ruff check src/ tests/"
+  - "pytest tests/ -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-69-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Exercise PurchaseForm and fix any submission errors"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "frontend/src/components/purchases/PurchaseForm.tsx"
+      - "backend/src/szimplacoffee/api/history.py"
+    files_read_only: []
+    checks:
+      - "5 rows in purchase_history"
+      - "API returns those rows"
+    evidence: []
+    notes: "Use products from crawled merchants for realistic data"
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Document any form UX issues discovered as follow-up tickets"

@@ -1,0 +1,89 @@
+id: SC-61
+title: "Audit coffee_parser.py — verify it runs post-crawl and fills origin/process/roast_level/variety"
+type: task
+priority: p1
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-18T00:00:00Z"
+updated_at: "2026-03-18T00:00:00Z"
+labels: ["metadata-pipeline", "epic-2"]
+
+problem: "Coffee metadata fields (origin, process, roast_level, variety) are 93-95% empty. It is unclear whether coffee_parser.py is wired into the post-crawl scheduler or whether its patterns are simply too weak."
+desired_outcome: "coffee_parser.py is confirmed to run automatically post-crawl. A baseline fill rate is measured. backfill-metadata CLI command is exercised against all products. Fill rate improvement is documented."
+
+scope_in:
+  - "Inspect coffee_parser.py to understand what it parses and returns"
+  - "Inspect scheduler.py to verify coffee_parser is called after crawl"
+  - "Run szimpla backfill-metadata and measure fill rate before and after"
+  - "Document the wiring gap if parser is not called post-crawl"
+scope_out:
+  - "Improving regex patterns (SC-62, SC-63)"
+  - "Dashboard metric changes (SC-64)"
+
+dependencies:
+  blockers: []
+  unblocks: ["SC-62", "SC-63", "SC-64"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "coffee_parser.py is called after every successful crawl (confirmed by code inspection or log)"
+    verify: "grep -n 'coffee_parser\\|parse_coffee\\|backfill' backend/src/szimplacoffee/services/crawlers.py backend/src/szimplacoffee/scheduler.py"
+    status: pending
+  - id: AC-2
+    text: "szimpla backfill-metadata runs without error and reports fill rate"
+    verify: "cd backend && . .venv/bin/activate && szimpla backfill-metadata 2>&1 | tail -10"
+    status: pending
+  - id: AC-3
+    text: "Baseline fill rate for origin is documented (even if 0%)"
+    verify: "cd backend && python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; total=engine.connect().execute(text('SELECT COUNT(*) FROM products')).scalar(); filled=engine.connect().execute(text('SELECT COUNT(*) FROM products WHERE origin IS NOT NULL')).scalar(); print(f'{filled}/{total} = {filled/total*100:.1f}%')\""
+    status: pending
+
+verification_required:
+  - "ruff check src/ tests/"
+  - "pytest tests/ -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-61-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Audit scheduler and crawler wiring for coffee_parser"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify: []
+    files_read_only:
+      - "backend/src/szimplacoffee/services/coffee_parser.py"
+      - "backend/src/szimplacoffee/scheduler.py"
+      - "backend/src/szimplacoffee/services/crawlers.py"
+    checks:
+      - "grep confirms parser is called post-crawl"
+    evidence: []
+    notes: "If not wired, add the call in crawlers.py post-crawl hook"
+  - id: S2
+    title: "Run backfill-metadata and measure fill rates"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/scheduler.py"
+    files_read_only: []
+    checks:
+      - "fill rates documented for all 4 fields"
+    evidence: []
+    notes: ""
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Sprint 2 context: only 59/910 products have origin, 43/910 have process"
+  - "Baseline measurement is the primary deliverable here — fixing comes in SC-62/63"

@@ -1,0 +1,88 @@
+id: SC-68
+title: "Ensure VariantDealFact rows are created after each crawl"
+type: bug
+priority: p1
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-18T00:00:00Z"
+updated_at: "2026-03-18T00:00:00Z"
+labels: ["recommendation", "epic-3", "data-pipeline"]
+
+problem: "The recommendation engine may require VariantDealFact rows to rank candidates. It is unclear whether deal fact computation runs after crawls. If the table is empty, recommendations cannot return results regardless of product count."
+desired_outcome: "VariantDealFact rows are created automatically after every successful crawl. The table has rows after a crawl-all run. The recommendation engine can join on this table without returning empty results."
+
+scope_in:
+  - "Inspect crawlers.py to check if deal fact computation is triggered post-crawl"
+  - "Inspect recommendations.py to confirm VariantDealFact dependency"
+  - "Wire deal fact computation into post-crawl hook if missing"
+  - "Verify variant_deal_facts table has rows after crawl"
+scope_out:
+  - "Changing the deal fact computation algorithm"
+  - "Backfilling historical data"
+  - "Frontend changes"
+
+dependencies:
+  blockers: []
+  unblocks: ["SC-66"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "variant_deal_facts table has rows after running crawl-all"
+    verify: "cd backend && python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; print(engine.connect().execute(text('SELECT COUNT(*) FROM variant_deal_facts')).scalar())\""
+    status: pending
+  - id: AC-2
+    text: "Deal fact computation is called in post-crawl hook (grep confirms)"
+    verify: "grep -n 'deal_fact\\|VariantDealFact\\|compute_deal' backend/src/szimplacoffee/services/crawlers.py"
+    status: pending
+  - id: AC-3
+    text: "pytest and ruff pass after changes"
+    verify: "cd backend && ruff check src/ tests/ && pytest tests/ -v"
+    status: pending
+
+verification_required:
+  - "ruff check src/ tests/"
+  - "pytest tests/ -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-68-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Audit crawlers.py and recommendations.py for VariantDealFact wiring"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify: []
+    files_read_only:
+      - "backend/src/szimplacoffee/services/crawlers.py"
+      - "backend/src/szimplacoffee/services/recommendations.py"
+    checks:
+      - "wiring confirmed or gap identified"
+    evidence: []
+    notes: ""
+  - id: S2
+    title: "Wire deal fact computation post-crawl if missing"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/crawlers.py"
+    files_read_only: []
+    checks:
+      - "variant_deal_facts COUNT > 0 after crawl"
+    evidence: []
+    notes: "Call existing compute function; do not reimplement"
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "If variant_deal_facts table does not exist, run alembic migration first"

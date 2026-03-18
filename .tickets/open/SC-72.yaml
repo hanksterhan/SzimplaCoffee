@@ -1,0 +1,88 @@
+id: SC-72
+title: "Wire brew feedback scores into recommendation ranking"
+type: feature
+priority: p2
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-18T00:00:00Z"
+updated_at: "2026-03-18T00:00:00Z"
+labels: ["purchase-loop", "epic-4", "recommendation"]
+
+problem: "Brew feedback ratings are collected but not used. Products rated poorly in brew sessions continue to appear in recommendations at full score, defeating the purpose of the feedback loop."
+desired_outcome: "The recommendation engine reads avg brew rating per product from brew_feedback. Products with avg rating < 3.0 receive a configurable score penalty. Tests confirm the penalty applies."
+
+scope_in:
+  - "Add SQL query in recommendations.py to compute avg brew rating per product"
+  - "Apply a configurable penalty to score for products with avg rating < 3.0"
+  - "Add/update pytest tests to verify penalty behavior"
+  - "Keep penalty configurable via a constant or config value"
+scope_out:
+  - "UI for viewing brew feedback impact"
+  - "Merchant-level brew feedback aggregation"
+  - "Automatic exclusion of zero-rated products"
+
+dependencies:
+  blockers: ["SC-71", "SC-66"]
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Recommendation score for a product with avg brew rating < 3.0 is lower than same product with no feedback"
+    verify: "cd backend && pytest tests/test_recommendations.py -v -k brew"
+    status: pending
+  - id: AC-2
+    text: "Penalty is applied via a configurable constant, not hardcoded magic number"
+    verify: "grep -n 'BREW_PENALTY\\|brew_penalty\\|penalty' backend/src/szimplacoffee/services/recommendations.py"
+    status: pending
+  - id: AC-3
+    text: "ruff check passes on modified files"
+    verify: "cd backend && ruff check src/szimplacoffee/services/recommendations.py tests/test_recommendations.py"
+    status: pending
+
+verification_required:
+  - "ruff check src/ tests/"
+  - "pytest tests/ -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-72-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Add brew rating query and penalty to recommendations.py"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/recommendations.py"
+    files_read_only: []
+    checks:
+      - "penalty applied when avg_rating < 3.0"
+      - "no penalty when no brew feedback exists"
+    evidence: []
+    notes: "Default penalty: 0.15 score deduction. Configurable via BREW_PENALTY_WEIGHT constant."
+  - id: S2
+    title: "Add pytest tests for brew penalty"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "backend/tests/test_recommendations.py"
+    files_read_only: []
+    checks:
+      - "pytest -k brew passes"
+    evidence: []
+    notes: "Test cases: no feedback (no penalty), rating=4 (no penalty), rating=2 (penalty applied)"
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Do not penalize products with no brew feedback — absence of data is not negative signal"

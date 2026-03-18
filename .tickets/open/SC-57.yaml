@@ -1,0 +1,92 @@
+id: SC-57
+title: "Verify and bulk-import 15 merchants from top-500-seed.md into merchant registry"
+type: feature
+priority: p1
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-18T00:00:00Z"
+updated_at: "2026-03-18T00:00:00Z"
+labels: ["merchant-coverage", "epic-1"]
+
+problem: "The merchant registry has too few merchants to generate meaningful recommendations. The top-500-seed.md brain file contains candidate URLs that have never been verified or imported."
+desired_outcome: "At least 15 merchants from the seed list are verified, imported into the merchant registry with appropriate trust_tier and crawl_tier, and ready for crawling."
+
+scope_in:
+  - "Read SzimplaCoffee/brain/merchants/top-500-seed.md and select 15 candidate URLs"
+  - "Verify URLs resolve (HTTP check) before importing"
+  - "Import via szimpla add-merchant CLI or direct DB insert"
+  - "Set trust_tier=C and crawl_tier=B for new merchants"
+  - "Confirm merchants appear in /api/v1/merchants response"
+scope_out:
+  - "Crawling the merchants (SC-58 covers this)"
+  - "Trust promotion based on crawl quality (SC-60)"
+  - "Bulk CLI command (SC-59)"
+
+dependencies:
+  blockers: []
+  unblocks: ["SC-58", "SC-60"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "At least 15 merchants from the seed list are present in the merchants table"
+    verify: "cd backend && python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; r = engine.connect().execute(text('SELECT COUNT(*) FROM merchants')).scalar(); print(r)\" | grep -E '[0-9]'"
+    status: pending
+  - id: AC-2
+    text: "All imported merchants have trust_tier and crawl_tier set (not null)"
+    verify: "cd backend && python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; r = engine.connect().execute(text(\\\"SELECT COUNT(*) FROM merchants WHERE trust_tier IS NULL OR crawl_tier IS NULL\\\")).scalar(); print(r)\""
+    status: pending
+  - id: AC-3
+    text: "GET /api/v1/merchants returns at least 15 results"
+    verify: "curl -s http://localhost:8000/api/v1/merchants | python -c \"import json,sys; d=json.load(sys.stdin); print(len(d.get('merchants', d if isinstance(d,list) else [])))\""
+    status: pending
+
+verification_required:
+  - "ruff check src/ tests/"
+  - "pytest tests/ -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-57-execution-plan.md"
+  - "/home/h6nk/SzimplaCoffee/SzimplaCoffee/brain/merchants/top-500-seed.md"
+
+slices:
+  - id: S1
+    title: "Read seed list and verify URLs"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify: []
+    files_read_only:
+      - "SzimplaCoffee/brain/merchants/top-500-seed.md"
+    checks:
+      - "HTTP 200 check on each candidate URL"
+    evidence: []
+    notes: "Select top 15 by likely quality (known specialty roasters)"
+  - id: S2
+    title: "Import merchants via CLI or bootstrap"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/bootstrap.py"
+      - "backend/src/szimplacoffee/cli.py"
+    files_read_only: []
+    checks:
+      - "merchants table row count >= 15"
+      - "all rows have trust_tier and crawl_tier"
+    evidence: []
+    notes: "Use szimpla add-merchant for each URL; set trust_tier=C, crawl_tier=B"
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Seed file is at SzimplaCoffee/brain/merchants/top-500-seed.md"
+  - "Start with well-known specialty roasters to maximize crawl success rate"

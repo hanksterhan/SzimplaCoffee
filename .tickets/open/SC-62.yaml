@@ -1,0 +1,89 @@
+id: SC-62
+title: "Improve coffee_parser regex patterns to extract origin from product descriptions"
+type: improvement
+priority: p1
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-18T00:00:00Z"
+updated_at: "2026-03-18T00:00:00Z"
+labels: ["metadata-pipeline", "epic-2", "coffee-parser"]
+
+problem: "The coffee_parser has weak or missing origin extraction patterns. Only ~6% of products have origin filled in despite most product descriptions mentioning origin countries explicitly."
+desired_outcome: "Origin extraction patterns cover Ethiopia, Colombia, Kenya, Guatemala, Rwanda, Brazil, Peru, Honduras, Costa Rica, El Salvador, and other common origins. Fill rate improves to >50% on real crawled descriptions."
+
+scope_in:
+  - "Add or improve regex patterns for origin extraction in coffee_parser.py"
+  - "Test patterns against at least 10 real product descriptions from the DB"
+  - "Add pytest tests in test_coffee_parser.py covering new patterns"
+  - "Run backfill-metadata and measure origin fill rate improvement"
+scope_out:
+  - "Process and roast level patterns (SC-63)"
+  - "Variety/cultivar extraction"
+  - "Dashboard metrics (SC-64)"
+
+dependencies:
+  blockers: ["SC-61"]
+  unblocks: ["SC-63", "SC-64"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "origin fill rate >= 50% after backfill-metadata run on real product data"
+    verify: "cd backend && python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; t=engine.connect().execute(text('SELECT COUNT(*) FROM products')).scalar(); f=engine.connect().execute(text('SELECT COUNT(*) FROM products WHERE origin IS NOT NULL AND origin != '\"'\"''\"'\"''\"'\"')).scalar(); print(f'{f}/{t} = {f/t*100:.1f}%')\""
+    status: pending
+  - id: AC-2
+    text: "New pytest tests for origin extraction pass"
+    verify: "cd backend && pytest tests/test_coffee_parser.py -v -k origin"
+    status: pending
+  - id: AC-3
+    text: "ruff check passes on modified files"
+    verify: "cd backend && ruff check src/szimplacoffee/services/coffee_parser.py tests/test_coffee_parser.py"
+    status: pending
+
+verification_required:
+  - "ruff check src/ tests/"
+  - "pytest tests/ -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-62-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Extract sample descriptions from DB and identify pattern gaps"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify: []
+    files_read_only:
+      - "backend/src/szimplacoffee/services/coffee_parser.py"
+    checks:
+      - "20+ real descriptions collected and analyzed"
+    evidence: []
+    notes: "SELECT name, description FROM products LIMIT 50"
+  - id: S2
+    title: "Add origin regex patterns and tests"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/coffee_parser.py"
+      - "backend/tests/test_coffee_parser.py"
+    files_read_only: []
+    checks:
+      - "pytest tests/test_coffee_parser.py -k origin passes"
+    evidence: []
+    notes: "Cover at least: Ethiopia, Colombia, Kenya, Guatemala, Rwanda, Brazil, Peru, Honduras"
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Look for both country names and demonyms (Ethiopian, Colombian, etc.)"
+  - "Handle case variations and abbreviations"

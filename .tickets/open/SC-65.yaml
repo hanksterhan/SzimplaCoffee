@@ -1,0 +1,89 @@
+id: SC-65
+title: "Run first real recommendation and diagnose why it returns empty or wait"
+type: task
+priority: p1
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-18T00:00:00Z"
+updated_at: "2026-03-18T00:00:00Z"
+labels: ["recommendation", "epic-3", "diagnosis"]
+
+problem: "The recommendation engine returns empty results or a wait recommendation even when products exist. The root cause has not been identified — it may be missing offer_snapshots, failing filters, or scoring threshold issues."
+desired_outcome: "A recommendation run is triggered via API with real inventory and preferences data. The response is captured and the exact filter or scoring step that eliminates all candidates is identified and documented."
+
+scope_in:
+  - "Trigger POST /api/v1/recommendations with realistic request payload"
+  - "Inspect response — capture result type, candidate count, and any wait rationale"
+  - "Add debug logging to recommendations.py to trace candidate elimination"
+  - "Document which step eliminates candidates"
+scope_out:
+  - "Fixing the root cause (SC-66)"
+  - "Explain mode UI (SC-67)"
+  - "VariantDealFact population (SC-68)"
+
+dependencies:
+  blockers: []
+  unblocks: ["SC-66", "SC-67"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "POST /api/v1/recommendations returns a valid JSON response without 500 error"
+    verify: "curl -s -X POST http://localhost:8000/api/v1/recommendations -H 'Content-Type: application/json' -d '{\"current_inventory_grams\": 0, \"style\": \"pourover\"}' | python -c \"import json,sys; d=json.load(sys.stdin); print(type(d), list(d.keys()) if isinstance(d,dict) else 'list')\""
+    status: pending
+  - id: AC-2
+    text: "Root cause of empty/wait result is documented in delivery memory"
+    verify: "ls .memory/ | grep SC-65 || ls .memory/session-checkpoints/ | grep SC-65"
+    status: pending
+  - id: AC-3
+    text: "Debug log shows candidate count at each filter stage"
+    verify: "grep -n 'candidate\\|filter\\|eliminated\\|score' backend/src/szimplacoffee/services/recommendations.py | head -20"
+    status: pending
+
+verification_required:
+  - "ruff check src/ tests/"
+  - "pytest tests/ -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-65-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Trigger recommendation API and capture response"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify: []
+    files_read_only:
+      - "backend/src/szimplacoffee/services/recommendations.py"
+      - "backend/src/szimplacoffee/api/recommendations.py"
+    checks:
+      - "API responds without 500"
+      - "response type documented"
+    evidence: []
+    notes: "Try multiple request payloads: no inventory, 500g inventory, espresso style"
+  - id: S2
+    title: "Add trace logging and diagnose elimination path"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/recommendations.py"
+    files_read_only: []
+    checks:
+      - "log output shows candidate count per stage"
+    evidence: []
+    notes: "Use logger.debug() not print(); remove after SC-66 fix or keep as permanent debug flag"
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Most likely cause: offer_snapshots table empty, or VariantDealFact not populated (SC-68)"

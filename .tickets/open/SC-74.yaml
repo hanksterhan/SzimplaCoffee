@@ -1,0 +1,91 @@
+id: SC-74
+title: "Add crawl health visibility to Watch page merchant cards"
+type: feature
+priority: p2
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-18T00:00:00Z"
+updated_at: "2026-03-18T00:00:00Z"
+labels: ["watch-queue", "epic-5", "ux"]
+
+problem: "The Watch page shows merchants but gives no crawl health context. It is impossible to see when a merchant was last crawled, whether the crawl succeeded, how many products were ingested, or what the metadata fill rate is."
+desired_outcome: "Each merchant card on the Watch page shows: last_crawl_at, crawl_success status, product_count, and metadata_pct. These fields are served by the merchants API and rendered in the card UI."
+
+scope_in:
+  - "Add last_crawl_at, crawl_success, product_count, metadata_pct to merchant API response"
+  - "Update MerchantSummary schema in schemas/merchants.py"
+  - "Update watch.lazy.tsx to render crawl health fields per card"
+  - "Regenerate API types if schema changes"
+scope_out:
+  - "Crawl history timeline or per-crawl drill-down"
+  - "Trust promotion buttons (SC-73)"
+  - "Alerts or notifications on crawl failure"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "GET /api/v1/merchants returns last_crawl_at and product_count per merchant"
+    verify: "curl -s http://localhost:8000/api/v1/merchants | python -c \"import json,sys; d=json.load(sys.stdin); items=d if isinstance(d,list) else d.get('merchants',[]); m=items[0] if items else {}; print(m.get('last_crawl_at'), m.get('product_count'))\""
+    status: pending
+  - id: AC-2
+    text: "Frontend Watch page renders crawl health fields without build errors"
+    verify: "cd frontend && npm run build 2>&1 | tail -5"
+    status: pending
+  - id: AC-3
+    text: "metadata_pct is computed as (products with any metadata / total products) * 100"
+    verify: "curl -s http://localhost:8000/api/v1/merchants | python -c \"import json,sys; d=json.load(sys.stdin); items=d if isinstance(d,list) else d.get('merchants',[]); print([m.get('metadata_pct') for m in items[:3]])\""
+    status: pending
+
+verification_required:
+  - "ruff check src/ tests/"
+  - "pytest tests/ -v"
+  - "cd frontend && npm run build"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-74-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Add crawl health fields to merchant schema and API"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/schemas/merchants.py"
+      - "backend/src/szimplacoffee/api/merchants.py"
+    files_read_only: []
+    checks:
+      - "API response includes last_crawl_at, crawl_success, product_count, metadata_pct"
+    evidence: []
+    notes: "Join crawl_runs and products tables for computed fields; use latest crawl_run per merchant"
+  - id: S2
+    title: "Render crawl health on Watch page cards"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "frontend/src/routes/watch.lazy.tsx"
+    files_read_only: []
+    checks:
+      - "npm run build passes"
+      - "cards show crawl fields"
+    evidence: []
+    notes: "Format: last_crawl_at as relative time; metadata_pct as percentage badge"
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Run npm run gen:api after backend schema change if using generated types"
+  - "metadata_pct definition: products with origin OR process OR roast_level set"

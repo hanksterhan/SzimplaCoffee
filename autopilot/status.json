@@ -1,13 +1,13 @@
 {
   "goal_status": "active",
-  "last_brainstorm_at": null,
+  "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": null,
   "last_delivered_task": null,
   "completed_since_reflect": 0,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": null,
-  "last_run_result": null,
-  "last_run_summary": null
+  "last_run_at": "2026-03-18T04:46:00Z",
+  "last_run_result": "brainstorm_refreshed",
+  "last_run_summary": "Brainstorm packet was missing; wrote Discovery Completion Packet covering Sprint 2 phases 2a-2d with 18 open tasks prioritized."
 }

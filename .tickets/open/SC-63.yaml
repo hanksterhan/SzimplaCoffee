@@ -1,0 +1,91 @@
+id: SC-63
+title: "Improve coffee_parser to extract process and roast level from product descriptions"
+type: improvement
+priority: p1
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-18T00:00:00Z"
+updated_at: "2026-03-18T00:00:00Z"
+labels: ["metadata-pipeline", "epic-2", "coffee-parser"]
+
+problem: "Process (washed/natural/honey) and roast level (light/medium/dark) fields are nearly empty. These are critical recommendation dimensions. Descriptions frequently contain this information but patterns are absent or too narrow."
+desired_outcome: "Process and roast level extraction patterns achieve >70% fill rate on real crawled product descriptions. At least 20 real descriptions are tested. Pytest suite covers the new patterns."
+
+scope_in:
+  - "Add/improve process extraction patterns: washed, natural, honey, anaerobic, carbonic maceration"
+  - "Add/improve roast level patterns: light, medium, medium-dark, dark, espresso roast"
+  - "Test against 20+ real product descriptions from the DB"
+  - "Add pytest tests covering all new patterns"
+  - "Measure fill rate before and after backfill"
+scope_out:
+  - "Origin patterns (SC-62)"
+  - "Variety/cultivar extraction"
+  - "Dashboard metric changes (SC-64)"
+
+dependencies:
+  blockers: ["SC-61", "SC-62"]
+  unblocks: ["SC-64"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "process fill rate >= 70% after backfill on real product data"
+    verify: "cd backend && python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; t=engine.connect().execute(text('SELECT COUNT(*) FROM products')).scalar(); f=engine.connect().execute(text('SELECT COUNT(*) FROM products WHERE process IS NOT NULL')).scalar(); print(f'{f}/{t} = {f/t*100:.1f}%')\""
+    status: pending
+  - id: AC-2
+    text: "roast_level fill rate >= 70% after backfill"
+    verify: "cd backend && python -c \"from szimplacoffee.db import engine; from sqlalchemy import text; t=engine.connect().execute(text('SELECT COUNT(*) FROM products')).scalar(); f=engine.connect().execute(text('SELECT COUNT(*) FROM products WHERE roast_level IS NOT NULL')).scalar(); print(f'{f}/{t} = {f/t*100:.1f}%')\""
+    status: pending
+  - id: AC-3
+    text: "pytest tests for process and roast_level pass"
+    verify: "cd backend && pytest tests/test_coffee_parser.py -v -k 'process or roast'"
+    status: pending
+
+verification_required:
+  - "ruff check src/ tests/"
+  - "pytest tests/ -v"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-63-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Collect real descriptions and gap-analyze process/roast patterns"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify: []
+    files_read_only:
+      - "backend/src/szimplacoffee/services/coffee_parser.py"
+    checks:
+      - "20+ descriptions reviewed for pattern coverage"
+    evidence: []
+    notes: ""
+  - id: S2
+    title: "Add process and roast_level patterns with tests"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/coffee_parser.py"
+      - "backend/tests/test_coffee_parser.py"
+    files_read_only: []
+    checks:
+      - "pytest -k 'process or roast' passes"
+      - "fill rate > 70% after backfill"
+    evidence: []
+    notes: "Handle synonyms: natural process / naturally processed / dry process"
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Roast level: look for explicit labels AND implicit cues (e.g., espresso blend implies medium-dark)"
+  - "70% target reflects realistic description quality variation across merchants"
