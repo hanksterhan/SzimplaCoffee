@@ -45,12 +45,52 @@ _COUNTRIES: list[str] = [
     "Brazil", "Costa Rica", "Panama", "Bolivia", "Mexico", "Indonesia",
     "Rwanda", "Burundi", "El Salvador", "Yemen", "PNG", "Hawaii",
     "Sumatra", "Java",
+    # Additional producing countries
+    "Ecuador", "Nicaragua", "Tanzania", "Uganda", "China", "Nepal",
+    "Vietnam", "Myanmar", "Laos", "Thailand", "India", "Papua New Guinea",
+    "Malawi", "Zambia", "Zimbabwe", "Cameroon", "Congo", "Madagascar",
+    "Cuba", "Dominican Republic", "Haiti", "Jamaica",
 ]
 
+# Demonyms → canonical country name
+_DEMONYMS: dict[str, str] = {
+    "Ethiopian": "Ethiopia",
+    "Kenyan": "Kenya",
+    "Colombian": "Colombia",
+    "Guatemalan": "Guatemala",
+    "Honduran": "Honduras",
+    "Peruvian": "Peru",
+    "Brazilian": "Brazil",
+    "Rwandan": "Rwanda",
+    "Burundian": "Burundi",
+    "Indonesian": "Indonesia",
+    "Bolivian": "Bolivia",
+    "Mexican": "Mexico",
+    "Yemeni": "Yemen",
+    "Ecuadorian": "Ecuador",
+    "Nicaraguan": "Nicaragua",
+    "Tanzanian": "Tanzania",
+    "Ugandan": "Uganda",
+    "Salvadoran": "El Salvador",
+    "Panamanian": "Panama",
+    "Indian": "India",
+    "Nepali": "Nepal",
+    "Vietnamese": "Vietnam",
+    "Jamaican": "Jamaica",
+}
+
+# Hawaii variants (diacritics / abbreviations)
+_HAWAII_VARIANTS: list[str] = ["Hawai'i", "Hawaiʻi", "Kona", "Maui", "Kauai"]
+
 _REGIONS: list[str] = [
-    "Yirgacheffe", "Sidama", "Guji", "Gedeo",
+    "Yirgacheffe", "Sidama", "Guji", "Gedeo", "Harrar", "Harrar",
     "Huila", "Antioquia", "Antigua", "Nariño", "Chiriquí",
-    "Kintamani", "Nyeri",
+    "Kintamani", "Nyeri", "Kirinyaga", "Murang'a", "Embu",
+    "Tarrazu", "Tres Rios",
+    "Cajamarca", "Puno",
+    "Minas Gerais", "Cerrado", "Mogiana",
+    "Aceh", "Flores", "Sulawesi",
+    "Kigali", "Ngozi",
 ]
 
 _PROCESS_KEYWORDS: list[tuple[str, str]] = [
@@ -112,14 +152,27 @@ def _extract_origin(text: str) -> str | None:
     """Return 'Country' or 'Country, Region' string, case-preserving.
 
     Finds the first country/region *by position in text* so "Brazil and Ethiopia"
-    picks Brazil, not Ethiopia.
+    picks Brazil, not Ethiopia.  Also resolves demonyms and Hawaii variants.
     """
-    # Scan all countries, record their earliest match position
     country_matches: list[tuple[int, str]] = []
+
+    # 1. Direct country name matches
     for country in _COUNTRIES:
         m = re.search(rf"\b{re.escape(country)}\b", text, re.IGNORECASE)
         if m:
             country_matches.append((m.start(), country))
+
+    # 2. Hawaii variants (diacritics, island names)
+    for variant in _HAWAII_VARIANTS:
+        m = re.search(rf"\b{re.escape(variant)}\b", text, re.IGNORECASE)
+        if m:
+            country_matches.append((m.start(), "Hawaii"))
+
+    # 3. Demonym resolution (e.g. "Ethiopian" → "Ethiopia")
+    for demonym, canonical in _DEMONYMS.items():
+        m = re.search(rf"\b{re.escape(demonym)}\b", text, re.IGNORECASE)
+        if m:
+            country_matches.append((m.start(), canonical))
 
     found_country: str | None = None
     if country_matches:
@@ -157,15 +210,34 @@ def _find_earliest_match(candidates: list[str], text: str) -> str | None:
 def _normalize_origin_parts(origin_text: str | None, text: str) -> tuple[str | None, str | None]:
     source = origin_text or text
     country = _find_earliest_match(_COUNTRIES, source)
+    # Also check demonyms when direct country match fails
+    if not country:
+        for demonym, canonical in _DEMONYMS.items():
+            if re.search(rf"\b{re.escape(demonym)}\b", source, re.IGNORECASE):
+                country = canonical
+                break
+    # Also check Hawaii variants
+    if not country:
+        for variant in _HAWAII_VARIANTS:
+            if re.search(rf"\b{re.escape(variant)}\b", source, re.IGNORECASE):
+                country = "Hawaii"
+                break
     region = _find_earliest_match(_REGIONS, source)
     return country, region
 
 
 def _count_countries(text: str) -> int:
-    return sum(
-        1 for c in _COUNTRIES
-        if re.search(rf"\b{re.escape(c)}\b", text, re.IGNORECASE)
-    )
+    found: set[str] = set()
+    for c in _COUNTRIES:
+        if re.search(rf"\b{re.escape(c)}\b", text, re.IGNORECASE):
+            found.add(c)
+    for variant in _HAWAII_VARIANTS:
+        if re.search(rf"\b{re.escape(variant)}\b", text, re.IGNORECASE):
+            found.add("Hawaii")
+    for demonym, canonical in _DEMONYMS.items():
+        if re.search(rf"\b{re.escape(demonym)}\b", text, re.IGNORECASE):
+            found.add(canonical)
+    return len(found)
 
 
 def _extract_process(text: str) -> str | None:

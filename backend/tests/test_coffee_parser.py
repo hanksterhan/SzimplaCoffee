@@ -432,3 +432,87 @@ def test_wet_process_normalizes_to_washed() -> None:
 def test_dry_process_normalizes_to_natural() -> None:
     r = parse_coffee_metadata("Brazil", "Dry process, low altitude.")
     assert r.process_text == "natural"
+
+
+# ---------------------------------------------------------------------------
+# SC-62: Origin extraction – new country coverage tests
+# ---------------------------------------------------------------------------
+
+def test_origin_ecuador() -> None:
+    r = parse_coffee_metadata("Ecuador El Dorado Wush Wush", "")
+    assert r.origin_country == "Ecuador"
+    assert r.origin_text is not None
+
+
+def test_origin_china() -> None:
+    r = parse_coffee_metadata("China Lao Xu Zhai Anaerobic", "")
+    assert r.origin_country == "China"
+    assert r.origin_text is not None
+
+
+def test_origin_nepal() -> None:
+    r = parse_coffee_metadata("Nepal Sindhupalchowk", "")
+    assert r.origin_country == "Nepal"
+    assert r.origin_text is not None
+
+
+def test_origin_india() -> None:
+    r = parse_coffee_metadata("India Kerehaklu Estate", "")
+    assert r.origin_country == "India"
+    assert r.origin_text is not None
+
+
+def test_origin_nicaragua() -> None:
+    r = parse_coffee_metadata("Little Buddy", "From Nicaragua, honey processed.")
+    assert r.origin_country == "Nicaragua"
+    assert r.origin_text is not None
+
+
+def test_origin_hawaii_diacritic() -> None:
+    r = parse_coffee_metadata("Hawai'i Monarch Kona Pacamara Natural", "")
+    assert r.origin_country == "Hawaii"
+    assert r.origin_text is not None
+
+
+def test_origin_hawaii_kona_variant() -> None:
+    r = parse_coffee_metadata("Kona Peaberry Extra Fancy", "")
+    assert r.origin_country == "Hawaii"
+
+
+def test_origin_demonym_ethiopian() -> None:
+    r = parse_coffee_metadata("Morning Sun", "A bright Ethiopian washed coffee from the highlands.")
+    assert r.origin_country == "Ethiopia"
+    assert r.origin_text is not None
+
+
+def test_origin_demonym_colombian() -> None:
+    r = parse_coffee_metadata("Muse", "Colombian single-origin, natural process.")
+    assert r.origin_country == "Colombia"
+    assert r.origin_text is not None
+
+
+def test_origin_demonym_kenyan() -> None:
+    r = parse_coffee_metadata("Buchiro", "A classic Kenyan AA, bright and juicy.")
+    assert r.origin_country == "Kenya"
+
+
+def test_origin_demonym_rwandan() -> None:
+    r = parse_coffee_metadata("Buliza", "Rwandan honey process, orange blossom notes.")
+    assert r.origin_country == "Rwanda"
+
+
+def test_origin_demonym_in_description_only() -> None:
+    """Demonym in description should resolve when product name is opaque."""
+    r = parse_coffee_metadata("Espresso Series 1", "Guatemalan natural, ripe plum and brown sugar.")
+    assert r.origin_country == "Guatemala"
+
+
+def test_origin_single_country_is_single_origin() -> None:
+    r = parse_coffee_metadata("Ecuador El Dorado", "")
+    assert r.is_single_origin is True
+
+
+def test_origin_count_demonym_blend() -> None:
+    """Two demonyms → blend, not single-origin."""
+    r = parse_coffee_metadata("Blend", "Ethiopian and Colombian coffees in this blend.")
+    assert r.is_single_origin is False

@@ -1,6 +1,13 @@
 {
   "entries": [
     {
+      "id": "SC-62-origin-parser-expansion",
+      "path": ".memory/sprint-02/SC-62-origin-parser-expansion.md",
+      "ticket": "SC-62",
+      "title": "Coffee parser origin expansion — demonyms, Hawaii variants, 24 new countries",
+      "date": "2026-03-18"
+    },
+    {
       "id": "SC-61-coffee-parser-audit",
       "path": ".memory/sprint-02/SC-61-coffee-parser-audit.md",
       "ticket": "SC-61",
