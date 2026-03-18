@@ -60,6 +60,11 @@ class MerchantSummary(BaseModel):
     trust_tier: str  # "trusted" | "verified" | "candidate" | "rejected"
     created_at: datetime
     updated_at: datetime
+    # SC-74: crawl health fields
+    last_crawl_at: Optional[datetime] = None
+    crawl_success: Optional[bool] = None
+    product_count: int = 0
+    metadata_pct: float = 0.0
 
     @computed_field
     @property

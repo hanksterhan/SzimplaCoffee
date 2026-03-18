@@ -1050,6 +1050,20 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Last Crawl At */
+            last_crawl_at?: string | null;
+            /** Crawl Success */
+            crawl_success?: boolean | null;
+            /**
+             * Product Count
+             * @default 0
+             */
+            product_count: number;
+            /**
+             * Metadata Pct
+             * @default 0
+             */
+            metadata_pct: number;
             quality_profile?: components["schemas"]["MerchantQualityProfileSchema"] | null;
             personal_profile?: components["schemas"]["MerchantPersonalProfileSchema"] | null;
             /**
@@ -1169,6 +1183,20 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Last Crawl At */
+            last_crawl_at?: string | null;
+            /** Crawl Success */
+            crawl_success?: boolean | null;
+            /**
+             * Product Count
+             * @default 0
+             */
+            product_count: number;
+            /**
+             * Metadata Pct
+             * @default 0
+             */
+            metadata_pct: number;
             /** Is Trusted */
             readonly is_trusted: boolean;
         };

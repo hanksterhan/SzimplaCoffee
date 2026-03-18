@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from ..db import get_session, session_scope
-from ..models import CrawlRun, Merchant
+from ..models import CrawlRun, Merchant, Product
 from ..schemas.common import PaginatedResponse
 from ..schemas.crawls import CrawlRunSchema
 from ..schemas.merchants import MerchantDetail, MerchantSummary
@@ -59,6 +59,76 @@ def _enqueue_crawl(session: Session, merchant: Merchant) -> tuple[CrawlRun, bool
     return run, True
 
 
+def _enrich_merchant_summaries(
+    db: Session, merchants: list[Merchant]
+) -> list[MerchantSummary]:
+    """SC-74: Attach crawl health fields (last_crawl_at, crawl_success, product_count, metadata_pct)."""
+    if not merchants:
+        return []
+
+    merchant_ids = [m.id for m in merchants]
+
+    # Latest completed crawl run per merchant (status + finished_at)
+    latest_run_sq = (
+        select(
+            CrawlRun.merchant_id,
+            func.max(CrawlRun.started_at).label("max_started_at"),
+        )
+        .where(CrawlRun.merchant_id.in_(merchant_ids))
+        .group_by(CrawlRun.merchant_id)
+        .subquery()
+    )
+    latest_runs = db.execute(
+        select(CrawlRun).join(
+            latest_run_sq,
+            (CrawlRun.merchant_id == latest_run_sq.c.merchant_id)
+            & (CrawlRun.started_at == latest_run_sq.c.max_started_at),
+        )
+    ).scalars().all()
+    crawl_by_merchant: dict[int, CrawlRun] = {r.merchant_id: r for r in latest_runs}
+
+    # Product count and metadata fill rate per merchant
+    # metadata_pct: products where origin_country OR process_family != 'unknown' OR roast_level != 'unknown'
+    product_stats = db.execute(
+        select(
+            Product.merchant_id,
+            func.count(Product.id).label("product_count"),
+            func.sum(
+                case(
+                    (
+                        (Product.origin_country.isnot(None))
+                        | (Product.process_family != "unknown")
+                        | (Product.roast_level != "unknown"),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label("metadata_count"),
+        )
+        .where(Product.merchant_id.in_(merchant_ids))
+        .group_by(Product.merchant_id)
+    ).all()
+    stats_by_merchant: dict[int, tuple[int, int]] = {
+        row.merchant_id: (row.product_count, row.metadata_count or 0)
+        for row in product_stats
+    }
+
+    summaries = []
+    for m in merchants:
+        run = crawl_by_merchant.get(m.id)
+        product_count, metadata_count = stats_by_merchant.get(m.id, (0, 0))
+        metadata_pct = (metadata_count / product_count * 100.0) if product_count > 0 else 0.0
+
+        summary = MerchantSummary.model_validate(m)
+        summary.last_crawl_at = run.finished_at if run else None
+        summary.crawl_success = (run.status == "completed") if run else None
+        summary.product_count = product_count
+        summary.metadata_pct = round(metadata_pct, 1)
+        summaries.append(summary)
+
+    return summaries
+
+
 @router.get("", response_model=PaginatedResponse[MerchantSummary])
 def list_merchants(
     db: Session = Depends(get_session),
@@ -78,7 +148,7 @@ def list_merchants(
     total = len(db.scalars(q).all())
     items = db.scalars(q.offset((page - 1) * page_size).limit(page_size)).all()
     return PaginatedResponse(
-        items=[MerchantSummary.model_validate(m) for m in items],
+        items=_enrich_merchant_summaries(db, list(items)),
         total=total,
         page=page,
         page_size=page_size,
@@ -256,7 +326,7 @@ def list_low_confidence_merchants(
         .where(Merchant.id.in_(low_confidence_ids), Merchant.is_active.is_(True))
         .limit(page_size)
     ).all()
-    return [MerchantSummary.model_validate(m) for m in merchants]
+    return _enrich_merchant_summaries(db, list(merchants))
 
 
 @router.get("/registry-summary", response_model=dict)
@@ -294,7 +364,7 @@ def list_watchlist(
         .where(Merchant.is_watched.is_(True), Merchant.is_active.is_(True))
         .order_by(Merchant.name)
     ).all()
-    return [MerchantSummary.model_validate(m) for m in merchants]
+    return _enrich_merchant_summaries(db, list(merchants))
 
 
 @router.post("/{merchant_id}/watch", response_model=dict)
