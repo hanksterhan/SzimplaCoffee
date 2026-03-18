@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": null,
-  "last_delivered_task": "SC-79",
-  "completed_since_reflect": 3,
+  "last_delivered_task": "SC-73",
+  "completed_since_reflect": 4,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-18T10:07:00Z",
+  "last_run_at": "2026-03-18T10:40:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-79 delivered: crawl health fields (last_crawl_at, product_count, metadata_pct) rendered on Watch page merchant cards with relative time and color-coded metadata badge. Build clean, pushed to main.",
-  "next_task_hint": "SC-73"
+  "last_run_summary": "SC-73 delivered: PATCH /api/v1/merchants/{id} endpoint added with trust_tier validation. TrustControls component with ↑/↓ promote/demote buttons wired to Watch page (both Watchlist and Review Queue tabs). useUpdateTrustTier hook added. Build clean, ruff clean, 129 tests green. Pushed to main.",
+  "next_task_hint": "SC-72"
 }
