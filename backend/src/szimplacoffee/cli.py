@@ -25,6 +25,13 @@ def main() -> None:
     add_parser.add_argument("url")
     add_parser.add_argument("--crawl-now", action="store_true")
 
+    # SC-59: bulk merchant import from file
+    import_parser = subparsers.add_parser(
+        "import-merchants",
+        help="Import merchants from a newline-delimited URL file (# comments and blank lines ignored).",
+    )
+    import_parser.add_argument("--file", required=True, metavar="FILE", help="Path to URL list file")
+
     subparsers.add_parser("crawl-all")
     subparsers.add_parser("discover")
     subparsers.add_parser("recommend")
@@ -89,6 +96,59 @@ def main() -> None:
             if args.crawl_now:
                 crawl_merchant(session, merchant)
             print(f"{action} merchant {merchant.name} ({merchant.platform_type})")
+            return
+
+        if args.command == "import-merchants":
+            # SC-59: bulk import from a newline-delimited URL file
+            import re
+
+            _URL_RE = re.compile(r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE)
+
+            filepath = args.file
+            try:
+                with open(filepath, encoding="utf-8") as fh:
+                    raw_lines = fh.readlines()
+            except OSError as exc:
+                print(f"Error reading file: {exc}")
+                return
+
+            urls = [line.strip() for line in raw_lines]
+            urls = [u for u in urls if u and not u.startswith("#")]
+
+            imported = 0
+            skipped = 0
+            failed = 0
+
+            for url in urls:
+                # Fast-reject obviously invalid entries before any network call
+                candidate = url if url.startswith("http://") or url.startswith("https://") else f"https://{url}"
+                if not _URL_RE.match(candidate) or "." not in candidate.split("//", 1)[-1]:
+                    print(f"  Failed (invalid URL): {url}")
+                    failed += 1
+                    continue
+                try:
+                    detection = detect_platform(url)
+                    existing = session.scalar(select(Merchant).where(Merchant.canonical_domain == detection.domain))
+                    if existing is not None:
+                        print(f"  Skipped (already exists): {url}")
+                        skipped += 1
+                        continue
+                    merchant = Merchant(
+                        name=detection.merchant_name,
+                        canonical_domain=detection.domain,
+                        homepage_url=detection.normalized_url,
+                        platform_type=detection.platform_type,
+                        crawl_tier=recommended_crawl_tier(detection.platform_type, detection.confidence),
+                    )
+                    session.add(merchant)
+                    session.flush()
+                    print(f"  Imported: {merchant.name} ({detection.domain})")
+                    imported += 1
+                except Exception as exc:
+                    print(f"  Failed: {url} — {exc}")
+                    failed += 1
+
+            print(f"\nSummary: Imported={imported}, Skipped={skipped}, Failed={failed}")
             return
 
         if args.command == "crawl-all":
