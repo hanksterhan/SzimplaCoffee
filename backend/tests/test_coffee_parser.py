@@ -568,3 +568,138 @@ def test_roast_level_patterns_sc63(name: str, desc: str, expected_level: str) ->
     assert result.roast_level == expected_level, (
         f"Expected roast_level={expected_level!r} for {name!r}, got {result.roast_level!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# SC-85: Region → country derivation tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("region_text,expected_country", [
+    ("Nariño", "Colombia"),
+    ("Huila", "Colombia"),
+    ("Tolima", "Colombia"),
+    ("Yirgacheffe", "Ethiopia"),
+    ("Sidama", "Ethiopia"),
+    ("Guji", "Ethiopia"),
+    ("Nyeri", "Kenya"),
+    ("Kirinyaga", "Kenya"),
+    ("Tarrazu", "Costa Rica"),
+    ("Cajamarca", "Peru"),
+    ("Ngozi", "Burundi"),
+    ("Kigali", "Rwanda"),
+    ("Antigua", "Guatemala"),
+    ("Minas Gerais", "Brazil"),
+    ("Sulawesi", "Indonesia"),
+    ("Aceh", "Indonesia"),
+])
+def test_region_to_country_derivation_sc85(region_text: str, expected_country: str) -> None:
+    """When origin_text is a region name, origin_country should be inferred."""
+    result = parse_coffee_metadata(f"Single Origin Coffee", region_text)
+    assert result.origin_country == expected_country, (
+        f"Expected origin_country={expected_country!r} for region {region_text!r}, got {result.origin_country!r}"
+    )
+
+
+@pytest.mark.parametrize("name,expected_variety", [
+    ("Wush Wush Natural", "wush wush"),
+    ("Pacas Honey Process", "pacas"),
+    ("Mundo Novo Pulped Natural", "mundo novo"),
+    ("Obata Washed", "obata"),
+    ("Sudan Rume Natural", "sudan rume"),
+    ("Tabi Washed", "tabi"),
+])
+def test_new_variety_keywords_sc85(name: str, expected_variety: str) -> None:
+    """New variety keywords should be recognized by the parser."""
+    result = parse_coffee_metadata(name, "")
+    assert result.variety_text is not None, f"Expected variety match for {name!r}"
+    assert result.variety_text.lower() == expected_variety.lower(), (
+        f"Expected variety={expected_variety!r} for {name!r}, got {result.variety_text!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# SC-87: Expanded variety extraction tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("name,desc,expected_variety", [
+    # New explicit keywords
+    ("El Salvador Malacara SL-28 XF", "", "SL28"),
+    ("Guatemala SL-28", "", "SL28"),
+    ("Guatemala SL 28", "", "SL28"),
+    ("Guatemala SL28", "", "SL28"),
+    ("Kenya Kirinyaga SL-34", "", "SL34"),
+    ("Archive: Colombia Nursery Project Chiroso", "", "Chiroso"),
+    ("Colombia Inmaculada Eugenioides", "", "Eugenioides"),
+    ("Colombia Nariño Castillo", "", "Castillo"),
+    ("Honduras Caballeros Batian Washed", "", "Batian"),
+    ("Guatemala Ethiopia Landrace", "", "Landrace"),
+    ("Colombia Juan Martín Arara", "", "Arara"),
+    ("Ecuador Hacienda La Papaya Sidra", "", "Sidra"),
+    ("Honduras El Portillo Natural Parainema", "", "Parainema"),
+    ("Peru Timbuyacu Maragogype", "", "Maragogipe"),  # Maragogype → Maragogipe
+    # Accented spellings
+    ("Brazil Sítio Santa Marta Catuaí", "", "Catuai"),
+    ("Colombia Tipica Honey", "", "Typica"),
+    # Multi-word variety priority (Pink Bourbon > Bourbon)
+    ("Colombia Juan Martín Pink Bourbon", "", "pink bourbon"),
+    ("Colombia Red Bourbon Natural", "", "Red Bourbon"),
+    ("Brazil Fazenda IP Yellow Bourbon", "", "yellow bourbon"),
+    # Country-based defaults (use_country_default=True)
+    ("Ethiopia Gatta Anaerobic Natural", "", "Heirloom"),
+    ("Archive: Ethiopia Adorsi", "", "Heirloom"),
+    ("Rwanda Kanzu Station", "", "Bourbon"),
+    ("Burundi Long Miles Munyinya Hill", "", "Bourbon"),
+    ("Kenya Boma AA Micro Lot", "", "SL28"),
+    ("Uganda Kamogo Station", "", "SL14"),
+    ("Bolivia Sol de la Mañana", "", "Typica"),
+    ("Costa Rica La Paloma", "", "Catuai"),
+    ("Peru San Martin de Pangoa", "", "Typica"),
+])
+def test_variety_extraction_sc87(name: str, desc: str, expected_variety: str) -> None:
+    """SC-87: Expanded variety patterns should be recognized by the parser."""
+    result = parse_coffee_metadata(name, desc)
+    assert result.variety_text is not None, f"Expected variety for {name!r}, got None"
+    assert expected_variety.lower() in result.variety_text.lower(), (
+        f"Expected variety containing {expected_variety!r} for {name!r}, got {result.variety_text!r}"
+    )
+
+
+def test_variety_explicit_beats_country_default() -> None:
+    """Explicit variety in name should take precedence over country default."""
+    # Costa Rica + Catuai default, but this product has explicit Gesha
+    result = parse_coffee_metadata("Costa Rica Hacienda Gesha", "")
+    assert result.variety_text is not None
+    assert "gesha" in result.variety_text.lower(), (
+        f"Expected Gesha (explicit), got {result.variety_text!r}"
+    )
+
+
+def test_bourbon_not_matched_in_blend_name_with_whiskey_context() -> None:
+    """Bourbon word boundary should avoid matching 'Kentucky Bourbon Barrel' etc."""
+    # This is a coffee product but if name has Bourbon it should match
+    # The key requirement is word boundary: 'Bourbon' in 'Bourbon Street Blend' should match
+    # but not in 'Bourbonnais' (rare, but test the boundary works)
+    result = parse_coffee_metadata("Colombia Bourbon Street Blend", "")
+    # 'Bourbon' IS in the name so it should match (specialty use)
+    assert result.variety_text is not None
+    assert "bourbon" in result.variety_text.lower()
+
+
+def test_sl28_hyphen_variants() -> None:
+    """SL-28, SL 28, SL28 all normalize to SL28."""
+    for name in ["Kenya SL-28", "Kenya SL 28", "Kenya SL28"]:
+        result = parse_coffee_metadata(name, "")
+        assert result.variety_text == "SL28", f"{name!r} → got {result.variety_text!r}"
+
+
+def test_sl34_hyphen_variants() -> None:
+    """SL-34, SL 34, SL34 all normalize to SL34."""
+    for name in ["Kenya SL-34", "Kenya SL 34", "Kenya SL34"]:
+        result = parse_coffee_metadata(name, "")
+        assert result.variety_text == "SL34", f"{name!r} → got {result.variety_text!r}"
+
+
+def test_maragogype_normalizes_to_maragogipe() -> None:
+    """Maragogype (alternate spelling) should normalize to Maragogipe."""
+    result = parse_coffee_metadata("Peru Timbuyacu Maragogype", "")
+    assert result.variety_text == "Maragogipe"

@@ -191,7 +191,10 @@ def main() -> None:
 
         if args.command == "backfill-metadata":
             # SC-31: re-run coffee metadata parser over all products
-            from .services.coffee_parser import parse_coffee_metadata, _normalize_origin_parts
+            from .services.coffee_parser import (
+                parse_coffee_metadata, _normalize_origin_parts, _COUNTRY_VARIETY_DEFAULTS,
+            )
+            import re as _re
 
             products = session.scalars(select(Product)).all()
             updated = 0
@@ -232,6 +235,16 @@ def main() -> None:
                     product.variety_text = parsed.variety_text
                     field_counts["variety_text"] += 1
                     changed = True
+                # SC-87: When parser found no variety from name, try country-level default
+                # using the stored origin_country (covers products whose country is in DB
+                # but not in the product name, e.g. "Krampus" with origin_country="Kenya")
+                if not product.variety_text and product.origin_country:
+                    for country_pattern, default_variety in _COUNTRY_VARIETY_DEFAULTS:
+                        if _re.search(country_pattern, product.origin_country, _re.IGNORECASE):
+                            product.variety_text = default_variety
+                            field_counts["variety_text"] += 1
+                            changed = True
+                            break
                 if not product.tasting_notes_text and parsed.tasting_notes_text:
                     product.tasting_notes_text = parsed.tasting_notes_text
                     field_counts["tasting_notes_text"] += 1
