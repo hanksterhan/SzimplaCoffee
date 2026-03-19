@@ -60,6 +60,12 @@ def main() -> None:
         help="Seed additional purchase records to reach ≥10 rows in purchase_history.",
     )
 
+    # SC-89: fix-merchant-registry
+    subparsers.add_parser(
+        "fix-merchant-registry",
+        help="Promote Coava to Tier A/trusted and deactivate known junk Tier-D merchant rows.",
+    )
+
     # SC-33: crawl-schedule + run-scheduled-crawls
     subparsers.add_parser(
         "crawl-schedule",
@@ -412,6 +418,56 @@ def main() -> None:
                 ) or 0
                 print(f"  Tier {tier}: {count} merchant(s)")
             print(f"\nMerchants in A or B: {total_ab}  |  Excluded (D): {total_d}")
+            return
+
+        if args.command == "fix-merchant-registry":
+            # SC-89: promote Coava to Tier A/trusted; deactivate junk Tier-D rows
+            from sqlalchemy import func as _func
+
+            # --- Promote Coava ---
+            coava = session.scalar(
+                select(Merchant).where(Merchant.name.ilike("%coava%"))
+            )
+            if coava is None:
+                print("Coava not found — skipping promotion.")
+            else:
+                old_tier = coava.crawl_tier
+                old_trust = coava.trust_tier
+                coava.crawl_tier = "A"
+                coava.trust_tier = "trusted"
+                session.flush()
+                print(f"Promoted Coava: crawl_tier {old_tier}→A  trust_tier {old_trust}→trusted")
+
+            # --- Deactivate junk Tier-D rows ---
+            junk_names = ["Blue Bottle Coffee", "Stumptownroasters", "Not A Url"]
+            deactivated = []
+            for junk_name in junk_names:
+                merchant = session.scalar(
+                    select(Merchant).where(Merchant.name == junk_name)
+                )
+                if merchant is None:
+                    print(f"  {junk_name}: not found, skipping.")
+                    continue
+                if not merchant.is_active:
+                    print(f"  {junk_name}: already inactive, skipping.")
+                    continue
+                merchant.is_active = False
+                deactivated.append(merchant.name)
+                print(f"  Deactivated: {merchant.name} (was Tier {merchant.crawl_tier})")
+
+            # --- Summary ---
+            active_d = session.scalar(
+                select(_func.count(Merchant.id)).where(
+                    Merchant.crawl_tier == "D", Merchant.is_active.is_(True)
+                )
+            ) or 0
+            tier_a = session.scalar(
+                select(_func.count(Merchant.id)).where(
+                    Merchant.crawl_tier == "A", Merchant.is_active.is_(True)
+                )
+            ) or 0
+            print(f"\nRegistry summary: Active Tier-A merchants={tier_a}  Active Tier-D (remaining)={active_d}")
+            print("fix-merchant-registry complete.")
             return
 
         if args.command == "crawl-schedule":
