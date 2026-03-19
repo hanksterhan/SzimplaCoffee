@@ -49,6 +49,7 @@ type ProductCardSummary = ProductSummary & {
   latest_discount_percent?: number | null;
   primary_weight_grams?: number | null;
   primary_is_whole_bean?: boolean;
+  has_stock?: boolean;
 };
 
 const CATEGORY_OPTIONS = [
@@ -82,15 +83,21 @@ function formatPricePerOz(cents: number | null | undefined, grams: number | null
   return `$${((cents / 100) / ounces).toFixed(2)}/oz`;
 }
 
-function buildTags(product: Pick<ProductDetail, "product_category" | "origin_text" | "process_text" | "variety_text" | "roast_cues" | "tasting_notes_text" | "is_single_origin" | "is_espresso_recommended">) {
+function normalizedOrNull(value: string | null | undefined): string | null {
+  if (!value || value === "unknown") return null;
+  return value;
+}
+
+function buildTags(product: Pick<ProductDetail, "product_category" | "origin_text" | "origin_country" | "process_text" | "process_family" | "variety_text" | "roast_cues" | "roast_level" | "tasting_notes_text" | "is_single_origin" | "is_espresso_recommended">) {
   const tags = [
     product.product_category,
     product.is_single_origin ? "single origin" : null,
     product.is_espresso_recommended ? "espresso" : null,
-    product.origin_text || null,
-    product.process_text || null,
+    // Prefer normalized canonical fields; fall back to raw text; suppress "unknown"
+    normalizedOrNull(product.origin_country) ?? (product.origin_text || null),
+    normalizedOrNull(product.process_family) ?? (product.process_text || null),
     product.variety_text || null,
-    product.roast_cues || null,
+    normalizedOrNull(product.roast_level) ?? (product.roast_cues || null),
   ].filter(Boolean) as string[];
 
   return Array.from(new Set(tags));
@@ -164,8 +171,8 @@ function ProductCard({ product, onClick }: { product: ProductCardSummary; onClic
               <p className="text-sm text-muted-foreground">Price unavailable</p>
             )}
           </div>
-          <span className={`text-[11px] whitespace-nowrap ${product.is_active ? "text-green-600" : "text-muted-foreground"}`}>
-            {product.is_active ? "● In stock" : "● Unavailable"}
+          <span className={`text-[11px] whitespace-nowrap ${product.has_stock ? "text-green-600" : "text-muted-foreground"}`}>
+            {product.has_stock ? "● In stock" : "● Unavailable"}
           </span>
         </div>
       </div>
@@ -257,8 +264,8 @@ function ProductQuickView({ productId }: { productId: number | null }) {
                   : ""}
               </span>
             )}
-            <span className={product.is_active ? "text-green-600" : "text-muted-foreground"}>
-              {product.is_active ? "● In stock" : "● Unavailable"}
+            <span className={product.has_stock ? "text-green-600" : "text-muted-foreground"}>
+              {product.has_stock ? "● In stock" : "● Unavailable"}
             </span>
           </div>
         </div>
@@ -270,10 +277,17 @@ function ProductQuickView({ productId }: { productId: number | null }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-        {product.origin_text && <div><span className="text-muted-foreground">Origin:</span> {product.origin_text}</div>}
-        {product.process_text && <div><span className="text-muted-foreground">Process:</span> {product.process_text}</div>}
+        {/* Prefer canonical normalized fields; fall back to raw free-text; suppress "unknown" */}
+        {(normalizedOrNull(product.origin_country) ?? (product.origin_text || null)) && (
+          <div><span className="text-muted-foreground">Origin:</span> {normalizedOrNull(product.origin_country) ?? product.origin_text}</div>
+        )}
+        {(normalizedOrNull(product.process_family) ?? (product.process_text || null)) && (
+          <div><span className="text-muted-foreground">Process:</span> {normalizedOrNull(product.process_family) ?? product.process_text}</div>
+        )}
         {product.variety_text && <div><span className="text-muted-foreground">Variety:</span> {product.variety_text}</div>}
-        {product.roast_cues && <div><span className="text-muted-foreground">Roast:</span> {product.roast_cues}</div>}
+        {(normalizedOrNull(product.roast_level) ?? (product.roast_cues || null)) && (
+          <div><span className="text-muted-foreground">Roast:</span> {normalizedOrNull(product.roast_level) ?? product.roast_cues}</div>
+        )}
       </div>
 
       {product.variants.length > 0 && (

@@ -82,6 +82,7 @@ class ProductSummary(BaseModel):
     is_single_origin: bool
     is_espresso_recommended: bool
     is_active: bool
+    has_stock: bool = False  # True when ≥1 variant is is_available=True with a current offer
     latest_price_cents: Optional[int] = None
     latest_compare_at_price_cents: Optional[int] = None
     latest_discount_percent: Optional[int] = None
