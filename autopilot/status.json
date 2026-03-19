@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": "2026-03-19T05:40:00Z",
-  "last_delivered_task": "SC-94",
-  "completed_since_reflect": 2,
+  "last_delivered_task": "SC-95",
+  "completed_since_reflect": 3,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-19T19:46:00Z",
+  "last_run_at": "2026-03-19T20:40:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "Delivered SC-94 by verifying canonical metadata normalization fields with confidence/provenance, exposing canonical_metadata in product schemas, and keeping 247 backend tests green.",
-  "next_task_hint": "Start SC-95 to add crawl-quality signals and low-CPU serialized crawl execution."
+  "last_run_summary": "Delivered SC-95: crawl quality reliability signals and serialized low-CPU batch execution (limit=1 per tick). 249 backend tests passing. Merged to stage and pushed.",
+  "next_task_hint": "Start SC-96 to align catalog filtering/search semantics with normalized metadata truth."
 }
