@@ -2,3 +2,4 @@
 2026-03-18T15:47:44Z  draft → ready  owner=h6nk-bot  note='VISUALIZER_USERNAME=h6nk confirmed, API live'
 2026-03-18T15:49:45Z  ready → draft  owner=h6nk-bot  note='h6nk username belongs to blauhaus, not the user. Awaiting correct Visualizer username.'
 2026-03-18T16:30:00Z  in_progress → done  owner=h6nk-bot
+2026-03-18T19:33:13Z  draft → ready  owner=h6nk-bot  note='Community search path confirmed (user=h6nk returns correct shots). Using /community HTML scrape + /api/shots/:id for telemetry.'

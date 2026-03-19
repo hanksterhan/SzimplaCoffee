@@ -1,0 +1,77 @@
+id: SC-89
+title: "Promote Coava to Tier A and remove/merge duplicate merchant rows"
+type: task
+priority: p2
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-18T20:17:00Z"
+updated_at: "2026-03-18T20:17:00Z"
+labels: ["merchant-registry", "data-quality", "backend"]
+
+problem: "Coava is Tier C (candidate) despite being a known high-quality specialty roaster. Additionally DB has 3 junk merchant rows: 'Blue Bottle Coffee' (Tier D), 'Stumptownroasters' (Tier D duplicate of Stumptown), and 'Not A Url' (Tier D garbage). These pollute the registry and may skew recommendation output."
+desired_outcome: "Coava promoted to Tier A, trust_tier=trusted. Junk merchant rows (Blue Bottle Coffee D, Stumptownroasters D, Not A Url D) removed or merged. Merchant count is clean."
+
+scope_in:
+  - "Inspect Coava crawl status and promote to Tier A if products exist"
+  - "Remove or mark inactive: Blue Bottle Coffee (Tier D), Stumptownroasters (Tier D), Not A Url (Tier D)"
+  - "Verify no orphaned products or offer_snapshots remain after cleanup"
+  - "Add a migration or CLI command for the changes"
+scope_out:
+  - "Crawling new merchants"
+  - "Frontend changes"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Coava has crawl_tier=A and trust_tier=trusted"
+    verify: "cd backend && .venv/bin/python -c \"import sys; sys.path.insert(0,'src'); from szimplacoffee.db import engine; from sqlalchemy import text; c=engine.connect(); row=c.execute(text(\\\"SELECT name,crawl_tier,trust_tier FROM merchants WHERE name LIKE '%Coava%'\\\")).fetchone(); print(row); assert row[1]=='A'\""
+    status: pending
+  - id: AC-2
+    text: "No merchant row with name 'Not A Url' or is_active=true Tier D junk remains"
+    verify: "cd backend && .venv/bin/python -c \"import sys; sys.path.insert(0,'src'); from szimplacoffee.db import engine; from sqlalchemy import text; c=engine.connect(); n=c.execute(text(\\\"SELECT COUNT(*) FROM merchants WHERE crawl_tier='D' AND is_active=1\\\")).scalar(); print(f'Active D merchants: {n}'); assert n==0\""
+    status: pending
+  - id: AC-3
+    text: "Backend tests pass"
+    verify: "cd backend && .venv/bin/pytest tests/ -q"
+    status: pending
+
+verification_required:
+  - "cd backend && .venv/bin/pytest tests/ -q"
+
+context_refs:
+  - ".plans/SC-89-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Promote Coava and deactivate junk merchants"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/bootstrap.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/db.py"
+    checks:
+      - "Coava crawl_tier=A, trust_tier=trusted"
+      - "Junk D merchants deactivated (is_active=false)"
+    evidence: []
+    notes: "Use direct DB updates via SQLAlchemy session or alembic script. Deactivate (is_active=false) rather than DELETE to preserve referential integrity with any existing crawl_runs."
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Junk merchants likely from failed bootstrap or duplicate add-merchant runs."
+  - "Deactivate rather than hard-delete to preserve foreign key references."

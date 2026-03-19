@@ -1,0 +1,94 @@
+id: SC-88
+title: "Add metadata fill-rate dashboard card with per-field breakdown"
+type: feature
+priority: p2
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-18T20:17:00Z"
+updated_at: "2026-03-18T20:17:00Z"
+labels: ["dashboard", "metadata", "frontend", "backend"]
+
+problem: "The dashboard shows summary metrics but has no visibility into coffee metadata quality. Developers and users have no way to see origin/process/roast/variety fill rates in the UI without querying the DB directly."
+desired_outcome: "Dashboard includes a metadata fill-rate card showing fill % for origin_country, process_family, roast_level, and variety_text. Backend API exposes these metrics. Frontend renders them."
+
+scope_in:
+  - "Add metadata_fill_rates dict to GET /api/v1/dashboard response"
+  - "Compute origin_pct, process_pct, roast_pct, variety_pct as integer percentages"
+  - "Add a MetadataFillCard component to the Dashboard page"
+  - "Run npm run gen:api after schema change"
+  - "Add pytest coverage for the new dashboard field"
+scope_out:
+  - "Per-merchant metadata breakdown"
+  - "Trend charts or historical fill rate"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "GET /api/v1/dashboard returns metadata_fill_rates with origin_pct, process_pct, roast_pct, variety_pct"
+    verify: "cd backend && .venv/bin/python -c \"import httpx; r=httpx.get('http://localhost:8000/api/v1/dashboard'); d=r.json(); mfr=d.get('metadata_fill_rates',{}); print(mfr); assert 'origin_pct' in mfr\""
+    status: pending
+  - id: AC-2
+    text: "Dashboard page renders fill-rate card without errors"
+    verify: "cd frontend && npm run build"
+    status: pending
+  - id: AC-3
+    text: "Backend tests pass (≥84 green)"
+    verify: "cd backend && .venv/bin/pytest tests/ -q"
+    status: pending
+
+verification_required:
+  - "cd backend && .venv/bin/pytest tests/ -q"
+  - "cd frontend && npm run gen:api && npm run build"
+
+context_refs:
+  - ".plans/SC-88-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Add metadata_fill_rates to dashboard API"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/api/dashboard.py"
+      - "backend/src/szimplacoffee/schemas/dashboard.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "API returns metadata_fill_rates with 4 fields"
+      - "pytest passes"
+    evidence: []
+    notes: "Use 4 COUNT queries or a single multi-column subquery on products table."
+  - id: S2
+    title: "Add MetadataFillCard to Dashboard page"
+    status: pending
+    depends_on: ["S1"]
+    files_create:
+      - "frontend/src/components/MetadataFillCard.tsx"
+    files_modify:
+      - "frontend/src/routes/index.lazy.tsx"
+      - "frontend/src/api/schema.d.ts"
+    files_read_only:
+      - "frontend/src/hooks/use-dashboard.ts"
+    checks:
+      - "Card renders origin/process/roast/variety fill % values"
+      - "frontend build passes"
+    evidence: []
+    notes: "Run npm run gen:api after S1 to regenerate schema.d.ts."
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Visibility ticket — helps track progress toward goal criteria without DB queries."

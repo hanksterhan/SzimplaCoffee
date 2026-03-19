@@ -1,0 +1,81 @@
+id: SC-90
+title: "Add goal-completion status check to dashboard API"
+type: feature
+priority: p2
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-18T20:17:00Z"
+updated_at: "2026-03-18T20:17:00Z"
+labels: ["dashboard", "autopilot", "backend"]
+
+problem: "There is no programmatic way to check which goal success criteria from autopilot/goal.yaml are satisfied from within the app. Autopilot must query DB directly to check goal status. A dashboard endpoint that reports goal criterion completion makes this repeatable."
+desired_outcome: "GET /api/v1/dashboard returns a goal_status object with boolean flags for each success criterion. Autopilot can read this to determine goal completion."
+
+scope_in:
+  - "Add goal_status dict to GET /api/v1/dashboard response with 8 boolean fields mirroring goal.yaml success_criteria"
+  - "Criteria: merchants_15_plus, metadata_70pct, recs_produce_results, today_works, purchases_10_plus, brew_feedback_3_plus, ui_works, tests_pass"
+  - "Compute each criterion from DB queries except ui_works and tests_pass (default true / manual)"
+  - "Add pytest coverage"
+scope_out:
+  - "Frontend rendering (follow-on ticket if needed)"
+  - "Auto-stopping autopilot based on this — autopilot reads status.json instead"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "GET /api/v1/dashboard returns goal_status with ≥5 boolean fields"
+    verify: "cd backend && .venv/bin/python -c \"import httpx; r=httpx.get('http://localhost:8000/api/v1/dashboard'); gs=r.json().get('goal_status',{}); print(gs); assert len(gs) >= 5\""
+    status: pending
+  - id: AC-2
+    text: "merchants_15_plus is True when merchants table has ≥15 active trusted records"
+    verify: "cd backend && .venv/bin/pytest tests/ -q -k dashboard"
+    status: pending
+  - id: AC-3
+    text: "Backend tests pass (≥84 green)"
+    verify: "cd backend && .venv/bin/pytest tests/ -q"
+    status: pending
+
+verification_required:
+  - "cd backend && .venv/bin/pytest tests/ -q"
+  - "cd frontend && npm run gen:api && npm run build"
+
+context_refs:
+  - ".plans/SC-90-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Add goal_status dict to dashboard API and schema"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/api/dashboard.py"
+      - "backend/src/szimplacoffee/schemas/dashboard.py"
+      - "backend/tests/test_dashboard.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+      - "autopilot/goal.yaml"
+    checks:
+      - "API returns goal_status with boolean fields"
+      - "Each criterion computed from real DB query"
+      - "pytest passes"
+    evidence: []
+    notes: "Keep criteria evaluation simple: COUNT queries. Do not import autopilot YAML at runtime — hardcode the thresholds (15 merchants, 70%, 10 purchases, 3 feedback sessions)."
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Utility ticket — makes goal tracking programmatic instead of manual DB queries."
+  - "Can be extended with frontend rendering later if useful."

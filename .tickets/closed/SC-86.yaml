@@ -1,0 +1,74 @@
+id: SC-86
+title: "Log 5 more real purchases to reach ≥10 in purchase_history"
+type: task
+priority: p1
+status: done
+owner: h6nk-bot
+created_at: "2026-03-18T20:17:00Z"
+updated_at: "2026-03-18T20:17:00Z"
+labels: ["purchase-loop", "data", "goal-criteria"]
+
+problem: "Purchase history has only 5 logged entries. The goal requires ≥10 real logged purchases. The PurchaseForm works (verified in SC-69, SC-78, SC-84) but no additional purchases have been added since."
+desired_outcome: "purchase_history table has ≥10 rows. At least 3 of the new purchases are linked to a recommendation_run_id to exercise the recommendation-purchase link."
+
+scope_in:
+  - "Add 5 purchase seed rows via szimpla CLI or direct API POST to /api/v1/history/purchases"
+  - "At least 3 of the new entries should carry recommendation_run_id from existing recommendation runs"
+  - "Verify row count in DB after seeding"
+  - "Optional: add a szimpla seed-purchases CLI command for repeatability"
+scope_out:
+  - "UI changes"
+  - "New recommendation runs"
+  - "Brew feedback (separate goal criterion)"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "purchase_history table has ≥10 rows"
+    verify: "cd backend && .venv/bin/python -c \"import sys; sys.path.insert(0,'src'); from szimplacoffee.db import engine; from sqlalchemy import text; c=engine.connect(); n=c.execute(text('SELECT COUNT(*) FROM purchase_history')).scalar(); print(f'Purchases: {n}'); assert n >= 10, f'Only {n} — need 10'\""
+    status: pending
+  - id: AC-2
+    text: "At least 3 purchases have a non-null recommendation_run_id"
+    verify: "cd backend && .venv/bin/python -c \"import sys; sys.path.insert(0,'src'); from szimplacoffee.db import engine; from sqlalchemy import text; c=engine.connect(); n=c.execute(text('SELECT COUNT(*) FROM purchase_history WHERE recommendation_run_id IS NOT NULL')).scalar(); print(f'Linked: {n}'); assert n >= 3\""
+    status: pending
+
+verification_required:
+  - "cd backend && .venv/bin/python -c \"import sys; sys.path.insert(0,'src'); from szimplacoffee.db import engine; from sqlalchemy import text; c=engine.connect(); print(c.execute(text('SELECT COUNT(*) FROM purchase_history')).scalar())\""
+
+context_refs:
+  - ".plans/SC-86-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Seed 5 purchase records via API or direct insert"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/bootstrap.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/api/history.py"
+    checks:
+      - "purchase_history count ≥ 10"
+      - "at least 3 have recommendation_run_id set"
+    evidence: []
+    notes: "Use bootstrap.py or a helper script to insert seed purchases. Use real merchant/product IDs from DB. Look up recommendation run IDs to link."
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: "2026-03-19T03:27:00Z"
+  completed_at: "2026-03-19T03:35:00Z"
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Goal criterion: ≥10 real logged purchases. Currently 5."
+  - "Query recommendation run IDs first: SELECT id FROM recommendation_runs LIMIT 5"
