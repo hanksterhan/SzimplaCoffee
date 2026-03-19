@@ -110,10 +110,16 @@ def _seed_product(
         image_url="",
         origin_text=origin_country,
         origin_country=origin_country,
+        origin_country_confidence=0.9,
+        origin_country_source="parser",
         process_text=process_family.title(),
         process_family=process_family,
+        process_family_confidence=0.9,
+        process_family_source="parser",
         roast_cues=roast_level,
         roast_level=roast_level,
+        roast_level_confidence=0.9,
+        roast_level_source="parser",
         metadata_confidence=0.9,
         metadata_source="parser",
         product_category=category,
@@ -282,6 +288,11 @@ def test_search_products_filters_by_server_side_catalog_fields(catalog_client) -
     assert response.status_code == 200
     payload = response.json()
     assert [item["name"] for item in payload["items"]] == ["Citrus Bloom"]
+    item = payload["items"][0]
+    assert item["canonical_metadata"]["origin_country"]["value"] == "Ethiopia"
+    assert item["canonical_metadata"]["origin_country"]["source"] == "parser"
+    assert item["canonical_metadata"]["process_family"]["value"] == "washed"
+    assert item["canonical_metadata"]["roast_level"]["value"] == "light"
     assert payload["has_more"] is False
 
 

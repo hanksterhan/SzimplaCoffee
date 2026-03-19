@@ -19,21 +19,48 @@ def init_db() -> None:
 def _apply_lightweight_migrations() -> None:
     inspector = inspect(engine)
     product_columns = {column["name"] for column in inspector.get_columns("products")}
+    override_columns = {column["name"] for column in inspector.get_columns("product_metadata_overrides")} if inspector.has_table("product_metadata_overrides") else set()
     with engine.begin() as connection:
         if "image_url" not in product_columns:
             connection.execute(text("ALTER TABLE products ADD COLUMN image_url VARCHAR(1000) NOT NULL DEFAULT ''"))
         if "origin_country" not in product_columns:
             connection.execute(text("ALTER TABLE products ADD COLUMN origin_country VARCHAR(128)"))
+        if "origin_country_confidence" not in product_columns:
+            connection.execute(text("ALTER TABLE products ADD COLUMN origin_country_confidence FLOAT NOT NULL DEFAULT 0"))
+        if "origin_country_source" not in product_columns:
+            connection.execute(text("ALTER TABLE products ADD COLUMN origin_country_source VARCHAR(32) NOT NULL DEFAULT 'unknown'"))
         if "origin_region" not in product_columns:
             connection.execute(text("ALTER TABLE products ADD COLUMN origin_region VARCHAR(128)"))
         if "process_family" not in product_columns:
             connection.execute(text("ALTER TABLE products ADD COLUMN process_family VARCHAR(32) NOT NULL DEFAULT 'unknown'"))
+        if "process_family_confidence" not in product_columns:
+            connection.execute(text("ALTER TABLE products ADD COLUMN process_family_confidence FLOAT NOT NULL DEFAULT 0"))
+        if "process_family_source" not in product_columns:
+            connection.execute(text("ALTER TABLE products ADD COLUMN process_family_source VARCHAR(32) NOT NULL DEFAULT 'unknown'"))
         if "roast_level" not in product_columns:
             connection.execute(text("ALTER TABLE products ADD COLUMN roast_level VARCHAR(32) NOT NULL DEFAULT 'unknown'"))
+        if "roast_level_confidence" not in product_columns:
+            connection.execute(text("ALTER TABLE products ADD COLUMN roast_level_confidence FLOAT NOT NULL DEFAULT 0"))
+        if "roast_level_source" not in product_columns:
+            connection.execute(text("ALTER TABLE products ADD COLUMN roast_level_source VARCHAR(32) NOT NULL DEFAULT 'unknown'"))
         if "metadata_confidence" not in product_columns:
             connection.execute(text("ALTER TABLE products ADD COLUMN metadata_confidence FLOAT NOT NULL DEFAULT 0"))
         if "metadata_source" not in product_columns:
             connection.execute(text("ALTER TABLE products ADD COLUMN metadata_source VARCHAR(32) NOT NULL DEFAULT 'unknown'"))
+
+        if override_columns:
+            if "origin_country_confidence" not in override_columns:
+                connection.execute(text("ALTER TABLE product_metadata_overrides ADD COLUMN origin_country_confidence FLOAT"))
+            if "origin_country_source" not in override_columns:
+                connection.execute(text("ALTER TABLE product_metadata_overrides ADD COLUMN origin_country_source VARCHAR(32)"))
+            if "process_family_confidence" not in override_columns:
+                connection.execute(text("ALTER TABLE product_metadata_overrides ADD COLUMN process_family_confidence FLOAT"))
+            if "process_family_source" not in override_columns:
+                connection.execute(text("ALTER TABLE product_metadata_overrides ADD COLUMN process_family_source VARCHAR(32)"))
+            if "roast_level_confidence" not in override_columns:
+                connection.execute(text("ALTER TABLE product_metadata_overrides ADD COLUMN roast_level_confidence FLOAT"))
+            if "roast_level_source" not in override_columns:
+                connection.execute(text("ALTER TABLE product_metadata_overrides ADD COLUMN roast_level_source VARCHAR(32)"))
     with Session(engine) as session:
         for merchant in session.scalars(select(Merchant)).all():
             normalized = normalize_url(merchant.homepage_url)

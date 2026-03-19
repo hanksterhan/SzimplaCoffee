@@ -1,0 +1,106 @@
+id: SC-94
+title: "Add canonical metadata normalization fields with confidence and provenance"
+type: feature
+priority: p1
+status: done
+owner: h6nk-bot
+created_at: "2026-03-19T18:46:05Z"
+updated_at: "2026-03-19T19:46:00Z"
+labels: ["metadata", "backend", "schema", "normalization"]
+
+problem: "SzimplaCoffee still relies heavily on free-text metadata (`origin_text`, `process_text`, roast cues), which makes filtering and trust judgments fuzzy. The app needs canonical metadata semantics so origin and roast filtering are product-trustworthy rather than parser-best-effort guesses."
+desired_outcome: "Active coffee products have canonical metadata normalization fields and confidence/provenance tracking so the app can distinguish normalized truth from raw parser text and support trustworthy filtering/ranking work in later tickets."
+
+scope_in:
+  - "Design and add canonical metadata fields or companion normalized structures for origin_country, roast_level, and process_family"
+  - "Persist confidence/provenance information for normalized metadata"
+  - "Update parser/backfill flow to populate the new normalized fields for active coffee products"
+  - "Add tests covering normalization semantics and confidence/provenance handling"
+scope_out:
+  - "Complete UI redesign for metadata editing"
+  - "Large merchant-specific override workflows beyond minimal support needed for normalization"
+  - "Historical deal scoring"
+
+dependencies:
+  blockers: ["SC-93"]
+  unblocks: ["SC-95", "SC-96"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Canonical normalized metadata exists for origin_country, roast_level, and process_family"
+    verify: "Inspect schema/model/API changes and run backend tests covering the new fields"
+    status: pending
+  - id: AC-2
+    text: "Normalized metadata stores confidence and provenance"
+    verify: "Run targeted tests proving confidence/provenance are written and exposed correctly"
+    status: pending
+  - id: AC-3
+    text: "Backfill/parser flow populates normalized fields for active coffee products without regressing existing metadata paths"
+    verify: "Run a targeted parser/backfill verification command against representative active products"
+    status: pending
+  - id: AC-4
+    text: "Backend tests remain green after normalization changes"
+    verify: "cd backend && .venv/bin/pytest tests/ -q"
+    status: pending
+
+verification_required:
+  - "cd backend && .venv/bin/pytest tests/ -q"
+  - "Targeted parser/backfill verification for representative products"
+
+context_refs:
+  - ".plans/SC-94-execution-plan.md"
+  - "autopilot/goal.yaml"
+
+slices:
+  - id: S1
+    title: "Add normalized schema/model fields"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/schemas/"
+      - "backend/src/szimplacoffee/services/"
+    files_read_only: []
+    checks:
+      - "Canonical fields exist"
+      - "Confidence/provenance are represented"
+    evidence: []
+    notes: "Prefer extending current patterns over parallel abstractions."
+  - id: S2
+    title: "Populate normalized metadata through parser/backfill"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/coffee_parser.py"
+      - "backend/src/szimplacoffee/services/"
+      - "backend/tests/"
+    files_read_only: []
+    checks:
+      - "Parser/backfill writes normalized values"
+      - "Tests verify representative cases"
+    evidence: []
+    notes: "Keep the diff tightly focused on canonical normalization work."
+
+delivery:
+  branch: "stage"
+  commits: []
+  pr_url: ""
+  started_at: "2026-03-19T19:35:00Z"
+  completed_at: "2026-03-19T19:46:00Z"
+  verification:
+    required_passed: true
+    commands_run:
+      - "cd backend && . .venv/bin/activate && pytest tests/test_coffee_parser.py tests/test_api_products.py -q"
+      - "cd backend && . .venv/bin/activate && pytest tests/ -q"
+      - "cd backend && . .venv/bin/activate && PYTHONPATH=src python - <<'PY' ... parse_coffee_metadata representative sample check ... PY"
+    evidence_refs:
+      - "backend/tests/test_coffee_parser.py"
+      - "backend/tests/test_api_products.py"
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/services/crawlers.py"
+      - "backend/src/szimplacoffee/schemas/products.py"
+
+notes:
+  - "This ticket makes metadata quality legible and trustworthy."

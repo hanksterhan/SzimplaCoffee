@@ -213,8 +213,13 @@ def main() -> None:
                 "origin_region": 0,
                 "process_family": 0,
                 "roast_level": 0,
+                "origin_country_semantics": 0,
+                "process_family_semantics": 0,
+                "roast_level_semantics": 0,
             }
             for product in products:
+                if not product.is_active:
+                    continue
                 # SC-85: If product already has origin_text but no origin_country,
                 # try to derive country from the existing origin_text (e.g. "Nariño" → "Colombia")
                 if product.origin_text and not product.origin_country:
@@ -259,6 +264,13 @@ def main() -> None:
                     product.origin_country = parsed.origin_country
                     field_counts["origin_country"] += 1
                     changed = True
+                if product.origin_country and (
+                    product.origin_country_confidence == 0 or product.origin_country_source in (None, "", "unknown")
+                ):
+                    product.origin_country_confidence = parsed.origin_country_confidence if parsed.origin_country == product.origin_country else max(float(product.origin_country_confidence or 0.0), 0.85)
+                    product.origin_country_source = parsed.origin_country_source if parsed.origin_country == product.origin_country else "structured"
+                    field_counts["origin_country_semantics"] += 1
+                    changed = True
                 if not product.origin_region and parsed.origin_region:
                     product.origin_region = parsed.origin_region
                     field_counts["origin_region"] += 1
@@ -267,10 +279,35 @@ def main() -> None:
                     product.process_family = parsed.process_family
                     field_counts["process_family"] += 1
                     changed = True
+                if product.process_family not in (None, "", "unknown") and (
+                    product.process_family_confidence == 0 or product.process_family_source in (None, "", "unknown")
+                ):
+                    product.process_family_confidence = parsed.process_family_confidence if parsed.process_family == product.process_family else max(float(product.process_family_confidence or 0.0), 0.85)
+                    product.process_family_source = parsed.process_family_source if parsed.process_family == product.process_family else "structured"
+                    field_counts["process_family_semantics"] += 1
+                    changed = True
                 if product.roast_level in (None, "", "unknown") and parsed.roast_level != "unknown":
                     product.roast_level = parsed.roast_level
                     field_counts["roast_level"] += 1
                     changed = True
+                if product.roast_level not in (None, "", "unknown") and (
+                    product.roast_level_confidence == 0 or product.roast_level_source in (None, "", "unknown")
+                ):
+                    product.roast_level_confidence = parsed.roast_level_confidence if parsed.roast_level == product.roast_level else max(float(product.roast_level_confidence or 0.0), 0.85)
+                    product.roast_level_source = parsed.roast_level_source if parsed.roast_level == product.roast_level else "structured"
+                    field_counts["roast_level_semantics"] += 1
+                    changed = True
+                product.metadata_confidence = max(
+                    float(product.origin_country_confidence or 0.0),
+                    float(product.process_family_confidence or 0.0),
+                    float(product.roast_level_confidence or 0.0),
+                )
+                if product.origin_country_confidence >= max(float(product.process_family_confidence or 0.0), float(product.roast_level_confidence or 0.0)) and product.origin_country:
+                    product.metadata_source = product.origin_country_source or product.metadata_source
+                elif product.process_family_confidence >= float(product.roast_level_confidence or 0.0) and product.process_family not in (None, "", "unknown"):
+                    product.metadata_source = product.process_family_source or product.metadata_source
+                elif product.roast_level not in (None, "", "unknown"):
+                    product.metadata_source = product.roast_level_source or product.metadata_source
                 if changed:
                     updated += 1
 

@@ -1,0 +1,107 @@
+id: SC-93
+title: "Resolve autopilot startup failures and notification routing noise"
+type: task
+priority: p1
+status: done
+owner: h6nk-bot
+created_at: "2026-03-19T18:46:05Z"
+updated_at: "2026-03-19T19:01:35Z"
+labels: ["autopilot", "ops", "stability", "openclaw"]
+
+problem: "Autopilot runs keep producing startup-time failure noise. Recent sz-coffee-autopilot session logs show mandatory startup context gathering attempts hitting a ByteRover daily rate limit, and the configured `policy.notifications.session_key` does not resolve to a valid session. This makes startup look broken, obscures real failures, and reduces confidence in the automation loop."
+desired_outcome: "Autopilot startup is quiet and reliable: startup-time context gathering failures are handled or removed from the critical path, notification routing uses a valid target (or is disabled cleanly), and a normal autopilot cycle can complete without recurring startup-noise errors."
+
+scope_in:
+  - "Inspect sz-coffee-autopilot agent/session configuration and recent session logs"
+  - "Identify the concrete startup failure/noise sources and document root cause"
+  - "Fix notification routing mismatch in autopilot policy or agent/session config"
+  - "Adjust autopilot startup path so ByteRover rate-limit failures do not present as startup failure"
+  - "Verify one clean autopilot cycle after the fix"
+scope_out:
+  - "General OpenClaw upgrades unrelated to the autopilot startup path"
+  - "Large redesign of the entire autopilot skill protocol"
+  - "Non-SzimplaCoffee autopilot agents"
+
+dependencies:
+  blockers: []
+  unblocks: ["SC-94", "SC-95", "SC-96"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Root cause of startup failure/noise is documented from real session evidence"
+    verify: "Inspect recent `~/.openclaw/agents/sz-coffee-autopilot/sessions/*.jsonl` and summarize the failing startup path"
+    status: pending
+  - id: AC-2
+    text: "Autopilot notification routing is valid or intentionally disabled without error"
+    verify: "Run one autopilot cycle and confirm no unresolved 'No session found' notification error is emitted"
+    status: pending
+  - id: AC-3
+    text: "Startup-time context gathering no longer causes the run to appear failed"
+    verify: "Run one autopilot cycle and confirm startup completes without recurring ByteRover rate-limit error surfacing as the primary failure mode"
+    status: pending
+  - id: AC-4
+    text: "Autopilot can complete a clean stop or work-selection cycle after the fix"
+    verify: "Run one bounded autopilot cycle and inspect checkpoint/status output"
+    status: pending
+
+verification_required:
+  - "Inspect recent autopilot session logs under ~/.openclaw/agents/sz-coffee-autopilot/sessions/"
+  - "Run one autopilot cycle"
+  - "Confirm checkpoint + status.json update cleanly"
+
+context_refs:
+  - ".plans/SC-93-execution-plan.md"
+  - "autopilot/goal.yaml"
+  - "autopilot/policy.yaml"
+
+slices:
+  - id: S1
+    title: "Audit recent startup failures and determine exact root cause"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify: []
+    files_read_only:
+      - "autopilot/policy.yaml"
+      - "autopilot/status.json"
+      - "~/.openclaw/agents/sz-coffee-autopilot/sessions/*.jsonl"
+    checks:
+      - "Identify whether ByteRover, notification routing, or other startup work is the real blocker"
+    evidence: []
+    notes: "Use actual session evidence rather than assumptions."
+  - id: S2
+    title: "Fix routing/config and make startup resilient"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "autopilot/policy.yaml"
+      - "autopilot/status.json"
+      - "Any SzimplaCoffee autopilot config touched by the verified root cause"
+    files_read_only: []
+    checks:
+      - "No invalid session-key notification error"
+      - "No startup path that hard-fails on ByteRover rate-limit noise"
+    evidence: []
+    notes: "Prefer the smallest fix that makes startup reliable."
+
+delivery:
+  branch: "local-config"
+  commits: []
+  pr_url: ""
+  started_at: "2026-03-19T19:00:00Z"
+  completed_at: "2026-03-19T19:01:35Z"
+  verification:
+    required_passed: true
+    commands_run:
+      - "brv query (rate-limited; non-fatal evidence captured from session logs)"
+      - "python3 log scan for No session found / daily request limit evidence"
+      - "sessions_list"
+    evidence_refs:
+      - "~/.openclaw/agents/sz-coffee-autopilot/sessions/684eb284-930c-4991-9bf1-d7805e74e5e5.jsonl"
+      - "~/.openclaw/agents/sz-coffee-autopilot/sessions/c23ba4e2-9a06-4e96-af3e-b4a52277edb3.jsonl"
+      - "~/.openclaw/agents/sz-coffee-autopilot/sessions/924d06a6-faf6-4a2a-a6e5-95d9e8bbd490.jsonl"
+
+notes:
+  - "Observed in recent autopilot logs on 2026-03-19."
+  - "This ticket is the immediate unblocker for trusting the automation loop again."

@@ -29,3 +29,7 @@ frontend/openapi.json
 # Misc
 instance/
 .DS_Store
+
+# ByteRover / legacy context-tree artifacts
+.brv/
+*byterover*

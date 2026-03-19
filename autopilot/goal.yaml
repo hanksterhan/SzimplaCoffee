@@ -1,35 +1,50 @@
 goal: >
-  Make SzimplaCoffee the best local-first specialty coffee buying assistant —
-  surfacing the right bag, at the right price, from the right roaster, every time.
+  Phase 2: make SzimplaCoffee trustworthy at the data layer — reliable metadata,
+  reliable crawls, and stable autopilot execution — so the app can support
+  dependable daily buying decisions without overloading the machine.
 
 context: >
-  SzimplaCoffee is a personal tool for specialty espresso purchasing decisions.
-  The backend (FastAPI + SQLite) has a sophisticated recommendation engine,
-  crawl infrastructure, quality scoring, and 18 data models. The React SPA
-  covers dashboard, merchants, products, recommendations, discovery, purchases,
-  brew feedback, Today view, and Watch queue. The core problem: the engine is
-  well-designed but starving for real data — only 2 merchants, 38 products,
-  0 recommendation runs, and 93–95% empty coffee metadata fields.
+  Phase 1 is complete: the app is now a real end-to-end product with meaningful
+  merchant coverage, recommendation flows, purchase logging, brew feedback,
+  Today/Watch surfaces, and a usable React SPA. The next bottleneck is not the
+  presence of product surface area but the trustworthiness of the underlying
+  data and automation. Metadata normalization still needs stronger canonical
+  fields and confidence handling, crawl quality needs to be more observable and
+  reliable, and autopilot startup is noisy/fragile due to startup-time context
+  gathering failures. This phase should improve data quality before expanding
+  scope aggressively.
 
 success_criteria:
-  - 15+ real specialty coffee merchants crawled and in the DB at Tier A or B
-  - Coffee metadata (origin, process, roast_level, variety) populated on ≥70% of products
-  - Recommendation engine produces meaningful results (not empty/wait) for a real request
-  - "Today" view returns a ranked recommendation on every use
-  - Purchase history has ≥10 real logged purchases
-  - Brew feedback loop is exercised (at least 3 real sessions logged)
-  - All app UI interactions work correctly (dropdowns, filters, forms)
-  - Backend tests pass (≥84 tests green)
+  - Autopilot can start and complete a normal cycle without recurring startup-context failure noise or broken notification routing
+  - Coffee metadata normalization provides canonical origin_country, roast_level, and process_family semantics with confidence/provenance on active coffee products
+  - Metadata coverage and trust improve enough that origin and roast filtering are product-trustworthy for the active catalog
+  - Crawl quality is observable per merchant, with reliability/trust signals that distinguish high-confidence merchants from degraded ones
+  - Crawl execution follows low-CPU serialized or staggered patterns; no parallel heavy work is required for routine cycles
+  - The next backlog is refilled with metadata/crawl-focused tickets and at least 2 ready tasks remain available for autopilot
+  - Backend tests pass and any touched frontend/build contracts remain green
 
 current_state: >
-  Sprint 2 in progress. UI dropdown bugs fixed (React 19 + Radix compat).
-  Autopilot scaffolded today (2026-03-17). Open tickets SC-47 through SC-56
-  cover merchant import, metadata parsing, crawl health, purchase logging,
-  and recommendation engine validation.
+  Phase 1 goal was completed at SC-92. There are no open tickets in `.tickets/open/`.
+  The current priority is to move into a data-trust phase centered on metadata
+  normalization, crawl quality, and autopilot stability. Recent autopilot runs
+  indicate startup-time ByteRover query rate-limit failures and notification
+  session-key mismatch noise that should be cleaned up before relying on the
+  automation loop.
 
 priority_order:
-  - Merchant coverage: import 15+ merchants and trigger crawls
-  - Coffee metadata: verify coffee_parser runs post-crawl and fills fields
-  - End-to-end recommendation: run the engine against real data
-  - Purchase + brew feedback loop: log real buys and feedback
-  - UI polish and remaining Sprint 2 tickets
+  - Autopilot stability: eliminate startup failure/noise and fix notification/session routing
+  - Coffee metadata normalization: canonical fields, confidence, provenance, and post-crawl fill quality
+  - Crawl quality: reliability scoring, extraction observability, and merchant trust signals
+  - Trustworthy catalog semantics: server-side filtering/sorting that reflect normalized metadata and real availability semantics
+  - Historical deal intelligence: build the next phase only after metadata and crawl foundations are trustworthy
+
+phase_3_preview:
+  goal: >
+    Phase 3: turn trustworthy catalog data into daily buying intelligence with
+    historical deal baselines, server-side truth-based ranking, and a Today
+    view that can answer what to buy right now.
+  success_criteria:
+    - Historical offer baselines support trustworthy sale/deal scoring
+    - Today view can rank quality-clearing deals from trusted merchants
+    - Product search and sorting are server-side and corpus-wide rather than client-window-limited
+    - Merchant expansion can continue without degrading crawl or metadata trust

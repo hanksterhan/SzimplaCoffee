@@ -9,9 +9,16 @@ backlog:
 delivery:
   max_tasks_per_run: 1
   max_runtime_minutes: 45
-  pr_mode: "merge"
-  base_branch: "main"
-  merge_to_main: true
+  pr_mode: "draft"
+  base_branch: "stage"
+  merge_to_main: false
+resource_guardrails:
+  avoid_cpu_overload: true
+  guidance:
+    - "Do not overload any session; prefer bounded, serialized work over parallel heavy jobs."
+    - "Keep CPU usage conservative during crawls, parsing, builds, and verification."
+    - "Avoid running multiple expensive tasks at once unless they are known to be lightweight."
+    - "Prefer smaller batches and staggered execution when processing merchants or metadata refreshes."
 escalation:
   ask_human_when:
     - "product ambiguity"
@@ -27,4 +34,4 @@ notifications:
   # Set session_key to route run summaries via sessions_send.
   # Example: "agent:1:telegram:group:-1003759576826:topic:2"
   # Leave empty to disable notifications.
-  session_key: "telegram:-1003759576826:topic:2"
+  session_key: ""

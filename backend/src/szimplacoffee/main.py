@@ -19,7 +19,10 @@ from .models import CrawlRun, Merchant, MerchantCandidate
 from .services.crawlers import crawl_merchant
 from .services.discovery import promote_candidate, run_discovery
 from .services.platforms import detect_platform, recommended_crawl_tier
-from .services.scheduler import get_merchants_due_for_crawl
+from .services.scheduler import (
+    DEFAULT_SCHEDULED_CRAWL_BATCH_SIZE,
+    get_merchants_due_for_crawl,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +41,18 @@ def _run_scheduled_crawls() -> None:
     """
     try:
         with session_scope() as session:
-            due_merchants = get_merchants_due_for_crawl(session)
+            due_merchants = get_merchants_due_for_crawl(
+                session,
+                limit=DEFAULT_SCHEDULED_CRAWL_BATCH_SIZE,
+            )
             if not due_merchants:
                 return
-            logger.info("Scheduled crawl: %d merchant(s) due", len(due_merchants))
+            total_due = len(get_merchants_due_for_crawl(session))
+            logger.info(
+                "Scheduled crawl: processing %d of %d due merchant(s)",
+                len(due_merchants),
+                total_due,
+            )
             for merchant in due_merchants:
                 run = CrawlRun(
                     merchant_id=merchant.id,
