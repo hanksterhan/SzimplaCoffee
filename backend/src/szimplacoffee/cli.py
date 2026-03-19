@@ -4,7 +4,7 @@ import argparse
 
 from sqlalchemy import select
 
-from .bootstrap import bootstrap_if_empty, init_db
+from .bootstrap import bootstrap_if_empty, init_db, seed_purchases
 from .db import session_scope
 from .models import Merchant, Product
 from .services.crawlers import crawl_merchant
@@ -52,6 +52,12 @@ def main() -> None:
     subparsers.add_parser(
         "promote-tiers",
         help="Review merchant quality profiles and promote/demote crawl and trust tiers accordingly.",
+    )
+
+    # SC-86: seed-purchases
+    subparsers.add_parser(
+        "seed-purchases",
+        help="Seed additional purchase records to reach ≥10 rows in purchase_history.",
     )
 
     # SC-33: crawl-schedule + run-scheduled-crawls
@@ -179,9 +185,13 @@ def main() -> None:
                 print(f"{candidate.score:.3f} {candidate.merchant_name} | {candidate.product_name} | {candidate.variant_label}")
             return
 
+        if args.command == "seed-purchases":
+            seed_purchases()
+            return
+
         if args.command == "backfill-metadata":
             # SC-31: re-run coffee metadata parser over all products
-            from .services.coffee_parser import parse_coffee_metadata
+            from .services.coffee_parser import parse_coffee_metadata, _normalize_origin_parts
 
             products = session.scalars(select(Product)).all()
             updated = 0
@@ -196,6 +206,18 @@ def main() -> None:
                 "roast_level": 0,
             }
             for product in products:
+                # SC-85: If product already has origin_text but no origin_country,
+                # try to derive country from the existing origin_text (e.g. "Nariño" → "Colombia")
+                if product.origin_text and not product.origin_country:
+                    derived_country, derived_region = _normalize_origin_parts(product.origin_text, product.origin_text)
+                    if derived_country:
+                        product.origin_country = derived_country
+                        field_counts["origin_country"] += 1
+                        updated += 1
+                    if derived_region and not product.origin_region:
+                        product.origin_region = derived_region
+                        field_counts["origin_region"] += 1
+
                 parsed = parse_coffee_metadata(product.name, getattr(product, "description_html", "") or "")
                 changed = False
                 if not product.origin_text and parsed.origin_text:
