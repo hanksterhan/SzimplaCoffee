@@ -1,6 +1,13 @@
 {
   "entries": [
     {
+      "id": "SC-90-goal-status-dashboard",
+      "path": ".memory/sprint-02/SC-90-goal-status-dashboard.md",
+      "ticket": "SC-90",
+      "date": "2026-03-19",
+      "summary": "Added goal_status + metadata_fill_rates to dashboard API; 19 new tests; ScoreBreakdown typed"
+    },
+    {
       "id": "SC-89-coava-tier-a-junk-cleanup",
       "path": ".memory/sprint-02/SC-89-coava-tier-a-junk-cleanup.md",
       "ticket": "SC-89",
