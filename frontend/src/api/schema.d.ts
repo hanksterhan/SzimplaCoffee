@@ -36,7 +36,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update Merchant */
+        patch: operations["update_merchant_api_v1_merchants__merchant_id__patch"];
         trace?: never;
     };
     "/api/v1/merchants/{merchant_id}/crawl": {
@@ -607,6 +608,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/history/brew-feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List All Feedback
+         * @description Return all brew feedback rows across all purchases, newest first.
+         */
+        get: operations["list_all_feedback_api_v1_history_brew_feedback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/purchases/{purchase_id}/feedback": {
         parameters: {
             query?: never;
@@ -638,6 +659,40 @@ export interface paths {
         post?: never;
         /** Delete Feedback */
         delete: operations["delete_feedback_api_v1_feedback__feedback_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/de1/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get De1 Status */
+        get: operations["get_de1_status_api_v1_de1_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/de1/toggle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Toggle De1 */
+        post: operations["toggle_de1_api_v1_de1_toggle_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -991,6 +1046,77 @@ export interface components {
              * @default 0
              */
             products_with_roast_level: number;
+            /**
+             * @default {
+             *       "origin_pct": 0,
+             *       "process_pct": 0,
+             *       "roast_pct": 0,
+             *       "variety_pct": 0
+             *     }
+             */
+            metadata_fill_rates: components["schemas"]["MetadataFillRates"];
+            /**
+             * @default {
+             *       "merchants_15_plus": false,
+             *       "metadata_70pct": false,
+             *       "recs_produce_results": false,
+             *       "today_works": false,
+             *       "purchases_10_plus": false,
+             *       "brew_feedback_3_plus": false,
+             *       "ui_works": true,
+             *       "tests_pass": true,
+             *       "all_complete": false
+             *     }
+             */
+            goal_status: components["schemas"]["GoalStatus"];
+        };
+        /** De1StatusResponse */
+        De1StatusResponse: {
+            /** Enabled */
+            enabled: boolean;
+            /** Auto Match */
+            auto_match: boolean;
+            /** Last Poll At */
+            last_poll_at: string | null;
+            /** Shots Imported */
+            shots_imported: number;
+            /** Visualizer Username */
+            visualizer_username: string;
+        };
+        /** FilteredCandidateOut */
+        FilteredCandidateOut: {
+            /** Merchant Name */
+            merchant_name: string;
+            /** Product Name */
+            product_name: string;
+            /** Variant Label */
+            variant_label: string;
+            /** Filter Reason */
+            filter_reason: string;
+        };
+        /**
+         * GoalStatus
+         * @description Boolean completion flags mirroring autopilot/goal.yaml success_criteria.
+         */
+        GoalStatus: {
+            /** Merchants 15 Plus */
+            merchants_15_plus: boolean;
+            /** Metadata 70Pct */
+            metadata_70pct: boolean;
+            /** Recs Produce Results */
+            recs_produce_results: boolean;
+            /** Today Works */
+            today_works: boolean;
+            /** Purchases 10 Plus */
+            purchases_10_plus: boolean;
+            /** Brew Feedback 3 Plus */
+            brew_feedback_3_plus: boolean;
+            /** Ui Works */
+            ui_works: boolean;
+            /** Tests Pass */
+            tests_pass: boolean;
+            /** All Complete */
+            all_complete: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1219,6 +1345,22 @@ export interface components {
             metadata_pct: number;
             /** Is Trusted */
             readonly is_trusted: boolean;
+        };
+        /** MerchantUpdateRequest */
+        MerchantUpdateRequest: {
+            /** Trust Tier */
+            trust_tier?: string | null;
+        };
+        /** MetadataFillRates */
+        MetadataFillRates: {
+            /** Origin Pct */
+            origin_pct: number;
+            /** Process Pct */
+            process_pct: number;
+            /** Roast Pct */
+            roast_pct: number;
+            /** Variety Pct */
+            variety_pct: number;
         };
         /** OfferSnapshotSchema */
         OfferSnapshotSchema: {
@@ -1490,6 +1632,8 @@ export interface components {
              * @default
              */
             source_ref: string;
+            /** Recommendation Run Id */
+            recommendation_run_id?: number | null;
         };
         /** PurchaseDetail */
         PurchaseDetail: {
@@ -1562,13 +1706,13 @@ export interface components {
             source_system: string;
             /** Source Ref */
             source_ref: string;
-            /** Recommendation Run Id */
-            recommendation_run_id?: number | null;
             /**
              * Feedback Count
              * @default 0
              */
             feedback_count: number;
+            /** Recommendation Run Id */
+            recommendation_run_id?: number | null;
         };
         /** PurchaseUpdate */
         PurchaseUpdate: {
@@ -1590,45 +1734,8 @@ export interface components {
             source_system?: string | null;
             /** Source Ref */
             source_ref?: string | null;
-        };
-        /** FilteredCandidateOut */
-        FilteredCandidateOut: {
-            /** Merchant Name */
-            merchant_name: string;
-            /** Product Name */
-            product_name: string;
-            /** Variant Label */
-            variant_label: string;
-            /** Filter Reason */
-            filter_reason: string;
-        };
-        /** ScoreBreakdown */
-        ScoreBreakdown: {
-            /** Merchant Score */
-            merchant_score: number;
-            /** Quantity Score */
-            quantity_score: number;
-            /** Espresso Score */
-            espresso_score: number;
-            /** Deal Score */
-            deal_score: number;
-            /** Freshness Score */
-            freshness_score: number;
-            /** History Score */
-            history_score: number;
-            /** Promo Bonus */
-            promo_bonus: number;
-            /** Total */
-            total: number;
-            /** Weights */
-            weights: {
-                merchant: number;
-                quantity: number;
-                espresso: number;
-                deal: number;
-                freshness: number;
-                history: number;
-            };
+            /** Recommendation Run Id */
+            recommendation_run_id?: number | null;
         };
         /** RecommendationCandidateOut */
         RecommendationCandidateOut: {
@@ -1656,7 +1763,6 @@ export interface components {
             score: number;
             /** Pros */
             pros: string[];
-            /** Score Breakdown (only present when explain_scores=true) */
             score_breakdown?: components["schemas"]["ScoreBreakdown"] | null;
         };
         /** RecommendationRequestPayload */
@@ -1690,7 +1796,7 @@ export interface components {
              * Explain Scores
              * @default false
              */
-            explain_scores?: boolean;
+            explain_scores: boolean;
         };
         /** RecommendationResultResponse */
         RecommendationResultResponse: {
@@ -1703,7 +1809,7 @@ export interface components {
             wait_rationale?: string | null;
             /** Run Id */
             run_id: number;
-            /** Filtered Candidates (only present when explain_scores=true) */
+            /** Filtered Candidates */
             filtered_candidates?: components["schemas"]["FilteredCandidateOut"][] | null;
         };
         /** RecommendationRunSchema */
@@ -1733,6 +1839,36 @@ export interface components {
             /** Merchant Ids */
             merchant_ids: number[];
         };
+        /**
+         * ScoreBreakdown
+         * @description Score component breakdown returned when explain_scores=True.
+         */
+        ScoreBreakdown: {
+            /** Merchant Score */
+            merchant_score: number;
+            /** Quantity Score */
+            quantity_score: number;
+            /** Espresso Score */
+            espresso_score: number;
+            /** Deal Score */
+            deal_score: number;
+            /** Freshness Score */
+            freshness_score: number;
+            /** History Score */
+            history_score: number;
+            /** Promo Bonus */
+            promo_bonus: number;
+            /** Brew Avg Rating */
+            brew_avg_rating?: number | null;
+            /** Brew Penalty */
+            brew_penalty: number;
+            /** Total */
+            total: number;
+            /** Weights */
+            weights: {
+                [key: string]: unknown;
+            };
+        };
         /** ShippingPolicySchema */
         ShippingPolicySchema: {
             /** Id */
@@ -1752,6 +1888,11 @@ export interface components {
             confidence: number;
             /** Free Shipping Threshold Dollars */
             readonly free_shipping_threshold_dollars: number | null;
+        };
+        /** ToggleRequest */
+        ToggleRequest: {
+            /** Auto Match */
+            auto_match: boolean;
         };
         /** ValidationError */
         ValidationError: {
@@ -1861,6 +2002,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MerchantDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_merchant_api_v1_merchants__merchant_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                merchant_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MerchantUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MerchantSummary"];
                 };
             };
             /** @description Validation Error */
@@ -2997,6 +3173,37 @@ export interface operations {
             };
         };
     };
+    list_all_feedback_api_v1_history_brew_feedback_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrewFeedbackOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_feedback_api_v1_purchases__purchase_id__feedback_get: {
         parameters: {
             query?: never;
@@ -3115,6 +3322,59 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_de1_status_api_v1_de1_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["De1StatusResponse"];
+                };
+            };
+        };
+    };
+    toggle_de1_api_v1_de1_toggle_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToggleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["De1StatusResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

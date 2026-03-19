@@ -31,6 +31,22 @@ class RecommendationRequestPayload(BaseModel):
     explain_scores: bool = False  # SC-67
 
 
+class ScoreBreakdown(BaseModel):
+    """Score component breakdown returned when explain_scores=True."""
+
+    merchant_score: float
+    quantity_score: float
+    espresso_score: float
+    deal_score: float
+    freshness_score: float
+    history_score: float
+    promo_bonus: float
+    brew_avg_rating: Optional[float] = None
+    brew_penalty: float
+    total: float
+    weights: dict[str, float]
+
+
 class RecommendationCandidateOut(BaseModel):
     merchant_name: str
     product_name: str
@@ -44,7 +60,7 @@ class RecommendationCandidateOut(BaseModel):
     discounted_landed_price_cents: Optional[int]
     score: float
     pros: list[str]
-    score_breakdown: Optional[dict] = None  # SC-67: populated when explain_scores=True
+    score_breakdown: Optional[ScoreBreakdown] = None  # SC-67: populated when explain_scores=True
 
 
 class FilteredCandidateOut(BaseModel):  # SC-67

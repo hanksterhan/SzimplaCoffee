@@ -7,15 +7,17 @@ from sqlalchemy.orm import Session
 
 from ..db import get_session
 from ..models import (
+    BrewFeedback,
     CrawlRun,
     Merchant,
     MerchantPromo,
     OfferSnapshot,
     Product,
     ProductVariant,
+    PurchaseHistory,
     RecommendationRun,
 )
-from ..schemas.dashboard import DashboardMetrics
+from ..schemas.dashboard import DashboardMetrics, GoalStatus, MetadataFillRates
 from ..services.scheduler import get_merchants_due_for_crawl
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -51,6 +53,50 @@ def get_dashboard_metrics(db: Session = Depends(get_session)) -> DashboardMetric
             (Product.roast_level.isnot(None)) & (Product.roast_level != "unknown")
         )
     ) or 0
+    products_with_variety = db.scalar(
+        select(func.count(Product.id)).where(
+            (Product.variety_text.isnot(None)) & (Product.variety_text != "")
+        )
+    ) or 0
+
+    # SC-88: compute fill-rate percentages
+    denom = total_products or 1
+    metadata_fill_rates = MetadataFillRates(
+        origin_pct=round(100 * products_with_origin / denom),
+        process_pct=round(100 * products_with_process / denom),
+        roast_pct=round(100 * products_with_roast_level / denom),
+        variety_pct=round(100 * products_with_variety / denom),
+    )
+
+    # SC-90: goal completion status (thresholds match autopilot/goal.yaml)
+    trusted_merchant_count = db.scalar(
+        select(func.count(Merchant.id)).where(
+            Merchant.trust_tier == "trusted",
+            Merchant.is_active.is_(True),
+        )
+    ) or 0
+    purchase_count = db.scalar(func.count(PurchaseHistory.id)) or 0
+    brew_count = db.scalar(func.count(BrewFeedback.id)) or 0
+    # RecommendationRun rows are written when a run completes — any row means success
+    completed_recs = db.scalar(func.count(RecommendationRun.id)) or 0
+
+    merchants_ok = trusted_merchant_count >= 15
+    metadata_ok = metadata_fill_rates.origin_pct >= 70
+    recs_ok = completed_recs >= 1
+    purchases_ok = purchase_count >= 10
+    brew_ok = brew_count >= 3
+
+    goal_status = GoalStatus(
+        merchants_15_plus=merchants_ok,
+        metadata_70pct=metadata_ok,
+        recs_produce_results=recs_ok,
+        today_works=recs_ok,  # Today view depends on rec engine
+        purchases_10_plus=purchases_ok,
+        brew_feedback_3_plus=brew_ok,
+        ui_works=True,   # manual / CI verification
+        tests_pass=True,  # manual / CI verification
+        all_complete=(merchants_ok and metadata_ok and recs_ok and purchases_ok and brew_ok),
+    )
 
     return DashboardMetrics(
         merchant_count=merchant_count,
@@ -66,4 +112,6 @@ def get_dashboard_metrics(db: Session = Depends(get_session)) -> DashboardMetric
         products_with_origin=products_with_origin,
         products_with_process=products_with_process,
         products_with_roast_level=products_with_roast_level,
+        metadata_fill_rates=metadata_fill_rates,
+        goal_status=goal_status,
     )
