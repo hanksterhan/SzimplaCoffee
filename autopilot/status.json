@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": "2026-03-18T18:41:00Z",
-  "last_delivered_task": "SC-85",
-  "completed_since_reflect": 3,
+  "last_delivered_task": "SC-87",
+  "completed_since_reflect": 0,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-19T03:00:00Z",
+  "last_run_at": "2026-03-19T04:19:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-85 closed: origin fill rate 63% (561/891 products) accepted by user. Pending approval resolved.",
-  "next_task_hint": "SC-86"
+  "last_run_summary": "SC-87 done: variety fill 26%→52% (18 new patterns + country defaults). 221 tests pass. Reflection #4: 6/8 goal criteria confirmed met. 2 require human UI verification (Today view, UI interactions). Brainstorm packet due refresh.",
+  "next_task_hint": "human-verify-ui"
 }
