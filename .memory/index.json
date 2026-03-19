@@ -1,6 +1,14 @@
 {
   "entries": [
     {
+      "id": "SC-88-metadata-fill-card",
+      "path": ".memory/sprint-02/SC-88-metadata-fill-card.md",
+      "ticket": "SC-88",
+      "sprint": "sprint-02",
+      "date": "2026-03-19",
+      "summary": "Updated MetadataFillCard to use metadata_fill_rates API field; added variety_pct, color coding, avg fill %. Frontend build clean, 244 tests pass."
+    },
+    {
       "id": "SC-90-goal-status-dashboard",
       "path": ".memory/sprint-02/SC-90-goal-status-dashboard.md",
       "ticket": "SC-90",

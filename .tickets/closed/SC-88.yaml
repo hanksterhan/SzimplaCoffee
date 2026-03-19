@@ -2,10 +2,10 @@ id: SC-88
 title: "Add metadata fill-rate dashboard card with per-field breakdown"
 type: feature
 priority: p2
-status: ready
+status: done
 owner: h6nk-bot
 created_at: "2026-03-18T20:17:00Z"
-updated_at: "2026-03-18T20:17:00Z"
+updated_at: "2026-03-19T05:30:00Z"
 labels: ["dashboard", "metadata", "frontend", "backend"]
 
 problem: "The dashboard shows summary metrics but has no visibility into coffee metadata quality. Developers and users have no way to see origin/process/roast/variety fill rates in the UI without querying the DB directly."

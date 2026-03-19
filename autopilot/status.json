@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": "2026-03-18T18:41:00Z",
-  "last_delivered_task": "SC-90",
-  "completed_since_reflect": 2,
+  "last_delivered_task": "SC-88",
+  "completed_since_reflect": 3,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-19T05:10:00Z",
+  "last_run_at": "2026-03-19T05:30:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-90 done: goal_status + metadata_fill_rates in dashboard API, ScoreBreakdown typed, 244 tests pass, frontend build clean.",
-  "next_task_hint": "SC-88 (MetadataFillCard frontend component — only open ticket)"
+  "last_run_summary": "SC-88 done: MetadataFillCard updated to use metadata_fill_rates API field; variety_pct + color coding added; 244 tests pass, frontend build clean.",
+  "next_task_hint": "No open tickets remain. Next run should trigger brainstorm refresh + backlog refill."
 }
