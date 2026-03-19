@@ -2,7 +2,7 @@ id: SC-90
 title: "Add goal-completion status check to dashboard API"
 type: feature
 priority: p2
-status: ready
+status: done
 owner: h6nk-bot
 created_at: "2026-03-18T20:17:00Z"
 updated_at: "2026-03-18T20:17:00Z"
@@ -66,14 +66,16 @@ slices:
     notes: "Keep criteria evaluation simple: COUNT queries. Do not import autopilot YAML at runtime — hardcode the thresholds (15 merchants, 70%, 10 purchases, 3 feedback sessions)."
 
 delivery:
-  branch: ""
-  commits: []
+  branch: "sc-90-goal-status-dashboard"
+  commits: ["17adec0"]
   pr_url: ""
-  started_at: ""
-  completed_at: ""
+  started_at: "2026-03-19T04:45:00Z"
+  completed_at: "2026-03-19T05:10:00Z"
   verification:
-    required_passed: false
-    commands_run: []
+    required_passed: true
+    commands_run:
+      - "cd backend && .venv/bin/pytest tests/ -q (244 passed)"
+      - "cd frontend && npm run gen:api && npm run build (clean)"
     evidence_refs: []
 
 notes:

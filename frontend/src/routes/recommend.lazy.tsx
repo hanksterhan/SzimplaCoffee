@@ -56,13 +56,14 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
 }
 
 function ScoreBreakdownPanel({ breakdown }: { breakdown: ScoreBreakdown }) {
+  const weights = breakdown.weights as Record<string, number>;
   const rows: [string, number, number | undefined][] = [
-    ["Merchant quality", breakdown.merchant_score, breakdown.weights.merchant],
-    ["Quantity fit", breakdown.quantity_score, breakdown.weights.quantity],
-    ["Espresso match", breakdown.espresso_score, breakdown.weights.espresso],
-    ["Deal value", breakdown.deal_score, breakdown.weights.deal],
-    ["Freshness", breakdown.freshness_score, breakdown.weights.freshness],
-    ["Purchase history", breakdown.history_score, breakdown.weights.history],
+    ["Merchant quality", breakdown.merchant_score, weights.merchant],
+    ["Quantity fit", breakdown.quantity_score, weights.quantity],
+    ["Espresso match", breakdown.espresso_score, weights.espresso],
+    ["Deal value", breakdown.deal_score, weights.deal],
+    ["Freshness", breakdown.freshness_score, weights.freshness],
+    ["Purchase history", breakdown.history_score, weights.history],
     ["Promo bonus", breakdown.promo_bonus, undefined],
   ];
 
