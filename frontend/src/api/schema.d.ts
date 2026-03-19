@@ -1463,6 +1463,12 @@ export interface components {
             is_espresso_recommended: boolean;
             /** Is Active */
             is_active: boolean;
+            /**
+             * Has Stock
+             * True when ≥1 variant is_available=True with a current offer
+             * @default false
+             */
+            has_stock: boolean;
             /** Latest Price Cents */
             latest_price_cents?: number | null;
             /** Latest Compare At Price Cents */
@@ -1561,6 +1567,12 @@ export interface components {
             is_espresso_recommended: boolean;
             /** Is Active */
             is_active: boolean;
+            /**
+             * Has Stock
+             * True when ≥1 variant is_available=True with a current offer
+             * @default false
+             */
+            has_stock: boolean;
             /** Latest Price Cents */
             latest_price_cents?: number | null;
             /** Latest Compare At Price Cents */

@@ -178,6 +178,7 @@ def _build_product_result(product: Product, merchant_name: str) -> ProductResult
         if _offer_is_on_sale(latest_offer):
             is_on_sale = True
 
+    summary.has_stock = has_stock  # propagate variant-level stock truth to summary field
     return ProductResultRow(
         summary=summary,
         has_stock=has_stock,
@@ -544,7 +545,13 @@ def get_product(product_id: int, db: Session = Depends(get_session)) -> ProductD
             v.latest_offer = max(v.offers, key=lambda o: o.observed_at)
         else:
             v.latest_offer = None
-    return ProductDetail.model_validate(p)
+    detail = ProductDetail.model_validate(p)
+    # Compute has_stock from variant-level availability truth (same logic as catalog)
+    detail.has_stock = any(
+        v.is_available and v.latest_offer is not None and v.latest_offer.is_available
+        for v in p.variants
+    )
+    return detail
 
 
 @router.get("/products/{product_id}/offers", response_model=list[OfferSnapshotSchema])
