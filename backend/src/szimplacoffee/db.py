@@ -52,3 +52,14 @@ def get_session() -> Iterator[Session]:
     finally:
         session.close()
 
+
+def ensure_schema() -> None:
+    from . import models  # noqa: F401
+    from .bootstrap import _apply_lightweight_migrations
+
+    Base.metadata.create_all(engine)
+    _apply_lightweight_migrations()
+
+
+ensure_schema()
+

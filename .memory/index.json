@@ -1,6 +1,22 @@
 {
   "entries": [
     {
+      "id": "SC-94-canonical-metadata-provenance",
+      "path": ".memory/sprint-02/SC-94-canonical-metadata-provenance.md",
+      "ticket": "SC-94",
+      "sprint": "sprint-02",
+      "date": "2026-03-19",
+      "summary": "Added field-level canonical metadata confidence/source storage, parser provenance output, canonical_metadata API exposure, and regression coverage; full backend suite stayed green."
+    },
+    {
+      "id": "SC-93-autopilot-startup-stability",
+      "path": ".memory/sprint-02/SC-93-autopilot-startup-stability.md",
+      "ticket": "SC-93",
+      "sprint": "sprint-02",
+      "date": "2026-03-19",
+      "summary": "Disabled invalid autopilot notification session_key after repeated No session found errors; documented ByteRover rate-limit noise as non-fatal startup evidence."
+    },
+    {
       "id": "SC-88-metadata-fill-card",
       "path": ".memory/sprint-02/SC-88-metadata-fill-card.md",
       "ticket": "SC-88",

@@ -20,12 +20,18 @@ from bs4 import BeautifulSoup
 class ParsedCoffeeMetadata:
     origin_text: str | None
     origin_country: str | None
+    origin_country_confidence: float
+    origin_country_source: str
     origin_region: str | None
     process_text: str | None
     process_family: str
+    process_family_confidence: float
+    process_family_source: str
     variety_text: str | None
     roast_cues: str | None
     roast_level: str
+    roast_level_confidence: float
+    roast_level_source: str
     tasting_notes_text: str | None
     metadata_source: str
     is_single_origin: bool
@@ -578,6 +584,12 @@ def _compute_confidence(
 # Public API
 # ---------------------------------------------------------------------------
 
+def _field_confidence(value: str | None, *, from_name_only: bool) -> float:
+    if not value or value == "unknown":
+        return 0.0
+    return 0.7 if from_name_only else 0.9
+
+
 def parse_coffee_metadata(name: str, description: str) -> ParsedCoffeeMetadata:
     """Extract structured coffee metadata from product name + description.
 
@@ -657,12 +669,24 @@ def parse_coffee_metadata(name: str, description: str) -> ParsedCoffeeMetadata:
     return ParsedCoffeeMetadata(
         origin_text=origin,
         origin_country=origin_country,
+        origin_country_confidence=_field_confidence(origin_country, from_name_only=from_name_only),
+        origin_country_source="parser" if origin_country else "unknown",
         origin_region=origin_region,
         process_text=process,
         process_family=process_family,
+        process_family_confidence=_field_confidence(
+            None if process_family == "unknown" else process_family,
+            from_name_only=from_name_only,
+        ),
+        process_family_source="parser" if process_family != "unknown" else "unknown",
         variety_text=variety,
         roast_cues=roast_cues,
         roast_level=roast_level,
+        roast_level_confidence=_field_confidence(
+            None if roast_level == "unknown" else roast_level,
+            from_name_only=from_name_only,
+        ),
+        roast_level_source="parser" if roast_level != "unknown" else "unknown",
         tasting_notes_text=tasting_notes,
         metadata_source="parser",
         is_single_origin=is_single_origin,

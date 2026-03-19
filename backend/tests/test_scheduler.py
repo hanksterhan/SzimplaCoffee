@@ -11,6 +11,7 @@ from sqlalchemy.pool import StaticPool
 from szimplacoffee.db import Base
 from szimplacoffee.models import CrawlRun, Merchant
 from szimplacoffee.services.scheduler import (
+    DEFAULT_SCHEDULED_CRAWL_BATCH_SIZE,
     TIER_INTERVALS,
     get_crawl_schedule,
     get_merchants_due_for_crawl,
@@ -123,6 +124,21 @@ def test_failed_run_does_not_count_as_last_successful_crawl(db_session):
     assert any(d.id == m.id for d in due)
 
 
+def test_due_merchants_can_be_limited_to_a_small_serialized_batch(db_session):
+    first = _make_merchant(db_session, name="FirstDue", tier="B")
+    second = _make_merchant(db_session, name="SecondDue", tier="B")
+    _make_crawl_run(db_session, first, age_hours=50.0)
+    _make_crawl_run(db_session, second, age_hours=25.0)
+    db_session.commit()
+
+    due = get_merchants_due_for_crawl(
+        db_session,
+        limit=DEFAULT_SCHEDULED_CRAWL_BATCH_SIZE,
+    )
+
+    assert [merchant.id for merchant in due] == [first.id]
+
+
 # ---------------------------------------------------------------------------
 # get_crawl_schedule
 # ---------------------------------------------------------------------------
@@ -164,3 +180,22 @@ def test_get_crawl_schedule_never_crawled(db_session):
     row = next(r for r in schedule if r["merchant_id"] == m.id)
     assert row["status"] == "never_crawled"
     assert row["is_due"] is True
+
+
+def test_get_crawl_schedule_exposes_recent_reliability_signals(db_session):
+    m = _make_merchant(db_session, name="SignalRoast", tier="B")
+    completed = _make_crawl_run(db_session, m, status="completed", age_hours=30.0)
+    completed.crawl_quality_score = 0.82
+    failed = _make_crawl_run(db_session, m, status="failed", age_hours=2.0)
+    failed.error_summary = "timeout"
+    db_session.commit()
+
+    schedule = get_crawl_schedule(db_session)
+    row = next(r for r in schedule if r["merchant_id"] == m.id)
+
+    assert row["recent_run_count"] == 2
+    assert row["recent_failure_count"] == 1
+    assert row["recent_success_rate"] == 0.5
+    assert row["last_completed_crawl_quality_score"] == 0.82
+    assert row["latest_run_status"] == "failed"
+    assert row["latest_error_summary"] == "timeout"

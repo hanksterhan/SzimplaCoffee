@@ -59,6 +59,11 @@ _OVERRIDABLE_METADATA_FIELDS = (
     "is_single_origin",
     "is_espresso_recommended",
 )
+_NORMALIZED_METADATA_FIELD_MAP = {
+    "origin_country": ("origin_country_confidence", "origin_country_source"),
+    "process_family": ("process_family_confidence", "process_family_source"),
+    "roast_level": ("roast_level_confidence", "roast_level_source"),
+}
 
 
 @dataclass
@@ -419,30 +424,47 @@ def _enrich_payload_with_parser(payload: dict, name: str, description: str) -> d
         payload["roast_cues"] = parsed.roast_cues
     if not payload.get("tasting_notes_text") and parsed.tasting_notes_text:
         payload["tasting_notes_text"] = parsed.tasting_notes_text
+
+    for field_name in _NORMALIZED_METADATA_FIELD_MAP:
+        value = payload.get(field_name)
+        if value not in (None, "", "unknown"):
+            _set_normalized_metadata(payload, field_name, value, 0.85, "structured")
+
     if not payload.get("origin_country") and parsed.origin_country:
-        payload["origin_country"] = parsed.origin_country
+        _set_normalized_metadata(
+            payload,
+            "origin_country",
+            parsed.origin_country,
+            parsed.origin_country_confidence,
+            parsed.origin_country_source,
+        )
     if not payload.get("origin_region") and parsed.origin_region:
         payload["origin_region"] = parsed.origin_region
     if payload.get("process_family") in (None, "", "unknown") and parsed.process_family != "unknown":
-        payload["process_family"] = parsed.process_family
+        _set_normalized_metadata(
+            payload,
+            "process_family",
+            parsed.process_family,
+            parsed.process_family_confidence,
+            parsed.process_family_source,
+        )
     if payload.get("roast_level") in (None, "", "unknown") and parsed.roast_level != "unknown":
-        payload["roast_level"] = parsed.roast_level
+        _set_normalized_metadata(
+            payload,
+            "roast_level",
+            parsed.roast_level,
+            parsed.roast_level_confidence,
+            parsed.roast_level_source,
+        )
     # Flags: parser wins if crawler left defaults
     if not payload.get("is_single_origin"):
         payload["is_single_origin"] = parsed.is_single_origin
     if not payload.get("is_espresso_recommended"):
         payload["is_espresso_recommended"] = parsed.is_espresso_recommended
-    normalized_found = any(
-        payload.get(field)
-        for field in ("origin_country", "origin_region", "process_family", "roast_level")
-    )
-    if normalized_found:
-        source = "structured" if structured_seeded else parsed.metadata_source
-        payload["metadata_source"] = payload.get("metadata_source") or source
-        payload["metadata_confidence"] = max(
-            float(payload.get("metadata_confidence") or 0.0),
-            0.85 if source == "structured" else parsed.confidence,
-        )
+
+    _refresh_aggregate_metadata(payload)
+    if structured_seeded and payload.get("metadata_source") == "unknown":
+        payload["metadata_source"] = "structured"
     return payload
 
 
@@ -460,6 +482,34 @@ def _metadata_haystack(name: str, description: str, payload: dict) -> str:
         ]
         if part
     )
+
+
+def _set_normalized_metadata(payload: dict, field_name: str, value, confidence: float, source: str) -> None:
+    payload[field_name] = value
+    mapping = _NORMALIZED_METADATA_FIELD_MAP.get(field_name)
+    if mapping:
+        confidence_key, source_key = mapping
+        payload[confidence_key] = float(confidence or 0.0)
+        payload[source_key] = source or "unknown"
+
+
+def _refresh_aggregate_metadata(payload: dict) -> None:
+    best_field = None
+    best_confidence = 0.0
+    previous_confidence = float(payload.get("metadata_confidence") or 0.0)
+    for field_name, (confidence_key, source_key) in _NORMALIZED_METADATA_FIELD_MAP.items():
+        value = payload.get(field_name)
+        if value in (None, "", "unknown"):
+            continue
+        confidence = float(payload.get(confidence_key) or 0.0)
+        if confidence >= best_confidence:
+            best_confidence = confidence
+            best_field = field_name
+    payload["metadata_confidence"] = max(previous_confidence, best_confidence)
+    if best_field and best_confidence >= previous_confidence:
+        payload["metadata_source"] = payload.get(_NORMALIZED_METADATA_FIELD_MAP[best_field][1], "unknown")
+    else:
+        payload["metadata_source"] = payload.get("metadata_source") or "unknown"
 
 
 def _coerce_override_value(field_name: str, value: str) -> str | bool | None:
@@ -481,9 +531,13 @@ def _apply_metadata_rule(payload: dict, field_name: str, value: str, confidence:
     if coerced in (None, "", "unknown"):
         return False
 
-    payload[field_name] = coerced
-    payload["metadata_source"] = "override"
-    payload["metadata_confidence"] = max(float(payload.get("metadata_confidence") or 0.0), confidence)
+    if field_name in _NORMALIZED_METADATA_FIELD_MAP:
+        _set_normalized_metadata(payload, field_name, coerced, confidence, "override")
+        _refresh_aggregate_metadata(payload)
+    else:
+        payload[field_name] = coerced
+        payload["metadata_source"] = "override"
+        payload["metadata_confidence"] = max(float(payload.get("metadata_confidence") or 0.0), confidence)
     return True
 
 
@@ -532,12 +586,24 @@ def _apply_metadata_overrides(
             value = getattr(override, field_name)
             if value is None or value == "" or value == "unknown":
                 continue
-            payload[field_name] = value
+            if field_name in _NORMALIZED_METADATA_FIELD_MAP:
+                field_confidence = getattr(override, f"{field_name}_confidence", None)
+                field_source = getattr(override, f"{field_name}_source", None)
+                _set_normalized_metadata(
+                    payload,
+                    field_name,
+                    value,
+                    float(field_confidence if field_confidence is not None else override.metadata_confidence or 1.0),
+                    field_source or override.metadata_source or "override",
+                )
+            else:
+                payload[field_name] = value
         payload["metadata_source"] = override.metadata_source or "override"
         payload["metadata_confidence"] = max(
             float(payload.get("metadata_confidence") or 0.0),
             float(override.metadata_confidence or 1.0),
         )
+        _refresh_aggregate_metadata(payload)
 
     return payload
 
@@ -563,12 +629,18 @@ def _upsert_product(session: Session, merchant: Merchant, external_product_id: s
     product.image_url = payload.get("image_url", "")
     product.origin_text = payload.get("origin_text", "")
     product.origin_country = payload.get("origin_country")
+    product.origin_country_confidence = float(payload.get("origin_country_confidence", 0.0) or 0.0)
+    product.origin_country_source = payload.get("origin_country_source", "unknown")
     product.origin_region = payload.get("origin_region")
     product.process_text = payload.get("process_text", "")
     product.process_family = payload.get("process_family", "unknown")
+    product.process_family_confidence = float(payload.get("process_family_confidence", 0.0) or 0.0)
+    product.process_family_source = payload.get("process_family_source", "unknown")
     product.variety_text = payload.get("variety_text", "")
     product.roast_cues = payload.get("roast_cues", "")
     product.roast_level = payload.get("roast_level", "unknown")
+    product.roast_level_confidence = float(payload.get("roast_level_confidence", 0.0) or 0.0)
+    product.roast_level_source = payload.get("roast_level_source", "unknown")
     product.tasting_notes_text = payload.get("tasting_notes_text", "")
     product.metadata_confidence = float(payload.get("metadata_confidence", 0.0) or 0.0)
     product.metadata_source = payload.get("metadata_source", "unknown")

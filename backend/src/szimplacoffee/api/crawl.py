@@ -8,7 +8,11 @@ from sqlalchemy.orm import Session
 
 from ..db import get_session, session_scope
 from ..models import CrawlRun, Merchant
-from ..services.scheduler import get_crawl_schedule, get_merchants_due_for_crawl
+from ..services.scheduler import (
+    DEFAULT_SCHEDULED_CRAWL_BATCH_SIZE,
+    get_crawl_schedule,
+    get_merchants_due_for_crawl,
+)
 from ..services.crawlers import crawl_merchant
 
 router = APIRouter(prefix="/crawl", tags=["crawl"])
@@ -23,6 +27,12 @@ class CrawlScheduleItem(BaseModel):
     next_due_at: str | None
     is_due: bool
     status: str
+    recent_run_count: int
+    recent_success_rate: float | None
+    recent_failure_count: int
+    last_completed_crawl_quality_score: float | None
+    latest_run_status: str | None
+    latest_error_summary: str | None
 
 
 class RunDueResponse(BaseModel):
@@ -89,7 +99,10 @@ def run_due_merchants(
     db: Session = Depends(get_session),
 ) -> RunDueResponse:
     """Trigger crawls for all merchants that are due based on their tier schedule."""
-    due_merchants = get_merchants_due_for_crawl(db)
+    due_merchants = get_merchants_due_for_crawl(
+        db,
+        limit=DEFAULT_SCHEDULED_CRAWL_BATCH_SIZE,
+    )
     triggered_ids: list[int] = []
 
     for merchant in due_merchants:

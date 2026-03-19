@@ -11,6 +11,18 @@ MetadataSource = Literal["unknown", "structured", "parser", "agentic", "override
 ProductSort = Literal["featured", "merchant", "price_low", "price_high", "price_per_oz_low", "price_per_oz_high", "discount"]
 
 
+class CanonicalMetadataField(BaseModel):
+    value: str | None = None
+    confidence: float = 0.0
+    source: MetadataSource = "unknown"
+
+
+class CanonicalMetadataSchema(BaseModel):
+    origin_country: CanonicalMetadataField
+    process_family: CanonicalMetadataField
+    roast_level: CanonicalMetadataField
+
+
 class OfferSnapshotSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -53,11 +65,17 @@ class ProductSummary(BaseModel):
     image_url: str
     origin_text: str   # mostly empty currently
     origin_country: Optional[str] = None
+    origin_country_confidence: float = 0.0
+    origin_country_source: MetadataSource = "unknown"
     origin_region: Optional[str] = None
     process_text: str  # mostly empty currently
     process_family: ProcessFamily = "unknown"
+    process_family_confidence: float = 0.0
+    process_family_source: MetadataSource = "unknown"
     tasting_notes_text: str  # mostly empty currently
     roast_level: RoastLevel = "unknown"
+    roast_level_confidence: float = 0.0
+    roast_level_source: MetadataSource = "unknown"
     metadata_confidence: float = 0.0
     metadata_source: MetadataSource = "unknown"
     product_category: str
@@ -71,6 +89,27 @@ class ProductSummary(BaseModel):
     primary_is_whole_bean: bool = False
     first_seen_at: datetime
     last_seen_at: datetime
+
+    @computed_field
+    @property
+    def canonical_metadata(self) -> CanonicalMetadataSchema:
+        return CanonicalMetadataSchema(
+            origin_country=CanonicalMetadataField(
+                value=self.origin_country,
+                confidence=self.origin_country_confidence,
+                source=self.origin_country_source,
+            ),
+            process_family=CanonicalMetadataField(
+                value=None if self.process_family == "unknown" else self.process_family,
+                confidence=self.process_family_confidence,
+                source=self.process_family_source,
+            ),
+            roast_level=CanonicalMetadataField(
+                value=None if self.roast_level == "unknown" else self.roast_level,
+                confidence=self.roast_level_confidence,
+                source=self.roast_level_source,
+            ),
+        )
 
 
 class ProductDetail(ProductSummary):

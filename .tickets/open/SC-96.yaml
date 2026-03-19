@@ -1,0 +1,97 @@
+id: SC-96
+title: "Make catalog filtering and search semantics trustworthy with normalized metadata"
+type: feature
+priority: p2
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-19T18:46:05Z"
+updated_at: "2026-03-19T18:46:05Z"
+labels: ["catalog", "search", "metadata", "backend", "frontend"]
+
+problem: "Even with richer data, the catalog will remain misleading if filter/search/sort semantics are not tied to normalized metadata and truthful availability semantics. The next trust layer after metadata/crawl improvements is making the catalog behave in a corpus-trustworthy way."
+desired_outcome: "Catalog filtering/search/sorting uses normalized metadata and truthful availability semantics so origin/roast queries and stock/search messaging are aligned with backend truth."
+
+scope_in:
+  - "Audit current product search/filter/sort semantics against normalized metadata and availability truth"
+  - "Move or tighten backend query semantics where current behavior is misleading"
+  - "Align frontend labels/placeholders with what the backend actually supports"
+  - "Use normalized metadata from SC-94 for trustworthy origin/roast filtering"
+scope_out:
+  - "Historical deal ranking beyond minimal truth fixes"
+  - "Large UI redesign unrelated to semantics/trust"
+  - "Expanding merchant count"
+
+dependencies:
+  blockers: ["SC-94", "SC-95"]
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Catalog filtering/search semantics align with normalized metadata truth"
+    verify: "Run targeted backend/API verification for origin/roast filtering using normalized fields"
+    status: pending
+  - id: AC-2
+    text: "Availability/stock semantics shown in the UI reflect backend truth rather than misleading presence flags"
+    verify: "Run targeted UI/build verification against the updated data contract"
+    status: pending
+  - id: AC-3
+    text: "Any touched frontend/build contracts remain green"
+    verify: "cd frontend && npm run build"
+    status: pending
+  - id: AC-4
+    text: "Backend tests for touched search/filter endpoints remain green"
+    verify: "cd backend && .venv/bin/pytest tests/ -q"
+    status: pending
+
+verification_required:
+  - "cd backend && .venv/bin/pytest tests/ -q"
+  - "cd frontend && npm run build"
+
+context_refs:
+  - ".plans/SC-96-execution-plan.md"
+  - "autopilot/goal.yaml"
+
+slices:
+  - id: S1
+    title: "Audit and fix backend filter/search truth semantics"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/api/"
+      - "backend/src/szimplacoffee/services/"
+      - "backend/tests/"
+    files_read_only: []
+    checks:
+      - "Origin/roast filtering uses normalized truth"
+    evidence: []
+    notes: "Focus on correctness before feature breadth."
+  - id: S2
+    title: "Align frontend messaging and availability semantics"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "frontend/src/routes/"
+      - "frontend/src/components/"
+      - "frontend/src/api/schema.d.ts"
+    files_read_only: []
+    checks:
+      - "UI labels match backend truth"
+      - "Build passes"
+    evidence: []
+    notes: "Keep UX changes narrow and trust-focused."
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "This ticket should wait until normalized metadata and crawl trust foundations exist."

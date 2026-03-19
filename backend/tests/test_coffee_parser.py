@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from szimplacoffee.db import Base
 from szimplacoffee.models import Merchant, MerchantFieldPattern, ProductMetadataOverride
-from szimplacoffee.services.crawlers import _apply_metadata_overrides, _apply_metadata_rule, _is_coffee_product
+from szimplacoffee.services.crawlers import _apply_metadata_overrides, _apply_metadata_rule, _enrich_payload_with_parser, _is_coffee_product
 from szimplacoffee.services.coffee_parser import ParsedCoffeeMetadata, parse_coffee_metadata
 
 
@@ -326,8 +326,44 @@ def test_apply_metadata_rule_sets_override_provenance() -> None:
 
     assert applied is True
     assert payload["roast_level"] == "light-medium"
+    assert payload["roast_level_source"] == "override"
+    assert payload["roast_level_confidence"] == 0.97
     assert payload["metadata_source"] == "override"
     assert payload["metadata_confidence"] == 0.97
+
+
+def test_parser_emits_field_level_confidence_and_provenance() -> None:
+    parsed = parse_coffee_metadata(
+        "Ethiopia Yirgacheffe Washed",
+        "Origin: Yirgacheffe, Ethiopia\nProcess: Washed\nRoast: Light Roast",
+    )
+
+    assert parsed.origin_country == "Ethiopia"
+    assert parsed.origin_country_source == "parser"
+    assert parsed.origin_country_confidence == pytest.approx(0.9)
+    assert parsed.process_family == "washed"
+    assert parsed.process_family_source == "parser"
+    assert parsed.process_family_confidence == pytest.approx(0.9)
+    assert parsed.roast_level == "light"
+    assert parsed.roast_level_source == "parser"
+    assert parsed.roast_level_confidence == pytest.approx(0.9)
+
+
+def test_enrich_payload_with_parser_sets_field_level_semantics() -> None:
+    payload = _enrich_payload_with_parser({}, "Kenya Nyeri", "Washed coffee with a light roast.")
+
+    assert payload["origin_country"] == "Kenya"
+    assert payload["origin_country_source"] == "parser"
+    assert payload["origin_country_confidence"] > 0
+    assert payload["process_family"] == "washed"
+    assert payload["process_family_source"] == "parser"
+    assert payload["roast_level"] == "light"
+    assert payload["roast_level_source"] == "parser"
+    assert payload["metadata_confidence"] == max(
+        payload["origin_country_confidence"],
+        payload["process_family_confidence"],
+        payload["roast_level_confidence"],
+    )
 
 
 def test_apply_metadata_overrides_supports_patterns_and_product_corrections() -> None:
@@ -358,8 +394,12 @@ def test_apply_metadata_overrides_supports_patterns_and_product_corrections() ->
                 merchant_id=merchant.id,
                 external_product_id="sku-1",
                 origin_country="Panama",
+                origin_country_confidence=0.99,
+                origin_country_source="override",
                 origin_region="Chiriquí",
                 process_family="anaerobic",
+                process_family_confidence=0.98,
+                process_family_source="override",
                 metadata_confidence=1.0,
             )
         )
@@ -382,9 +422,15 @@ def test_apply_metadata_overrides_supports_patterns_and_product_corrections() ->
         )
 
         assert updated["roast_level"] == "light-medium"
+        assert updated["roast_level_source"] == "override"
+        assert updated["roast_level_confidence"] == 0.96
         assert updated["origin_country"] == "Panama"
+        assert updated["origin_country_source"] == "override"
+        assert updated["origin_country_confidence"] == 0.99
         assert updated["origin_region"] == "Chiriquí"
         assert updated["process_family"] == "anaerobic"
+        assert updated["process_family_source"] == "override"
+        assert updated["process_family_confidence"] == 0.98
         assert updated["metadata_source"] == "override"
         assert updated["metadata_confidence"] == 1.0
 
