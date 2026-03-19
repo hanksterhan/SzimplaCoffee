@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-19T21:11:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": "2026-03-19T21:54:00Z",
-  "last_delivered_task": "SC-96",
-  "completed_since_reflect": 4,
+  "last_delivered_task": "SC-97",
+  "completed_since_reflect": 5,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-19T21:54:00Z",
-  "last_run_result": "backlog_refilled",
-  "last_run_summary": "Backlog refilled with 4 ready tickets: SC-97 (parser pattern expansion), SC-98 (deal baselines in catalog API), SC-99 (quality sort mode), SC-100 (fill-rate dashboard widget). Execution plans created for all 4.",
-  "next_task_hint": "SC-97 is the best first task: purely backend parser + tests, no frontend build needed, unblocks SC-99/SC-100 indirectly. SC-100 is the smallest/safest if speed is priority (frontend-only, one component)."
+  "last_run_at": "2026-03-19T23:42:00Z",
+  "last_run_result": "delivered",
+  "last_run_summary": "SC-97 done: expanded roast/process parser patterns (21 new tests), fixed CLI circular import in db.py/bootstrap.py, backfill run complete. 271 tests pass. Merged to stage.",
+  "next_task_hint": "SC-98 (deal baselines in catalog API) is next: p1, phase-3-unlocker, backend+frontend but well-scoped. SC-100 (fill-rate widget) is a safe frontend-only alternative."
 }
