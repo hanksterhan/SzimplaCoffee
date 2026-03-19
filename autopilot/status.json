@@ -2,13 +2,13 @@
   "goal_status": "active",
   "last_brainstorm_at": "2026-03-19T21:11:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
-  "last_refill_at": "2026-03-19T05:40:00Z",
+  "last_refill_at": "2026-03-19T21:54:00Z",
   "last_delivered_task": "SC-96",
   "completed_since_reflect": 4,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-19T21:45:00Z",
-  "last_run_result": "delivered",
-  "last_run_summary": "Delivered SC-96: catalog semantics alignment. has_stock (variant-level truth) replaces is_active for availability display in ProductCard and ProductQuickView. Normalized origin_country/roast_level/process_family now shown in product tags and metadata grid, suppressing 'unknown'. 249 backend tests pass, frontend build green.",
-  "next_task_hint": "Backlog is empty (0 ready tickets < min_ready_tasks=2). Next run should trigger backlog refill using Phase 3 candidates from brainstorm-current.md: SC-97 (unknown fill rate improvement), SC-98 (historical deal baselines), SC-99 (server-side sort), etc."
+  "last_run_at": "2026-03-19T21:54:00Z",
+  "last_run_result": "backlog_refilled",
+  "last_run_summary": "Backlog refilled with 4 ready tickets: SC-97 (parser pattern expansion), SC-98 (deal baselines in catalog API), SC-99 (quality sort mode), SC-100 (fill-rate dashboard widget). Execution plans created for all 4.",
+  "next_task_hint": "SC-97 is the best first task: purely backend parser + tests, no frontend build needed, unblocks SC-99/SC-100 indirectly. SC-100 is the smallest/safest if speed is priority (frontend-only, one component)."
 }
