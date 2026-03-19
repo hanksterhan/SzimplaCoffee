@@ -1,3 +1,4 @@
+import type { components } from "@/api/schema";
 import type { DashboardMetrics } from "@/hooks/use-dashboard";
 
 interface MetadataFillRateProps {
@@ -5,9 +6,21 @@ interface MetadataFillRateProps {
   loading: boolean;
 }
 
-function pct(numerator: number, denominator: number): string {
-  if (denominator === 0) return "0%";
-  return `${Math.round((numerator / denominator) * 100)}%`;
+type MetadataFillRates = components["schemas"]["MetadataFillRates"];
+
+function colorClass(pct: number): string {
+  if (pct >= 70) return "text-green-600";
+  if (pct >= 50) return "text-yellow-600";
+  return "text-red-500";
+}
+
+function PctBadge({ label, pct }: { label: string; pct: number }) {
+  return (
+    <span className="text-sm">
+      {label}:{" "}
+      <span className={`font-semibold ${colorClass(pct)}`}>{pct}%</span>
+    </span>
+  );
 }
 
 export function MetadataFillRate({ stats, loading }: MetadataFillRateProps) {
@@ -20,23 +33,29 @@ export function MetadataFillRate({ stats, loading }: MetadataFillRateProps) {
   }
 
   const total = stats.total_products ?? 0;
-  const originPct = pct(stats.products_with_origin ?? 0, total);
-  const processPct = pct(stats.products_with_process ?? 0, total);
-  const roastPct = pct(stats.products_with_roast_level ?? 0, total);
+  const fills: MetadataFillRates | undefined = stats.metadata_fill_rates;
+
+  // Fallback: compute from raw counts if metadata_fill_rates not present
+  const originPct = fills?.origin_pct ?? (total > 0 ? Math.round(100 * (stats.products_with_origin ?? 0) / total) : 0);
+  const processPct = fills?.process_pct ?? (total > 0 ? Math.round(100 * (stats.products_with_process ?? 0) / total) : 0);
+  const roastPct = fills?.roast_pct ?? (total > 0 ? Math.round(100 * (stats.products_with_roast_level ?? 0) / total) : 0);
+  const varietyPct = fills?.variety_pct ?? 0;
+
+  const avgPct = Math.round((originPct + processPct + roastPct + varietyPct) / 4);
 
   return (
-    <div className="rounded-lg border bg-card px-4 py-3">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-muted-foreground">
-          📊 Metadata fill rate ({total} products)
-        </span>
-        <span className="text-sm text-muted-foreground">
-          Origin: <span className="font-semibold text-foreground">{originPct}</span>
-          {" | "}
-          Process: <span className="font-semibold text-foreground">{processPct}</span>
-          {" | "}
-          Roast: <span className="font-semibold text-foreground">{roastPct}</span>
-        </span>
+    <div className="rounded-lg border bg-card px-4 py-4">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <p className="text-sm font-semibold text-foreground">📊 Coffee Metadata Quality</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{total} products · avg {avgPct}% filled</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <PctBadge label="Origin" pct={originPct} />
+          <PctBadge label="Process" pct={processPct} />
+          <PctBadge label="Roast" pct={roastPct} />
+          <PctBadge label="Variety" pct={varietyPct} />
+        </div>
       </div>
     </div>
   );
