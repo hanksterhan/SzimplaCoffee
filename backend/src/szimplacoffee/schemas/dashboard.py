@@ -9,6 +9,8 @@ class MetadataFillRates(BaseModel):
     process_pct: int
     roast_pct: int
     variety_pct: int
+    # SC-92: coffee-only denominator (products with roast_level != 'unknown')
+    coffee_product_count: int = 0
 
 
 class GoalStatus(BaseModel):
@@ -42,7 +44,7 @@ class DashboardMetrics(BaseModel):
     products_with_roast_level: int = 0
     # SC-88: structured fill-rate percentages
     metadata_fill_rates: MetadataFillRates = MetadataFillRates(
-        origin_pct=0, process_pct=0, roast_pct=0, variety_pct=0
+        origin_pct=0, process_pct=0, roast_pct=0, variety_pct=0, coffee_product_count=0
     )
     # SC-90: goal completion status
     goal_status: GoalStatus = GoalStatus(

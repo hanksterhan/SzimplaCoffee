@@ -2,13 +2,13 @@
   "goal_status": "active",
   "last_brainstorm_at": "2026-03-18T04:46:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
-  "last_refill_at": "2026-03-18T18:41:00Z",
-  "last_delivered_task": "SC-88",
-  "completed_since_reflect": 3,
+  "last_refill_at": "2026-03-19T05:40:00Z",
+  "last_delivered_task": "SC-92",
+  "completed_since_reflect": 4,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-19T05:30:00Z",
+  "last_run_at": "2026-03-19T06:05:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-88 done: MetadataFillCard updated to use metadata_fill_rates API field; variety_pct + color coding added; 244 tests pass, frontend build clean.",
-  "next_task_hint": "No open tickets remain. Next run should trigger brainstorm refresh + backlog refill."
+  "last_run_summary": "SC-92 done: dashboard origin fill now uses coffee-only denominator, metadata_70pct=true, 245 tests pass, frontend build clean.",
+  "next_task_hint": "Deliver SC-91 next to add Ritual Coffee Roasters as the 15th trusted merchant and flip merchants_15_plus to true."
 }

@@ -59,13 +59,23 @@ def get_dashboard_metrics(db: Session = Depends(get_session)) -> DashboardMetric
         )
     ) or 0
 
-    # SC-88: compute fill-rate percentages
+    # SC-88 / SC-92: compute fill-rate percentages
+    # origin_pct should reflect coffee products only; blends/merch/subscriptions
+    # often have no meaningful single-origin country and would distort the metric.
     denom = total_products or 1
+    coffee_product_count = db.scalar(
+        select(func.count(Product.id)).where(
+            Product.is_active.is_(True),
+            Product.roast_level != "unknown",
+        )
+    ) or 0
+    origin_denom = coffee_product_count or denom
     metadata_fill_rates = MetadataFillRates(
-        origin_pct=round(100 * products_with_origin / denom),
+        origin_pct=round(100 * products_with_origin / origin_denom),
         process_pct=round(100 * products_with_process / denom),
         roast_pct=round(100 * products_with_roast_level / denom),
         variety_pct=round(100 * products_with_variety / denom),
+        coffee_product_count=coffee_product_count,
     )
 
     # SC-90: goal completion status (thresholds match autopilot/goal.yaml)

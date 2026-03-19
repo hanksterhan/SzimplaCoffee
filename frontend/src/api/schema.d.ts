@@ -1051,7 +1051,8 @@ export interface components {
              *       "origin_pct": 0,
              *       "process_pct": 0,
              *       "roast_pct": 0,
-             *       "variety_pct": 0
+             *       "variety_pct": 0,
+             *       "coffee_product_count": 0
              *     }
              */
             metadata_fill_rates: components["schemas"]["MetadataFillRates"];
@@ -1361,6 +1362,11 @@ export interface components {
             roast_pct: number;
             /** Variety Pct */
             variety_pct: number;
+            /**
+             * Coffee Product Count
+             * @default 0
+             */
+            coffee_product_count: number;
         };
         /** OfferSnapshotSchema */
         OfferSnapshotSchema: {
@@ -1866,7 +1872,7 @@ export interface components {
             total: number;
             /** Weights */
             weights: {
-                [key: string]: unknown;
+                [key: string]: number;
             };
         };
         /** ShippingPolicySchema */

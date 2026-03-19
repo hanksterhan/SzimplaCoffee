@@ -270,3 +270,17 @@ class TestMetadataFillRates:
         mfr = r.json()["metadata_fill_rates"]
         # 1/3 = 33%
         assert mfr["variety_pct"] == 33
+
+    def test_origin_pct_uses_coffee_only_denominator_when_available(self, client, db):
+        m = _make_merchant(db, "roaster-coffee-only")
+        # Two real coffee products, both with origin.
+        _make_product(db, m, origin="Ethiopia", roast="light")
+        _make_product(db, m, origin="Colombia", roast="medium")
+        # Two non-coffee/unknown-roast products should not dilute origin_pct.
+        _make_product(db, m, origin=None, roast="unknown")
+        _make_product(db, m, origin=None, roast="unknown")
+
+        r = client.get("/api/v1/dashboard/metrics")
+        mfr = r.json()["metadata_fill_rates"]
+        assert mfr["coffee_product_count"] == 2
+        assert mfr["origin_pct"] == 100
