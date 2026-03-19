@@ -13,6 +13,7 @@ from szimplacoffee.api.recommendations import router as recommendations_router
 from szimplacoffee.db import Base, get_session
 from szimplacoffee.services.discovery import _decode_bing_result_url
 from szimplacoffee.models import (
+    BrewFeedback,
     Merchant,
     MerchantPersonalProfile,
     MerchantPromo,
@@ -23,6 +24,7 @@ from szimplacoffee.models import (
     VariantDealFact,
 )
 from szimplacoffee.services.recommendations import (
+    BREW_PENALTY_WEIGHT,
     RecommendationRequest,
     _build_pros,
     _discounted_price_cents,
@@ -314,8 +316,11 @@ def deal_test_client():
 
         seeded = {
             "merchant_id": merchant.id,
-            "variant_id": variant.id,
+            "product_id": product.id,
             "product_name": product.name,
+            "second_product_id": second_product.id,
+            "second_product_name": second_product.name,
+            "variant_id": variant.id,
         }
 
     app = FastAPI()
@@ -444,6 +449,90 @@ def test_wait_is_false_when_inventory_is_zero(deal_test_client) -> None:
     )
 
     assert not wait, f"Expected wait=False with 0g inventory but got wait=True. Rationale: {rationale}"
+
+
+def _scores_by_product_name(engine) -> dict[str, float]:
+    with Session(engine) as session:
+        request = RecommendationRequest(
+            shot_style="modern_58mm",
+            quantity_mode="12-18 oz",
+            bulk_allowed=False,
+            current_inventory_grams=0,
+        )
+        results, _ = build_recommendations(session, request)
+    return {candidate.product_name: candidate.score for candidate in results}
+
+
+# SC-72: brew feedback penalty tests
+
+def test_brew_feedback_penalty_does_not_affect_products_without_feedback(deal_test_client) -> None:
+    _client, engine, seeded = deal_test_client
+    baseline_scores = _scores_by_product_name(engine)
+
+    with Session(engine) as session:
+        session.add(
+            BrewFeedback(
+                product_id=seeded["second_product_id"],
+                shot_style="modern_58mm",
+                rating=2.0,
+                would_rebuy=False,
+            )
+        )
+        session.commit()
+
+    updated_scores = _scores_by_product_name(engine)
+
+    assert updated_scores[seeded["product_name"]] == baseline_scores[seeded["product_name"]]
+
+
+def test_brew_feedback_penalty_skips_products_at_or_above_threshold(deal_test_client) -> None:
+    _client, engine, seeded = deal_test_client
+    baseline_scores = _scores_by_product_name(engine)
+
+    with Session(engine) as session:
+        session.add(
+            BrewFeedback(
+                product_id=seeded["product_id"],
+                shot_style="modern_58mm",
+                rating=4.0,
+                would_rebuy=True,
+            )
+        )
+        session.commit()
+
+    updated_scores = _scores_by_product_name(engine)
+
+    assert updated_scores[seeded["product_name"]] == baseline_scores[seeded["product_name"]]
+
+
+def test_brew_feedback_penalty_downranks_products_below_threshold(deal_test_client) -> None:
+    _client, engine, seeded = deal_test_client
+    baseline_scores = _scores_by_product_name(engine)
+
+    with Session(engine) as session:
+        session.add_all(
+            [
+                BrewFeedback(
+                    product_id=seeded["product_id"],
+                    shot_style="modern_58mm",
+                    rating=2.0,
+                    would_rebuy=False,
+                ),
+                BrewFeedback(
+                    product_id=seeded["product_id"],
+                    shot_style="modern_58mm",
+                    rating=2.0,
+                    would_rebuy=False,
+                ),
+            ]
+        )
+        session.commit()
+
+    updated_scores = _scores_by_product_name(engine)
+
+    assert updated_scores[seeded["product_name"]] == pytest.approx(
+        baseline_scores[seeded["product_name"]] - BREW_PENALTY_WEIGHT
+    )
 
 
 # SC-67: explain_scores tests

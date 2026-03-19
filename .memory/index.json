@@ -1,6 +1,14 @@
 {
   "entries": [
     {
+      "id": "SC-89-coava-tier-a-junk-cleanup",
+      "path": ".memory/sprint-02/SC-89-coava-tier-a-junk-cleanup.md",
+      "ticket": "SC-89",
+      "sprint": "sprint-02",
+      "date": "2026-03-19",
+      "summary": "Promoted Coava to Tier A/trusted; deactivated junk Tier-D merchants (Blue Bottle Coffee, Stumptownroasters, Not A Url). 14 active Tier-A merchants, 0 active Tier-D."
+    },
+    {
       "id": "SC-84-recommendation-context-revisit",
       "path": ".memory/sprint-02/SC-84-recommendation-context-revisit.md",
       "ticket": "SC-84",

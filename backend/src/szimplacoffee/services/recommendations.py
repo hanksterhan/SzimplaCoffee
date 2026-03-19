@@ -6,10 +6,11 @@ from datetime import timedelta
 from statistics import median
 from typing import Literal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..models import (
+    BrewFeedback,
     Merchant,
     MerchantPromo,
     OfferSnapshot,
@@ -30,6 +31,10 @@ ShotStyle = Literal["modern_58mm", "cremina_49mm", "turbo", "experimental"]
 
 # SC-54: Score threshold below which the system recommends waiting
 WAIT_SCORE_THRESHOLD = 0.30
+
+# SC-72: Down-rank products that have repeatedly brewed poorly.
+BREW_PENALTY_THRESHOLD = 3.0
+BREW_PENALTY_WEIGHT = 0.15
 
 
 @dataclass
@@ -645,6 +650,14 @@ def build_recommendations(
     prefs = _preference_profile(session)
     fact_by_variant = materialize_variant_deal_facts(session)
     category_baseline = _catalog_price_per_oz_baseline_cents(session)
+    brew_rating_by_product = {
+        product_id: float(avg_rating)
+        for product_id, avg_rating in session.execute(
+            select(BrewFeedback.product_id, func.avg(BrewFeedback.rating))
+            .where(BrewFeedback.product_id.is_not(None))
+            .group_by(BrewFeedback.product_id)
+        ).all()
+    }
     products = session.scalars(select(Product).where(Product.is_active.is_(True)).order_by(Product.name.asc())).all()
 
     logger.debug("build_recommendations: %d active products, %d deal facts, baseline=%s", len(products), len(fact_by_variant), category_baseline)
@@ -737,6 +750,13 @@ def build_recommendations(
             best_promo_label, discounted_landed_price_cents = _best_active_promo(session, merchant.id, landed, offer)
             freshness_score = merchant.quality_profile.freshness_transparency_score if merchant.quality_profile else 0.5
 
+            brew_avg_rating = brew_rating_by_product.get(product.id)
+            brew_penalty = (
+                BREW_PENALTY_WEIGHT
+                if brew_avg_rating is not None and brew_avg_rating < BREW_PENALTY_THRESHOLD
+                else 0.0
+            )
+
             total = (
                 merchant_score * 0.24
                 + quantity_score * 0.18
@@ -745,6 +765,7 @@ def build_recommendations(
                 + freshness_score * 0.08
                 + history_score * 0.18
                 + promo_bonus
+                - brew_penalty
             )
 
             pros = _build_pros(
@@ -768,6 +789,8 @@ def build_recommendations(
                     "freshness_score": round(freshness_score, 4),
                     "history_score": round(history_score, 4),
                     "promo_bonus": round(promo_bonus, 4),
+                    "brew_avg_rating": round(brew_avg_rating, 4) if brew_avg_rating is not None else None,
+                    "brew_penalty": round(brew_penalty, 4),
                     "total": round(total, 4),
                     "weights": {
                         "merchant": 0.24,

@@ -3,7 +3,7 @@ planning:
   brainstorm_packet: ".plans/brainstorm-current.md"
   stale_after_hours: 72
 backlog:
-  min_ready_tasks: 3
+  min_ready_tasks: 2
   refill_batch_epics: 5
   refill_tickets_per_epic: 6
 delivery:

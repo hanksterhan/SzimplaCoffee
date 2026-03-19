@@ -1,6 +1,6 @@
 # Now / Next / Later
 
-_Updated: 2026-03-18 after SC-78 delivery_
+_Updated: 2026-03-18 after SC-80 delivery_
 
 ## Top-500 Merchant Registry — Rollout Policy (SC-53)
 
@@ -32,15 +32,14 @@ _Updated: 2026-03-18 after SC-78 delivery_
 
 ## Now
 
-- Deliver SC-72 so brew feedback ratings affect recommendation ranking
-- Keep the ready backlog replenished after SC-78; SC-80 is the next purchases UX follow-on
-- Add the recommendation-page handoff into `/purchases?recommendationRunId=<id>` once the next purchase-loop slice is selected
+- Deliver SC-83 to add a recommendation-linked purchase filter on the Purchases page
+- Deliver SC-84 to preserve recommendation context across purchase success and revisit flows
+- Import real purchase history from Notion instead of relying on seed data
 
 ## Next
 
-- Surface recommendation linkage in purchase history/detail (SC-80)
-- Add crawl health, crawl error, and stale-data visibility in the Watch/Review UI
-- Import real purchase history from Notion instead of relying on seed data
+- Regenerate frontend API types after the recent purchase/recommendation schema additions
+- Exercise recommendation history linkage end-to-end from recommendation result → purchase form → purchases UI
 - Add richer merchant filtering and sorting in the dashboard and discovery queue
 - Raise buying quality floor to 0.5 once 3+ months of crawl data exist
 

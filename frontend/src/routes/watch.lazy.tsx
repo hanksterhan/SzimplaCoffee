@@ -61,6 +61,51 @@ function MetadataBadge({ pct }: { pct: number }) {
   );
 }
 
+const CRAWL_TIER_STALE_HOURS: Record<string, number | null> = {
+  A: 6,
+  B: 24,
+  C: 7 * 24,
+  D: null,
+};
+
+function getCrawlStatus(merchant: MerchantSummary): {
+  label: string;
+  className: string;
+  detail?: string;
+} | null {
+  if (!merchant.last_crawl_at) {
+    return {
+      label: "Never crawled",
+      className: "bg-blue-100 text-blue-800 border-blue-300",
+      detail: "Needs first crawl",
+    };
+  }
+
+  if (merchant.crawl_success === false) {
+    return {
+      label: "Last crawl failed",
+      className: "bg-red-100 text-red-800 border-red-300",
+      detail: "Review crawl output",
+    };
+  }
+
+  const staleHours = CRAWL_TIER_STALE_HOURS[merchant.crawl_tier];
+  if (!staleHours) return null;
+
+  const ageMs = Date.now() - Date.parse(merchant.last_crawl_at);
+  if (Number.isNaN(ageMs) || ageMs < 0) return null;
+
+  if (ageMs >= staleHours * 60 * 60 * 1000) {
+    return {
+      label: "Stale",
+      className: "bg-amber-100 text-amber-900 border-amber-300",
+      detail: `>${staleHours}h old for Tier ${merchant.crawl_tier}`,
+    };
+  }
+
+  return null;
+}
+
 const TRUST_TIER_ORDER = ["rejected", "candidate", "verified", "trusted"] as const;
 type TrustTier = (typeof TRUST_TIER_ORDER)[number];
 
@@ -123,6 +168,8 @@ function MerchantRow({
   merchant: MerchantSummary;
   action: React.ReactNode;
 }) {
+  const crawlStatus = getCrawlStatus(merchant);
+
   return (
     <div className="flex items-center gap-3 py-2 border-b last:border-0">
       <div className="flex-1 min-w-0">
@@ -138,6 +185,11 @@ function MerchantRow({
           <Badge variant="outline" className="text-xs">
             Tier {merchant.crawl_tier}
           </Badge>
+          {crawlStatus ? (
+            <Badge variant="outline" className={`text-xs ${crawlStatus.className}`}>
+              {crawlStatus.label}
+            </Badge>
+          ) : null}
         </div>
         <p className="text-xs text-muted-foreground mt-0.5">
           {merchant.canonical_domain} · {merchant.platform_type}
@@ -150,6 +202,9 @@ function MerchantRow({
             📦 {merchant.product_count} products
           </span>
           <MetadataBadge pct={merchant.metadata_pct} />
+          {crawlStatus?.detail ? (
+            <span className="text-xs text-muted-foreground">{crawlStatus.detail}</span>
+          ) : null}
         </div>
       </div>
       {action}

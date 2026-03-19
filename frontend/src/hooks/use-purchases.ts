@@ -3,8 +3,12 @@ import { toast } from "sonner";
 import { api } from "@/api/client";
 import type { components } from "@/api/schema";
 
-export type PurchaseSummary = components["schemas"]["PurchaseSummary"];
-export type PurchaseDetail = components["schemas"]["PurchaseDetail"];
+export type PurchaseSummary = components["schemas"]["PurchaseSummary"] & {
+  recommendation_run_id?: number | null;
+};
+export type PurchaseDetail = components["schemas"]["PurchaseDetail"] & {
+  recommendation_run_id?: number | null;
+};
 export type PurchaseCreate = components["schemas"]["PurchaseCreate"] & {
   recommendation_run_id?: number | null;
 };

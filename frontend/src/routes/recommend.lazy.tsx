@@ -1,5 +1,5 @@
-import { createLazyFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -342,6 +342,8 @@ const QUANTITY_MODES = [
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 function RecommendPage() {
+  const navigate = useNavigate({ from: "/recommend" });
+  const search = Route.useSearch();
   const [shotStyle, setShotStyle] = useState("modern_58mm");
   const [quantityMode, setQuantityMode] = useState("12-18 oz");
   const [bulkAllowed, setBulkAllowed] = useState(false);
@@ -354,6 +356,16 @@ function RecommendPage() {
 
   const { data: history = [], isLoading: historyLoading } = useRecommendations();
   const request = useRequestRecommendation();
+
+  useEffect(() => {
+    if (!search.selectedRunId || history.length === 0) return;
+    if (selectedHistoryId === search.selectedRunId) return;
+
+    const linkedRun = history.find((run) => run.id === search.selectedRunId);
+    if (linkedRun) {
+      handleSelectHistory(linkedRun);
+    }
+  }, [history, search.selectedRunId, selectedHistoryId]);
 
   function handleGetRecs() {
     setSelectedHistoryId(null);
@@ -537,10 +549,27 @@ function RecommendPage() {
             <WaitCard />
           ) : activeResult ? (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                {activeResult.alternatives.length + (activeResult.top_result ? 1 : 0)} results
-                {selectedHistoryId ? " (from history)" : ""}
-              </p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {activeResult.alternatives.length + (activeResult.top_result ? 1 : 0)} results
+                  {selectedHistoryId ? " (from history)" : ""}
+                </p>
+                {activeResult.run_id ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      void navigate({
+                        to: "/purchases",
+                        search: { recommendationRunId: activeResult.run_id },
+                      });
+                    }}
+                  >
+                    🛒 Log purchase from this run
+                  </Button>
+                ) : null}
+              </div>
 
               {activeResult.top_result && (
                 <ResultCard candidate={activeResult.top_result} rank={1} explainScores={explainScores} />
