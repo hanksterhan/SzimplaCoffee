@@ -1,0 +1,81 @@
+id: SC-85
+title: "Improve origin_country extraction to reach 70% fill rate"
+type: task
+priority: p1
+status: done
+owner: h6nk-bot
+created_at: "2026-03-18T20:17:00Z"
+updated_at: "2026-03-18T20:17:00Z"
+labels: ["metadata", "coffee-parser", "backend"]
+
+problem: "Origin country fill rate is 61% (545/890 products). The goal requires ≥70%. The coffee_parser likely misses country name variants, abbreviations, and demonym forms (e.g. 'Ethiopian' vs 'Ethiopia', 'Colombian', 'Kenyan', 'Guatemalan')."
+desired_outcome: "Origin country fill rate reaches ≥70% after backfill. Parser handles demonym → country mapping and common alternate spellings."
+
+scope_in:
+  - "Audit current origin extraction patterns in coffee_parser.py — log miss rate by merchant"
+  - "Add demonym → ISO country mapping (Ethiopian→Ethiopia, Colombian→Colombia, etc.)"
+  - "Add common alternate spellings and abbreviations (PNG→Papua New Guinea, etc.)"
+  - "Run szimpla backfill-metadata and verify fill rate after backfill"
+  - "Add or update backend tests for new demonym patterns"
+scope_out:
+  - "Variety or process extraction improvements (separate ticket)"
+  - "Frontend changes"
+  - "New crawl runs"
+
+dependencies:
+  blockers: []
+  unblocks: ["SC-86"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Origin country fill rate reaches ≥70% after backfill (query DB directly)"
+    verify: "cd backend && .venv/bin/python -c \"import sys; sys.path.insert(0,'src'); from szimplacoffee.db import engine; from sqlalchemy import text; c=engine.connect(); t=c.execute(text('SELECT COUNT(*) FROM products')).scalar(); f=c.execute(text(\\\"SELECT COUNT(*) FROM products WHERE origin_country IS NOT NULL AND origin_country != ''\\\")).scalar(); print(f'{f}/{t} = {round(100*f/max(t,1))}%')\""
+    status: pending
+  - id: AC-2
+    text: "coffee_parser correctly maps at least 5 demonym forms to ISO country names"
+    verify: "cd backend && .venv/bin/pytest tests/ -q -k coffee_parser"
+    status: pending
+  - id: AC-3
+    text: "Backend tests pass (≥84 green)"
+    verify: "cd backend && .venv/bin/pytest tests/ -q"
+    status: pending
+
+verification_required:
+  - "cd backend && .venv/bin/pytest tests/ -q"
+  - "cd backend && python -m szimplacoffee.cli backfill-metadata 2>&1 | tail -5"
+
+context_refs:
+  - ".plans/SC-85-execution-plan.md"
+
+slices:
+  - id: S1
+    title: "Audit miss patterns and add demonym mapping"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/coffee_parser.py"
+      - "backend/tests/test_coffee_parser.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/cli.py"
+    checks:
+      - "Demonym forms (Ethiopian, Colombian, Kenyan, Guatemalan, Honduran, Peruvian, Rwandan, Burundian, Yemeni, PNG) map to ISO country names"
+      - "pytest passes"
+    evidence: []
+    notes: "Check coffee_parser.py's ORIGIN_PATTERNS / _extract_origin function. Add a DEMONYM_MAP dict and post-process extracted text through it before saving."
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Goal criterion: origin fill ≥70%. Currently at 61%. Delta is ~80 more products needed."
+  - "Most likely gap: demonyms (Ethiopian, Colombian, etc.) and continent-only strings (East Africa)."
