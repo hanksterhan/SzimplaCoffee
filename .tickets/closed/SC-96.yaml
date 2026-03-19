@@ -2,7 +2,7 @@ id: SC-96
 title: "Make catalog filtering and search semantics trustworthy with normalized metadata"
 type: feature
 priority: p2
-status: ready
+status: done
 owner: h6nk-bot
 created_at: "2026-03-19T18:46:05Z"
 updated_at: "2026-03-19T18:46:05Z"
@@ -87,7 +87,7 @@ delivery:
   commits: []
   pr_url: ""
   started_at: ""
-  completed_at: ""
+  completed_at: "2026-03-19T21:45:00Z"
   verification:
     required_passed: false
     commands_run: []

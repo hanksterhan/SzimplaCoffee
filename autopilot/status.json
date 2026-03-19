@@ -1,14 +1,14 @@
 {
   "goal_status": "active",
-  "last_brainstorm_at": "2026-03-18T04:46:00Z",
+  "last_brainstorm_at": "2026-03-19T21:11:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": "2026-03-19T05:40:00Z",
-  "last_delivered_task": "SC-95",
-  "completed_since_reflect": 3,
+  "last_delivered_task": "SC-96",
+  "completed_since_reflect": 4,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-19T20:40:00Z",
+  "last_run_at": "2026-03-19T21:45:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "Delivered SC-95: crawl quality reliability signals and serialized low-CPU batch execution (limit=1 per tick). 249 backend tests passing. Merged to stage and pushed.",
-  "next_task_hint": "Start SC-96 to align catalog filtering/search semantics with normalized metadata truth."
+  "last_run_summary": "Delivered SC-96: catalog semantics alignment. has_stock (variant-level truth) replaces is_active for availability display in ProductCard and ProductQuickView. Normalized origin_country/roast_level/process_family now shown in product tags and metadata grid, suppressing 'unknown'. 249 backend tests pass, frontend build green.",
+  "next_task_hint": "Backlog is empty (0 ready tickets < min_ready_tasks=2). Next run should trigger backlog refill using Phase 3 candidates from brainstorm-current.md: SC-97 (unknown fill rate improvement), SC-98 (historical deal baselines), SC-99 (server-side sort), etc."
 }

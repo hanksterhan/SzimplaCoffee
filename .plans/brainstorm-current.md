@@ -1,115 +1,107 @@
-# Discovery Completion Packet — SzimplaCoffee Sprint 2
-_Generated: 2026-03-18T04:46:00Z by autopilot brainstorm refresh_
+# Discovery Completion Packet — SzimplaCoffee Phase 2 (Post SC-95)
+_Generated: 2026-03-19T21:11:00Z by autopilot brainstorm refresh_
 
 ---
 
 ## Problem Statement
 
-SzimplaCoffee has a sophisticated recommendation engine, crawl infrastructure, and React SPA — but it is **data-starved**. The core loop (crawl → parse metadata → recommend → buy → feedback) has never run end-to-end with real data. Specific blockers:
+SzimplaCoffee has completed three foundational Phase 2 tickets (SC-93/94/95) and now has:
+- **16 active merchants**, 918 products, 3,700 variant deal facts
+- **Canonical normalized metadata** (origin_country, process_family, roast_level) with confidence and provenance fields on all products
+- **Crawl quality signals** per merchant (crawl_quality_score, reliability signals in schedule API)
+- **Serialized crawl execution** (1 merchant per 15-min APScheduler tick)
+- **Stable autopilot startup** (startup-time noise eliminated in SC-93)
 
-1. **Merchant coverage is critically thin** — only 2 merchants, ~38 products. 15+ merchants are needed for meaningful recommendations.
-2. **Coffee metadata is 93–95% empty** — origin, process, roast_level, and variety are missing on almost all products. The coffee_parser may not be wired into the post-crawl flow.
-3. **Recommendation engine returns empty/wait** — even when products exist, the candidate pipeline filters everything out. VariantDealFact rows may be missing or threshold logic is too strict.
-4. **The learning loop is untested** — purchase logging and brew feedback forms have never been exercised with real data, so the feedback → re-ranking path is dead.
-5. **Watch queue UX is passive** — merchants appear in the review queue but trust tier promotion/demotion requires manual DB edits.
+The remaining Phase 2 gap is: **catalog filtering, search, and availability semantics do not yet use normalized metadata truth**. The frontend still shows raw `origin_text` / `roast_cues` / `process_text` in product cards instead of canonical normalized values. The "In stock" / "Unavailable" label in the catalog list uses `is_active` (a presence flag) rather than variant-level `is_available` truth. Filtering and search work at the backend level, but the frontend metadata display and availability messaging are disconnected from the normalized fields SC-94 added.
+
+Specific gaps:
+1. **Frontend product card metadata**: `products.lazy.tsx` shows `origin_text`, `process_text`, `roast_cues` (raw free-text) instead of `origin_country`, `process_family`, `roast_level` (normalized canonical).
+2. **Availability messaging**: catalog list uses `product.is_active` for "● In stock" / "● Unavailable", but `is_active` means "seen in the last crawl", not "has a purchaseable variant with a current offer". This misleads the user.
+3. **Tag generation for product quick-view** (`buildTags`) uses raw text fields exclusively — it should prefer normalized fields with fallback to raw.
+4. **Backend filter surface** already uses normalized fields correctly (origin_country, process_family, roast_level parameters in `/products/catalog` and `/products/search`). The back-end side of SC-96 may be smaller than planned.
+5. **"unknown" metadata values**: roast_level=unknown (277 products, 30%) and process_family=unknown (458 products, 50%) are currently surfaced in filter dropdowns as valid options — they should be treated as null/absent for UX purposes, not as a filter choice.
 
 ---
 
 ## Consensus Solution
 
-Execute Sprint 2 in four ordered phases that unblock each other:
+SC-96 is the right next task and it's unblocked. Scope is narrower than originally planned because the backend filtering already works correctly. Focus SC-96 on:
 
-### Phase 2a — Data Foundation (merchant coverage + crawl pipeline)
-Import ≥15 merchants from `SzimplaCoffee/brain/merchants/top-500-seed.md`, run crawls, verify product ingestion. Build a bulk-import CLI to make this repeatable. Promote high-quality crawled merchants to Tier A.
+1. **Align frontend display to normalized fields** — prefer `origin_country`/`process_family`/`roast_level` with fallback to raw text in product cards and quick-view tags.
+2. **Fix catalog availability messaging** — use backend `has_stock` (which reflects variant-level `is_available + latest_offer.is_available`) instead of `product.is_active` for "In stock" / "Unavailable" copy.
+3. **Suppress "unknown" as a filter option** — when the backend returns `unknown` for roast or process, treat it as absent in the UI (do not show it as a filter button or tag).
+4. **No backend changes needed** for basic filter semantics — the heavy backend query work is already correct. Minor: verify the catalog endpoint `in_stock` filter uses `has_stock` correctly (it does per code review).
 
-### Phase 2b — Metadata Pipeline (coffee_parser + fill rate)
-Audit coffee_parser wiring into the post-crawl scheduler. Improve origin, process, and roast level regex patterns. Run backfill. Target ≥50% origin fill rate and ≥70% process/roast fill rate. Add fill-rate metrics to the dashboard.
+After SC-96, the Phase 2 success criteria are substantially met:
+- ✅ Autopilot stable (SC-93)
+- ✅ Canonical metadata normalization with confidence/provenance (SC-94)
+- ✅ Crawl quality observable, serialized execution (SC-95)
+- ✅ SC-96: Catalog semantics aligned with normalized metadata
+- ⬜ Metadata coverage and trust: origin=63%, roast/process coverage limited by "unknown" (needs observation; improving via better backfill patterns is Phase 2 extended or Phase 3)
+- ✅ Backend tests pass (249 passing)
 
-### Phase 2c — Recommendation Engine (diagnosis + fix + enhancements)
-Trigger a real recommendation run and trace the exact filter/scoring step that eliminates all candidates. Fix it. Ensure VariantDealFact rows are created post-crawl. Optionally add explain mode for future debugging.
-
-### Phase 2d — Learning Loop (purchase + feedback + UI)
-Log 5 real purchases and 3 real brew sessions. Link purchases to recommendation runs. Wire brew ratings into scoring penalty. Add crawl health visibility and trust promotion to the Watch page.
+The remaining gap — improving "unknown" fill rates — depends on richer crawl data and better parser patterns. That is a Phase 2 extended or Phase 3 concern and should be captured as a future ticket, not blocker to SC-96.
 
 ---
 
 ## Task Candidates
 
-Ordered by priority (p1 before p2, dependency-unlocking before leaf tasks):
+Current open tickets: only **SC-96** is open. After SC-96 delivers, backlog refill is needed.
 
-| # | Ticket | Title | Priority | Phase | Unblocks |
-|---|--------|-------|----------|-------|---------|
-| 1 | SC-59 | Bulk merchant import CLI | p2 | 2a | SC-57, SC-58 |
-| 2 | SC-57 | Bulk-import 15 merchants from seed | p1 | 2a | SC-58, SC-60, SC-65 |
-| 3 | SC-58 | Run crawls on all imported merchants | p1 | 2a | SC-60, SC-61, SC-65, SC-68 |
-| 4 | SC-61 | Audit coffee_parser wiring + fill rate | p1 | 2b | SC-62, SC-63 |
-| 5 | SC-62 | Improve origin extraction patterns | p1 | 2b | SC-64 |
-| 6 | SC-63 | Improve process + roast level patterns | p1 | 2b | SC-64 |
-| 7 | SC-68 | Ensure VariantDealFact rows post-crawl | p1 | 2c | SC-65, SC-66 |
-| 8 | SC-65 | Diagnose empty recommendation | p1 | 2c | SC-66 |
-| 9 | SC-66 | Fix recommendation engine returns empty | p1 | 2c | SC-67, SC-72 |
-| 10 | SC-60 | Review and promote merchants by quality | p2 | 2a | — |
-| 11 | SC-64 | Dashboard metadata fill-rate metrics | p2 | 2b | — |
-| 12 | SC-67 | Recommendation explain mode | p2 | 2c | — |
-| 13 | SC-69 | Log 5 real purchases via UI | p2 | 2d | SC-70 |
-| 14 | SC-70 | Purchase-to-recommendation linkage | p2 | 2d | — |
-| 15 | SC-71 | Log 3 brew sessions | p2 | 2d | SC-72 |
-| 16 | SC-72 | Wire brew ratings into scoring | p2 | 2d | — |
-| 17 | SC-73 | Watch page trust promotion UI | p2 | 2d | — |
-| 18 | SC-74 | Watch page crawl health visibility | p2 | 2d | — |
+| # | Ticket | Title | Priority | Status | Notes |
+|---|--------|-------|----------|--------|-------|
+| 1 | SC-96 | Catalog filtering and search semantics | p2 | ready | Next task — smaller scope than planned |
 
-**Note:** SC-59 (bulk import CLI) is p2 but unlocks SC-57 (p1) with less manual friction. Deliver SC-59 first if a coding task is selected, or proceed directly with SC-57 manual import if SC-59 adds too much scope.
+**Post-SC-96 refill candidates (Phase 2 extended / Phase 3 preview):**
+
+| # | Candidate | Title | Priority | Rationale |
+|---|-----------|-------|----------|-----------|
+| A | SC-97 | Improve metadata fill rate for "unknown" roast and process | p2 | 30–50% unknown values hurt filter UX; parser pattern improvement |
+| B | SC-98 | Historical deal baseline per variant | p1 | Required for trustworthy sale-score in Phase 3 Today view |
+| C | SC-99 | Server-side product sort: quality-first, freshness-aware | p2 | Corpus-wide sort instead of client-window sort |
+| D | SC-100 | Metadata fill rate dashboard widget | p2 | Visibility into normalization coverage over time |
+| E | SC-101 | Expand merchant set: verify + import 10 more from seed | p2 | Coverage drives catalog depth; now that crawl is serialized, safe to add |
+| F | SC-102 | Today view deal-score with historical baseline | p1 | Phase 3 core — needs SC-98 first |
+| G | SC-103 | Brew feedback influence on recommendation scoring | p2 | Phase 2d learning loop (3 brew sessions already logged) |
 
 ---
 
 ## Acceptance Criteria
 
-Success criteria from `autopilot/goal.yaml` — all must be satisfied before goal is complete:
+Phase 2 completion criteria (from `goal.yaml`):
 
-- [ ] 15+ real specialty coffee merchants crawled and in the DB at Tier A or B
-- [ ] Coffee metadata (origin, process, roast_level, variety) populated on ≥70% of products
-- [ ] Recommendation engine produces meaningful results (not empty/wait) for a real request
-- [ ] "Today" view returns a ranked recommendation on every use
-- [ ] Purchase history has ≥10 real logged purchases
-- [ ] Brew feedback loop exercised (at least 3 real sessions logged)
-- [ ] All app UI interactions work correctly (dropdowns, filters, forms)
-- [ ] Backend tests pass (≥84 tests green)
+- [x] Autopilot can start and complete a normal cycle without startup-noise failures
+- [x] Coffee metadata normalization: canonical `origin_country`, `roast_level`, `process_family` with confidence/provenance on active products
+- [ ] Metadata coverage and trust improve enough that origin/roast filtering is product-trustworthy (blocked by "unknown" fill rate; partially met at 63% origin, 70%+ roast recognized)
+- [x] Crawl quality observable per merchant (crawl_quality_score, reliability signals)
+- [x] Serialized low-CPU crawl execution (1 merchant per tick)
+- [ ] Next backlog refilled with metadata/crawl-focused tickets and ≥2 ready tasks (backlog refill needed after SC-96)
+- [x] Backend tests pass and touched contracts remain green
 
 ---
 
 ## Risks and Open Questions
 
-### Risk 1 — Merchant URL validity (HIGH)
-`top-500-seed.md` URLs have never been verified. Some may be 404, redirected, or non-coffee merchants. SC-57 must HTTP-verify before import.
+### Risk 1 — "unknown" values in filter UI (MEDIUM)
+roast_level=unknown (277/918) and process_family=unknown (458/918) will appear in filter dropdowns. Should be suppressed in the UI to avoid confusing the user with a meaningless filter option.
 
-### Risk 2 — Crawl adapter coverage (MEDIUM)
-New merchants may use Shopify, WooCommerce, or custom platforms. The adapter auto-detection may fail for unknown platforms. SC-58 explicitly expects some crawl failures — these should be logged but not block the batch.
+### Risk 2 — Metadata coverage plateau (LOW-MEDIUM)
+63% origin_country, 70% roast recognized — further improvement needs richer crawl text (descriptions stored, not just names). This is a Phase 2 extended concern, not a blocker for SC-96.
 
-### Risk 3 — coffee_parser may be unwired (HIGH)
-The 93–95% empty metadata suggests the parser is not called post-crawl or its patterns are too narrow. SC-61 is the diagnostic step. If unwired, fixing the scheduler hook is a small change; if patterns are simply weak, SC-62/SC-63 cover that.
-
-### Risk 4 — VariantDealFact as recommendation blocker (HIGH)
-If the recommendation engine hard-requires VariantDealFact rows and none exist, recommendations will always return empty regardless of product count. SC-68 must be delivered before SC-65/SC-66 can be meaningfully tested.
-
-### Risk 5 — UI forms untested (LOW)
-PurchaseForm and BrewFeedbackForm have never been exercised. Form submission errors are possible. SC-69 and SC-71 include bug-fix scope.
+### Risk 3 — Backlog low after SC-96 (HIGH)
+Only 1 ready ticket exists now. After SC-96 delivers, the next run must trigger backlog refill (count drops to 0 < min_ready_tasks=2). Candidates A–G above provide strong material for the next create-tickets run.
 
 ### Open Questions
-- Does `szimpla add-merchant` block on crawl or just register and queue? (Inspect CLI behavior in SC-57)
-- What is the current VariantDealFact row count? (Query in SC-68)
-- Does the recommendation API accept an inventory payload via the UI Today view, or only via direct API call? (Check in SC-65)
+- Should `roast_level=unknown` and `process_family=unknown` be filtered out from the canonical display as "no data" or kept as a debug signal? (Recommend: treat as null for UX, keep in DB.)
+- Is Phase 2 goal considered "satisfied" once SC-96 ships, or does metadata fill rate need to cross a higher threshold first? (Recommend: ship SC-96, declare Phase 2 done, enter Phase 3 with SC-97/SC-98 as first tickets.)
 
 ---
 
 ## Routing Notes
 
-- **Next autopilot action:** deliver
-- **First task:** SC-59 (bulk import CLI) — coding task, well-scoped, unblocks SC-57
-  - _Alternative:_ SC-61 (coffee_parser audit) if merchant import is considered human-gated (requires reviewing seed list URLs)
-- **Escalation triggers to watch:**
-  - SC-57 if URL verification fails for all candidates → human needs to curate the seed list
-  - SC-68 if VariantDealFact computation is a complex algorithm rewrite → escalate
-  - SC-65/SC-66 if recommendation fix requires schema changes → review with human
+- **Next autopilot action:** deliver SC-96 (it is the only unblocked ready task)
+- **SC-96 scope refinement:** Focus on frontend semantics alignment; backend filter queries are already correct. This makes SC-96 lighter than the original plan estimated.
+- **After SC-96:** Trigger brainstorm or direct create-tickets for Phase 3 preview candidates (SC-97 through SC-103), with SC-98 (historical deal baselines) as the highest-leverage Phase 3 unlocker.
+- **Escalation watch:** None currently — no ambiguity blockers or dependency gaps.
 
-_Dependency chain for fastest path to first meaningful recommendation:_
-`SC-59 → SC-57 → SC-58 → SC-68 → SC-61 → SC-62 → SC-65 → SC-66`
+_Phase 2 foundation status: 4 of 4 core tickets done or in flight. Phase 3 can start after SC-96._
