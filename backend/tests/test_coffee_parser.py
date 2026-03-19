@@ -749,3 +749,47 @@ def test_maragogype_normalizes_to_maragogipe() -> None:
     """Maragogype (alternate spelling) should normalize to Maragogipe."""
     result = parse_coffee_metadata("Peru Timbuyacu Maragogype", "")
     assert result.variety_text == "Maragogipe"
+
+
+# ---------------------------------------------------------------------------
+# SC-97: Expanded roast and process normalization patterns
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("name,desc,expected_level", [
+    ("Archive Blonde Espresso", "Blonde espresso roast for sweet milk drinks.", "light-medium"),
+    ("Nordic Light Filter", "Nordic light roast with florals.", "light"),
+    ("Scandinavian Release", "Scandinavian roast, tea-like and bright.", "light"),
+    ("City Roast Colombia", "City roast with caramel sweetness.", "medium"),
+    ("City Plus Espresso", "City+ roast for espresso.", "medium-dark"),
+    ("Medium Dark House", "Medium dark roast with cocoa.", "medium-dark"),
+    ("Vienna Blend", "Vienna roast profile.", "medium-dark"),
+    ("Extra Dark Blend", "Extra dark roast, smoky finish.", "dark"),
+    ("Cinnamon Roast Decaf", "Cinnamon roast with gentle acidity.", "dark"),
+    ("Daily Filter", "Light roast for pour over.", "light"),
+    ("Plain Light Label", "Light.", "light"),
+])
+def test_roast_level_patterns_sc97(name: str, desc: str, expected_level: str) -> None:
+    result = parse_coffee_metadata(name, desc)
+    assert result.roast_level == expected_level, (
+        f"Expected roast_level={expected_level!r} for {name!r}, got {result.roast_level!r}"
+    )
+
+
+@pytest.mark.parametrize("name,desc,expected_family", [
+    ("Sumatra Wet Hulled", "Wet hulled process with savory depth.", "wet-hulled"),
+    ("Indonesia Giling Basah", "Traditional giling basah processing.", "wet-hulled"),
+    ("Colombia Semi Washed", "Semi washed process with red fruit.", "honey"),
+    ("Costa Rica Semiwashed", "Semiwashed coffee, syrupy and sweet.", "honey"),
+    ("Colombia Double Fermented", "Double fermented lot with tropical notes.", "anaerobic"),
+    ("Kenya Extended Fermentation", "Extended fermentation and punchy acidity.", "anaerobic"),
+    ("Ecuador Lactic Process", "Lactic fermentation, creamy texture.", "anaerobic"),
+    ("Panama Co-Ferment", "Co-ferment experimental lot.", "anaerobic"),
+    ("Costa Rica White Honey", "White honey processed micro lot.", "honey"),
+    ("Colombia Experimental", "Experimental fermentation lot.", "anaerobic"),
+    ("Brazil Pulped Natural", "Classic pulped natural sweetness.", "honey"),
+])
+def test_process_family_patterns_sc97(name: str, desc: str, expected_family: str) -> None:
+    result = parse_coffee_metadata(name, desc)
+    assert result.process_family == expected_family, (
+        f"Expected process_family={expected_family!r} for {name!r}, got {result.process_family!r}"
+    )

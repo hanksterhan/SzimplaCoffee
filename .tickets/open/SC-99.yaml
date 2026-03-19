@@ -1,0 +1,124 @@
+id: SC-99
+title: "Add quality-first server-side product sort mode"
+type: feature
+priority: p2
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-19T21:54:00Z"
+updated_at: "2026-03-19T21:54:00Z"
+labels: ["catalog", "backend", "sort", "quality"]
+
+problem: >
+  The current "featured" sort is client-window-limited (all results fetched then sorted in
+  Python). It works but has no quality-tier awareness: it ranks by has_stock, then
+  metadata_confidence, then recency. This doesn't use the merchant's
+  overall_quality_score or metadata_quality_score as signals. Products from
+  high-quality merchants (tier A, high quality scores) should naturally surface above
+  lower-quality merchants when quality is the intent. A new sort mode "quality" would
+  let the frontend explicitly request quality-tier ordering.
+
+desired_outcome: >
+  A new "quality" sort value in ProductSort surfaces products by:
+  1. has_stock (in-stock first)
+  2. merchant overall_quality_score descending
+  3. metadata_confidence descending
+  4. recency (last_seen_at) descending
+  Frontend catalog default sort can optionally switch to "quality" or expose it as
+  a sort option. Backend test covers the new sort key.
+
+scope_in:
+  - "Add 'quality' to ProductSort Literal in schemas/products.py"
+  - "Implement quality sort case in _sort_results in api/products.py"
+  - "Join or eager-load merchant quality score for sort (avoid N+1)"
+  - "Add test for quality sort ordering in test_api_products.py"
+  - "Optionally expose quality sort option in frontend sort selector"
+scope_out:
+  - "Making quality sort the default (keep 'featured' as default for now)"
+  - "Server-side SQL ORDER BY migration (Python sort is acceptable for current corpus size)"
+  - "Recommendation re-ranking changes"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "ProductSort type includes 'quality' literal value"
+    verify: "grep -n 'quality' backend/src/szimplacoffee/schemas/products.py"
+    status: pending
+  - id: AC-2
+    text: "GET /api/v1/products/catalog?sort=quality returns results ordered by has_stock desc, merchant quality desc, metadata_confidence desc"
+    verify: "cd backend && .venv/bin/pytest tests/test_api_products.py -v -k 'quality_sort'"
+    status: pending
+  - id: AC-3
+    text: "No N+1 query regression: catalog endpoint for quality sort uses a join or batch-load for merchant quality score"
+    verify: "cd backend && .venv/bin/pytest tests/ -q"
+    status: pending
+  - id: AC-4
+    text: "Frontend build passes after schema.d.ts regeneration"
+    verify: "cd frontend && npm run build && npx tsc -b"
+    status: pending
+
+verification_required:
+  - "cd backend && .venv/bin/pytest tests/ -q"
+  - "cd frontend && npm run build"
+
+context_refs:
+  - ".plans/SC-99-execution-plan.md"
+  - "autopilot/goal.yaml"
+
+slices:
+  - id: S1
+    title: "Backend: add quality sort to ProductSort and _sort_results"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/schemas/products.py"
+      - "backend/src/szimplacoffee/api/products.py"
+      - "backend/tests/test_api_products.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/schemas/merchants.py"
+    checks:
+      - "ProductSort Literal includes 'quality'"
+      - "_sort_results 'quality' branch sorts by has_stock, merchant overall_quality_score, metadata_confidence, last_seen_at"
+      - "Merchant quality score accessible in ProductResultRow without extra per-row query"
+      - "New test fixtures produce at least 2 merchants with different quality scores to verify ordering"
+    evidence: []
+    notes: >
+      Check whether ProductResultRow already carries merchant quality score. If not,
+      add merchant_quality_score to ProductResultRow and populate it in the catalog query.
+      Avoid adding a per-product query; prefer JOIN with MerchantQualityProfile.
+
+  - id: S2
+    title: "Frontend: expose quality sort option in catalog sort selector"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "frontend/src/api/schema.d.ts"
+      - "frontend/src/routes/products.lazy.tsx"
+    files_read_only:
+      - "frontend/src/components/"
+      - "frontend/src/hooks/useProducts.ts"
+    checks:
+      - "Sort selector includes 'Quality' option mapped to sort=quality"
+      - "Frontend build and type-check pass"
+    evidence: []
+    notes: "Keep the change minimal; just add the option, don't change the default."
+
+delivery:
+  branch: "feat/SC-99-quality-sort"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "MerchantQualityProfile has overall_quality_score. Merchant model also has overall_quality_score."
+  - "ProductResultRow is defined near the top of api/products.py — check current fields before adding."

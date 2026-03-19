@@ -387,16 +387,39 @@ def _normalize_process_family(process_text: str | None, text: str, is_blend: boo
         return "blend"
 
     haystack = " ".join(part for part in [process_text or "", text] if part).lower()
-    if any(term in haystack for term in ["carbonic maceration", "anaerobic"]):
+    if any(term in haystack for term in [
+        "carbonic maceration",
+        "carbonic",
+        "anaerobic",
+        "lactic",
+        "double fermented",
+        "double fermentation",
+        "extended fermentation",
+        "extended ferment",
+        "co-ferment",
+        "co ferment",
+    ]):
         return "anaerobic"
-    if "wet hulled" in haystack or "wet-hulled" in haystack:
+    if any(term in haystack for term in ["wet hulled", "wet-hulled", "giling basah"]):
         return "wet-hulled"
-    if any(term in haystack for term in ["honey", "pulped natural"]):
+    if any(term in haystack for term in [
+        "honey",
+        "pulped natural",
+        "semi-washed",
+        "semi washed",
+        "semiwashed",
+        "yellow honey",
+        "red honey",
+        "black honey",
+        "white honey",
+    ]):
         return "honey"
     if any(term in haystack for term in ["natural", "dry process"]):
         return "natural"
-    if any(term in haystack for term in ["washed", "wet process", "semi-washed"]):
+    if any(term in haystack for term in ["washed", "wet process"]):
         return "washed"
+    if "experimental" in haystack:
+        return "anaerobic"
     return "unknown"
 
 
@@ -496,15 +519,65 @@ def _normalize_roast_level(
     is_blend: bool = False,
 ) -> str:
     haystack = " ".join(part for part in [roast_cues or "", text] if part).lower()
-    if any(term in haystack for term in ["french roast", "italian roast", "dark roast", "dark-roast"]):
-        return "dark"
-    if any(term in haystack for term in ["espresso roast", "bold roast", "medium-dark", "full city", "full-city", "vienna roast"]):
-        return "medium-dark"
-    if any(term in haystack for term in ["omni roast", "all-purpose", "all purpose", "light to medium", "light-medium", "medium-light", "all-rounder"]):
+    if any(term in haystack for term in [
+        "blonde espresso",
+        "omni roast",
+        "all-purpose",
+        "all purpose",
+        "light to medium",
+        "light-medium",
+        "medium-light",
+        "medium light",
+        "all-rounder",
+        "filter + espresso",
+    ]):
         return "light-medium"
-    if any(term in haystack for term in ["medium roast", "balanced roast", "everyday coffee"]):
+    if any(term in haystack for term in [
+        "espresso roast",
+        "bold roast",
+        "medium-dark",
+        "medium dark",
+        "full city",
+        "full-city",
+        "vienna roast",
+        "city+",
+        "city plus",
+        "full city+",
+    ]):
+        return "medium-dark"
+    if any(term in haystack for term in [
+        "french roast",
+        "italian roast",
+        "dark roast",
+        "dark-roast",
+        "extra dark",
+        "cinnamon roast",
+    ]):
+        return "dark"
+    if any(term in haystack for term in [
+        "medium roast",
+        "balanced roast",
+        "everyday coffee",
+        "city roast",
+    ]):
         return "medium"
-    if any(term in haystack for term in ["light roast", "filter roast", "nordic roast", "nordic", "lightly roasted", "pour over roast", "pourover roast", "pour-over roast", "omni"]):
+    if any(term in haystack for term in [
+        "light roast",
+        "light",
+        "filter roast",
+        "nordic roast",
+        "nordic light",
+        "scandinavian roast",
+        "scandinavian light",
+        "nordic",
+        "blonde roast",
+        "cinnamon light",
+        "lightly roasted",
+        "pour over roast",
+        "pourover roast",
+        "pour-over roast",
+        "omni",
+    ]):
         return "light"
     # Implicit inference from specialty coffee context
     return _infer_roast_from_context(is_single_origin, is_blend, text)

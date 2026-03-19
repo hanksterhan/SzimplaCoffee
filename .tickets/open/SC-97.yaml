@@ -1,0 +1,127 @@
+id: SC-97
+title: "Improve metadata fill rate: expand parser patterns for roast and process"
+type: feature
+priority: p2
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-19T21:54:00Z"
+updated_at: "2026-03-19T21:54:00Z"
+labels: ["metadata", "parser", "backend", "data-quality"]
+
+problem: >
+  roast_level=unknown (277/918 products, ~30%) and process_family=unknown (458/918, ~50%)
+  are too common. These unknowns suppress useful filter options and reduce recommendation
+  quality. The coffee_parser.py pattern sets are incomplete: many common roast descriptors
+  (e.g. "blonde", "half-caff", numeric degree codes) and process families
+  (e.g. "giling basah", "semi-washed", "double fermented", "carbonic maceration")
+  are not matched. Backfill is triggered post-crawl but the parser patterns haven't been
+  significantly expanded since initial implementation.
+
+desired_outcome: >
+  Expanded parser patterns for roast_level and process_family reduce "unknown" rates
+  measurably on the current product catalog. New patterns are covered by tests.
+  Running szimpla backfill-metadata against the live DB improves overall fill rates.
+
+scope_in:
+  - "Expand _normalize_roast_level patterns in coffee_parser.py"
+  - "Expand _normalize_process_family patterns in coffee_parser.py"
+  - "Add unit tests for newly matched patterns in test_coffee_parser.py"
+  - "Run szimpla backfill-metadata against live DB and report before/after counts"
+  - "Update dashboard fill-rate baseline comment if coverage changes significantly"
+scope_out:
+  - "Storing or indexing product description_html (separate ticket)"
+  - "Farm-name-to-origin mapping"
+  - "ML/LLM-based classification"
+  - "Parser rewrites or architecture changes"
+
+dependencies:
+  blockers: []
+  unblocks: ["SC-99", "SC-100"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "At least 10 new roast_level patterns added with test coverage"
+    verify: "cd backend && .venv/bin/pytest tests/test_coffee_parser.py -v -k 'roast'"
+    status: pending
+  - id: AC-2
+    text: "At least 10 new process_family patterns added with test coverage"
+    verify: "cd backend && .venv/bin/pytest tests/test_coffee_parser.py -v -k 'process'"
+    status: pending
+  - id: AC-3
+    text: "All existing parser tests still pass"
+    verify: "cd backend && .venv/bin/pytest tests/test_coffee_parser.py -v"
+    status: pending
+  - id: AC-4
+    text: "Backend test suite passes"
+    verify: "cd backend && .venv/bin/pytest tests/ -q"
+    status: pending
+
+verification_required:
+  - "cd backend && .venv/bin/pytest tests/test_coffee_parser.py -v"
+  - "cd backend && .venv/bin/pytest tests/ -q"
+
+context_refs:
+  - ".plans/SC-97-execution-plan.md"
+  - "autopilot/goal.yaml"
+
+slices:
+  - id: S1
+    title: "Expand roast_level normalization patterns"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/coffee_parser.py"
+      - "backend/tests/test_coffee_parser.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "roast_level patterns cover: blonde, half-caff, city+, full city, french, cinnamon, nordic, nordic light, dark, extra dark, degree codes (light/medium/dark/extra)"
+      - "All new patterns have passing pytest cases"
+    evidence: []
+    notes: "Focus on terms actually appearing in product names in the current catalog."
+
+  - id: S2
+    title: "Expand process_family normalization patterns"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/coffee_parser.py"
+      - "backend/tests/test_coffee_parser.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "process_family patterns cover: giling basah, wet-hulled, semi-washed, double fermented, anaerobic natural, anaerobic washed, carbonic maceration, extended fermentation, lactic, experimental"
+      - "All new patterns have passing pytest cases"
+    evidence: []
+    notes: "Map carbonic maceration → natural (or 'experimental' subtype) per domain convention. Keep process_family enum tight."
+
+  - id: S3
+    title: "Run backfill and verify fill rate improvement"
+    status: pending
+    depends_on: ["S1", "S2"]
+    files_create: []
+    files_modify: []
+    files_read_only:
+      - "backend/src/szimplacoffee/cli.py"
+    checks:
+      - "cd backend && . .venv/bin/activate && szimpla backfill-metadata exits 0"
+      - "Dashboard /api/v1/dashboard/metrics shows improved fill rates vs baseline"
+    evidence: []
+    notes: "Record before/after counts in delivery memory."
+
+delivery:
+  branch: "feat/SC-97-parser-patterns"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Query current unknown counts before starting: SELECT COUNT(*) FROM products WHERE roast_level='unknown' AND is_active=1"
+  - "Check which product name patterns are still unmatched by sampling unknowns from DB"
