@@ -27,6 +27,7 @@ from szimplacoffee.services.recommendations import (
     BREW_BOOST_MULTI_SESSION_WEIGHT,
     BREW_BOOST_WEIGHT,
     BREW_PENALTY_WEIGHT,
+    QUALITY_BLEND_WEIGHT,
     RecommendationRequest,
     _build_pros,
     _discounted_price_cents,
@@ -547,8 +548,10 @@ def test_brew_feedback_penalty_downranks_products_below_threshold(deal_test_clie
 
     updated_scores = _scores_by_product_name(engine)
 
+    # SC-109: brew contributions are applied inside base_composite, which is then
+    # multiplied by QUALITY_BLEND_WEIGHT in the blended total formula.
     assert updated_scores[seeded["product_name"]] == pytest.approx(
-        baseline_scores[seeded["product_name"]] - BREW_PENALTY_WEIGHT
+        baseline_scores[seeded["product_name"]] - QUALITY_BLEND_WEIGHT * BREW_PENALTY_WEIGHT
     )
 
 
@@ -569,8 +572,9 @@ def test_brew_feedback_boost_upranks_high_rated_products(deal_test_client) -> No
 
     updated_scores = _scores_by_product_name(engine)
 
+    # SC-109: brew contributions are applied inside base_composite * QUALITY_BLEND_WEIGHT.
     assert updated_scores[seeded["product_name"]] == pytest.approx(
-        baseline_scores[seeded["product_name"]] + BREW_BOOST_WEIGHT
+        baseline_scores[seeded["product_name"]] + QUALITY_BLEND_WEIGHT * BREW_BOOST_WEIGHT
     )
 
 
@@ -599,8 +603,9 @@ def test_brew_feedback_boost_is_stronger_with_multiple_sessions(deal_test_client
 
     updated_scores = _scores_by_product_name(engine)
 
+    # SC-109: brew contributions are applied inside base_composite * QUALITY_BLEND_WEIGHT.
     assert updated_scores[seeded["product_name"]] == pytest.approx(
-        baseline_scores[seeded["product_name"]] + BREW_BOOST_MULTI_SESSION_WEIGHT
+        baseline_scores[seeded["product_name"]] + QUALITY_BLEND_WEIGHT * BREW_BOOST_MULTI_SESSION_WEIGHT
     )
 
 

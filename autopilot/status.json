@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-19T21:11:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": "2026-03-20T08:06:00Z",
-  "last_delivered_task": "SC-106",
-  "completed_since_reflect": 4,
+  "last_delivered_task": "SC-107",
+  "completed_since_reflect": 5,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-20T08:35:11Z",
+  "last_run_at": "2026-03-20T09:40:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "Refilled backlog with SC-107/108/109, then delivered SC-106: centralized unknown-metadata suppression for product tags/display, added Vitest coverage (13 tests), frontend build/tsc clean, 298 backend tests pass.",
-  "next_task_hint": "SC-107 ready: add historical variant price baselines to unlock SC-109 Today-view deal scoring."
+  "last_run_summary": "Delivered SC-107: VariantPriceBaseline model, Alembic migration, baseline_service, CLI command, and API baseline fields on ProductDetail. 8878 baselines computed. 308 backend tests pass. Ruff clean. SC-109 (Today deal-score) now unblocked.",
+  "next_task_hint": "SC-109 now unblocked: integrate VariantPriceBaseline deal_score into recommendation engine and Today view. Or SC-108 (catalog quality sort) if parallel frontend work is preferred."
 }
