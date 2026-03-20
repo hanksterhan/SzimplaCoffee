@@ -18,6 +18,9 @@ export interface TodayRecommendationCandidate {
   deal_fact_price_drop_30d_percent: number | null;
   deal_fact_historical_low_cents: number | null;
   deal_fact_compare_at_discount_percent: number | null;
+  // SC-109: Baseline deal score and badge from VariantPriceBaseline
+  deal_score: number | null;
+  deal_badge: string | null;
 }
 
 export interface TodaySaleCandidate {

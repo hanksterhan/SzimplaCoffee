@@ -20,6 +20,7 @@ from ..models import (
     RecommendationRun,
     ShippingPolicy,
     VariantDealFact,
+    VariantPriceBaseline,
 )
 from .discovery import meets_buying_threshold
 
@@ -39,6 +40,15 @@ BREW_PENALTY_WEIGHT = 0.15
 BREW_BOOST_THRESHOLD = 8.0
 BREW_BOOST_WEIGHT = 0.08
 BREW_BOOST_MULTI_SESSION_WEIGHT = 0.12
+
+# SC-109: Deal score blending weights (configurable here to allow future tuning).
+QUALITY_BLEND_WEIGHT = 0.7
+DEAL_BLEND_WEIGHT = 0.3
+
+# SC-109: Deal badge thresholds (fraction of baseline, negative = below baseline).
+_DEAL_BADGE_GREAT = -0.15   # > 15% below baseline → great_deal
+_DEAL_BADGE_GOOD = -0.05    # 5–15% below → good_deal
+_DEAL_BADGE_ABOVE = 0.05    # > 5% above → above_baseline
 
 
 @dataclass
@@ -75,6 +85,9 @@ class RecommendationCandidate:
     deal_fact_price_drop_30d_percent: float | None = None
     deal_fact_historical_low_cents: int | None = None
     deal_fact_compare_at_discount_percent: float | None = None
+    # SC-109: Baseline deal score and badge from VariantPriceBaseline
+    deal_score: float | None = None
+    deal_badge: str | None = None
 
 
 @dataclass
@@ -388,6 +401,49 @@ def _historical_discount_percent(baseline_cents: int | None, current_price_cents
     if not baseline_cents or baseline_cents <= 0 or current_price_cents >= baseline_cents:
         return 0.0
     return round(((baseline_cents - current_price_cents) / baseline_cents) * 100, 2)
+
+
+def _baseline_deal_score(
+    session: Session,
+    variant_id: int,
+    current_price_cents: int,
+) -> tuple[float | None, str | None]:
+    """SC-109: Compute deal_score and deal_badge from VariantPriceBaseline.
+
+    deal_score = (baseline_price - current_price) / baseline_price, clamped [-1, 1].
+    Positive score = cheaper than baseline (a deal), negative = more expensive.
+
+    deal_badge thresholds (based on deal_score):
+      great_deal   : deal_score >= 0.15  (≥15% below baseline)
+      good_deal    : deal_score >= 0.05  (5–15% below baseline)
+      at_baseline  : deal_score in (-0.05, 0.05)
+      above_baseline: deal_score <= -0.05 (>5% above baseline)
+      no_baseline  : no baseline row found
+    """
+    baseline: VariantPriceBaseline | None = session.scalar(
+        select(VariantPriceBaseline).where(VariantPriceBaseline.variant_id == variant_id)
+    )
+    if baseline is None or baseline.median_price_cents <= 0:
+        return None, "no_baseline"
+
+    raw = (baseline.median_price_cents - current_price_cents) / baseline.median_price_cents
+    deal_score = max(-1.0, min(1.0, raw))
+
+    # Thresholds (deal_score is positive when below baseline):
+    #   great_deal     : >= 0.15 (≥15% below)
+    #   good_deal      : >= 0.05 (5–15% below)
+    #   at_baseline    : > -0.05 (within ±5% of baseline)
+    #   above_baseline : <= -0.05 (>5% above baseline)
+    if deal_score >= 0.15:
+        badge = "great_deal"
+    elif deal_score >= 0.05:
+        badge = "good_deal"
+    elif deal_score > -0.05:
+        badge = "at_baseline"
+    else:
+        badge = "above_baseline"
+
+    return round(deal_score, 4), badge
 
 
 def _materialize_variant_deal_fact(
@@ -785,7 +841,14 @@ def build_recommendations(
                     else BREW_BOOST_WEIGHT
                 )
 
-            total = (
+            # SC-109: Compute baseline deal score and badge
+            baseline_deal_score, baseline_deal_badge = _baseline_deal_score(
+                session, variant.id, offer.price_cents
+            )
+
+            # SC-109: Blended ranking — quality-first with deal_score as tiebreaker bonus.
+            # Base composite score (pre-blend), then blend in deal signal.
+            base_composite = (
                 merchant_score * 0.24
                 + quantity_score * 0.18
                 + espresso_score * 0.20
@@ -795,6 +858,13 @@ def build_recommendations(
                 + promo_bonus
                 + brew_boost
                 - brew_penalty
+            )
+            # Blend: final = quality_weight * base + deal_weight * max(0, baseline_deal_score)
+            # If no baseline, deal contributes 0 to the blend (neutral).
+            baseline_deal_contribution = max(0.0, baseline_deal_score or 0.0)
+            total = (
+                QUALITY_BLEND_WEIGHT * base_composite
+                + DEAL_BLEND_WEIGHT * baseline_deal_contribution
             )
 
             pros = _build_pros(
@@ -823,6 +893,9 @@ def build_recommendations(
                     "brew_session_count": brew_session_count,
                     "brew_boost": round(brew_boost, 4),
                     "brew_penalty": round(brew_penalty, 4),
+                    "base_composite": round(base_composite, 4),
+                    "baseline_deal_score": baseline_deal_score,
+                    "baseline_deal_badge": baseline_deal_badge,
                     "total": round(total, 4),
                     "weights": {
                         "merchant": 0.24,
@@ -831,6 +904,8 @@ def build_recommendations(
                         "deal": 0.12,
                         "freshness": 0.08,
                         "history": 0.18,
+                        "quality_blend": QUALITY_BLEND_WEIGHT,
+                        "deal_blend": DEAL_BLEND_WEIGHT,
                     },
                 }
 
@@ -855,6 +930,9 @@ def build_recommendations(
                     deal_fact_price_drop_30d_percent=fact.price_drop_30d_percent,
                     deal_fact_historical_low_cents=fact.historical_low_cents,
                     deal_fact_compare_at_discount_percent=fact.compare_at_discount_percent,
+                    # SC-109: baseline deal score and badge
+                    deal_score=baseline_deal_score,
+                    deal_badge=baseline_deal_badge,
                 )
             )
 
@@ -890,7 +968,7 @@ def build_wait_assessment(
     no_candidates: bool = False,
     current_inventory_grams: int = 0,
 ) -> tuple[bool, str | None]:
-    """SC-54/SC-56: Determine if the system should recommend waiting, and why.
+    """SC-54/SC-56/SC-109: Determine if the system should recommend waiting, and why.
 
     Returns (wait_recommendation, wait_rationale).
     """
@@ -906,6 +984,20 @@ def build_wait_assessment(
     top_score = candidates[0].score
     if top_score < WAIT_SCORE_THRESHOLD:
         return True, f"The best current option scores {top_score:.0%} — below the quality threshold. Check back after merchants are refreshed."
+
+    # SC-109: When best candidate has a baseline and current price is above baseline,
+    # emit a deal-aware wait signal if quality is only borderline passing.
+    top = candidates[0]
+    if (
+        top.deal_score is not None
+        and top.deal_badge == "above_baseline"
+        and top_score < (WAIT_SCORE_THRESHOLD + 0.10)  # borderline quality
+    ):
+        return True, (
+            "The best current option is priced above its historical baseline — "
+            "it may be worth waiting for a better price window."
+        )
+
     return False, None
 
 

@@ -64,6 +64,9 @@ class RecommendationCandidateOut(BaseModel):
     pros: list[str]
     brew_session_count: int = 0
     score_breakdown: Optional[ScoreBreakdown] = None  # SC-67: populated when explain_scores=True
+    # SC-109: Baseline deal intelligence
+    deal_score: Optional[float] = None
+    deal_badge: Optional[str] = None
 
 
 class FilteredCandidateOut(BaseModel):  # SC-67

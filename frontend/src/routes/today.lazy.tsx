@@ -26,6 +26,33 @@ function fmtPricePerOz(cents: number | null | undefined) {
   return `$${(cents / 100).toFixed(2)}/oz`;
 }
 
+/** SC-109: Render a badge from the server-computed VariantPriceBaseline deal_badge. */
+function BaselineDealBadge({ badge }: { badge: string | null | undefined }) {
+  if (!badge || badge === "no_baseline" || badge === "at_baseline") return null;
+  if (badge === "great_deal") {
+    return (
+      <Badge variant="outline" className="text-xs text-emerald-700 border-emerald-400 bg-emerald-50">
+        🔥 Great deal
+      </Badge>
+    );
+  }
+  if (badge === "good_deal") {
+    return (
+      <Badge variant="outline" className="text-xs text-green-700 border-green-300 bg-green-50">
+        ✓ Good deal
+      </Badge>
+    );
+  }
+  if (badge === "above_baseline") {
+    return (
+      <Badge variant="outline" className="text-xs text-orange-600 border-orange-300 bg-orange-50">
+        ↑ Above baseline
+      </Badge>
+    );
+  }
+  return null;
+}
+
 /** SC-100: Render deal-intelligence badges from VariantDealFact signals. */
 function DealBadge({
   currentPriceCents,
@@ -116,6 +143,7 @@ function TopPickCard({
           {perOz && (
             <span className="text-xs text-muted-foreground">({perOz})</span>
           )}
+          <BaselineDealBadge badge={pick.deal_badge} />
           <DealBadge
             currentPriceCents={effectivePrice}
             baseline30dCents={pick.deal_fact_baseline_30d_cents}
@@ -247,6 +275,7 @@ function RunnerUpCard({
             ) : (
               <span className="font-semibold text-sm">{fmtPrice(pick.landed_price_cents)}</span>
             )}
+            <BaselineDealBadge badge={pick.deal_badge} />
             <DealBadge
               currentPriceCents={effectivePrice}
               baseline30dCents={pick.deal_fact_baseline_30d_cents}
