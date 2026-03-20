@@ -13,6 +13,11 @@ export interface TodayRecommendationCandidate {
   discounted_landed_price_cents: number | null;
   score: number;
   pros: string[];
+  // SC-100: deal fact signals threaded from VariantDealFact — null when no history
+  deal_fact_baseline_30d_cents: number | null;
+  deal_fact_price_drop_30d_percent: number | null;
+  deal_fact_historical_low_cents: number | null;
+  deal_fact_compare_at_discount_percent: number | null;
 }
 
 export interface TodaySaleCandidate {

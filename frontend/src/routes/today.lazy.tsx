@@ -26,6 +26,38 @@ function fmtPricePerOz(cents: number | null | undefined) {
   return `$${(cents / 100).toFixed(2)}/oz`;
 }
 
+/** SC-100: Render deal-intelligence badges from VariantDealFact signals. */
+function DealBadge({
+  currentPriceCents,
+  baseline30dCents,
+  historicalLowCents,
+}: {
+  currentPriceCents: number;
+  baseline30dCents: number | null | undefined;
+  historicalLowCents: number | null | undefined;
+}) {
+  // Historical low badge — show when current price equals or beats all-time low
+  if (historicalLowCents != null && currentPriceCents <= historicalLowCents) {
+    return (
+      <Badge variant="outline" className="text-xs text-purple-700 border-purple-300 bg-purple-50">
+        🏆 Historical low
+      </Badge>
+    );
+  }
+  // Below 30d median badge — show when price is more than 2% below 30d median
+  if (baseline30dCents != null && baseline30dCents > 0) {
+    const dropPct = ((baseline30dCents - currentPriceCents) / baseline30dCents) * 100;
+    if (dropPct > 2) {
+      return (
+        <Badge variant="outline" className="text-xs text-green-700 border-green-300 bg-green-50">
+          ↓ {Math.round(dropPct)}% below 30d avg
+        </Badge>
+      );
+    }
+  }
+  return null;
+}
+
 function TopPickCard({
   pick,
 }: {
@@ -33,6 +65,7 @@ function TopPickCard({
 }) {
   const perOz = fmtPricePerOz(pick.landed_price_per_oz_cents);
   const discounted = pick.discounted_landed_price_cents;
+  const effectivePrice = discounted ?? pick.landed_price_cents;
   return (
     <Card className="border-2 border-amber-700 shadow-md bg-amber-50/40">
       <div className="px-4 pt-3 pb-0">
@@ -67,7 +100,7 @@ function TopPickCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        <div className="flex items-baseline gap-2">
+        <div className="flex items-baseline gap-2 flex-wrap">
           {discounted ? (
             <>
               <span className="text-xl font-bold text-amber-800">
@@ -83,6 +116,11 @@ function TopPickCard({
           {perOz && (
             <span className="text-xs text-muted-foreground">({perOz})</span>
           )}
+          <DealBadge
+            currentPriceCents={effectivePrice}
+            baseline30dCents={pick.deal_fact_baseline_30d_cents}
+            historicalLowCents={pick.deal_fact_historical_low_cents}
+          />
         </div>
         {pick.pros.length > 0 && (
           <ul className="text-sm text-muted-foreground space-y-1">
@@ -155,6 +193,69 @@ function SaleCard({
         </div>
         <a
           href={sale.product_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 self-center"
+        >
+          <Button variant="ghost" size="sm" className="text-xs">
+            View →
+          </Button>
+        </a>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** SC-100: Runner-up / alternative card for TodayRecommendationCandidate — shows deal badges. */
+function RunnerUpCard({
+  pick,
+}: {
+  pick: NonNullable<TodayBriefResult["alternatives"]>[number];
+}) {
+  const discounted = pick.discounted_landed_price_cents;
+  const effectivePrice = discounted ?? pick.landed_price_cents;
+  return (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardContent className="p-4 flex gap-3">
+        {pick.image_url ? (
+          <img
+            src={pick.image_url}
+            alt={pick.product_name}
+            className="w-12 h-12 object-cover rounded border shrink-0"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
+          />
+        ) : (
+          <div className="w-12 h-12 rounded border bg-amber-50 flex items-center justify-center shrink-0">
+            <span className="text-lg">☕</span>
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm line-clamp-1">{pick.product_name}</p>
+          <p className="text-xs text-muted-foreground">
+            {pick.merchant_name} · {pick.variant_label}
+          </p>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            {discounted ? (
+              <>
+                <span className="font-semibold text-sm">{fmtPrice(discounted)}</span>
+                <span className="text-xs line-through text-muted-foreground">
+                  {fmtPrice(pick.landed_price_cents)}
+                </span>
+              </>
+            ) : (
+              <span className="font-semibold text-sm">{fmtPrice(pick.landed_price_cents)}</span>
+            )}
+            <DealBadge
+              currentPriceCents={effectivePrice}
+              baseline30dCents={pick.deal_fact_baseline_30d_cents}
+              historicalLowCents={pick.deal_fact_historical_low_cents}
+            />
+          </div>
+        </div>
+        <a
+          href={pick.product_url}
           target="_blank"
           rel="noopener noreferrer"
           className="shrink-0 self-center"
@@ -273,7 +374,7 @@ function TodayPage() {
             Alternatives
           </h2>
           {data.alternatives.map((alt, i) => (
-            <SaleCard key={i} sale={{ ...alt, current_price_cents: alt.landed_price_cents, compare_at_discount_percent: 0, price_drop_7d_percent: 0, price_drop_30d_percent: 0, historical_low_cents: 0, reasons: alt.pros } as unknown as NonNullable<TodayBriefResult["notable_sales"]>[number]} />
+            <RunnerUpCard key={i} pick={alt} />
           ))}
         </div>
       )}
