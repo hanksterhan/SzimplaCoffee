@@ -1,6 +1,6 @@
 # Now / Next / Later
 
-_Updated: 2026-03-20 after SC-102 delivery_
+_Updated: 2026-03-20 after SC-111 delivery_
 
 ## Top-500 Merchant Registry — Rollout Policy (SC-53)
 
@@ -40,7 +40,8 @@ _Updated: 2026-03-20 after SC-102 delivery_
 - Create the next origin-coverage ticket using richer crawl text / stored descriptions rather than more parser-only guesses
 - Revisit frontend filter semantics so `unknown` and non-coffee rows never pollute catalog filter UX
 - Deliver SC-104 to persist description text and unlock origin/process extraction beyond title-only parsing
-- Deliver SC-105 to import the next 10 merchants from the seed list using `--crawl-now` serially
+- Refresh the seed list to replace dead or weak merchant URLs discovered during SC-111 (NXDOMAIN, SSL mismatch, timeout, 0-product targets)
+- Decide whether SC-116 should continue merchant expansion immediately or pause for seed-list cleanup first
 - Observe recommendation ordering after SC-103 brew-feedback boost and adjust weights only if ranking drift is observed
 - Raise buying quality floor to 0.5 once crawl/data confidence supports it
 
