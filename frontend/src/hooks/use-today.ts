@@ -21,6 +21,8 @@ export interface TodayRecommendationCandidate {
   // SC-109: Baseline deal score and badge from VariantPriceBaseline
   deal_score: number | null;
   deal_badge: string | null;
+  // SC-112: Human-readable explanation of ranking
+  why_text: string;
 }
 
 export interface TodaySaleCandidate {

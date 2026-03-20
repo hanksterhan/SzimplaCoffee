@@ -150,6 +150,11 @@ function TopPickCard({
             historicalLowCents={pick.deal_fact_historical_low_cents}
           />
         </div>
+        {pick.why_text && (
+          <p className="text-sm text-amber-900/80 italic leading-snug">
+            {pick.why_text}
+          </p>
+        )}
         {pick.pros.length > 0 && (
           <ul className="text-sm text-muted-foreground space-y-1">
             {pick.pros.map((pro, i) => (

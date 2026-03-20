@@ -88,6 +88,8 @@ class RecommendationCandidate:
     # SC-109: Baseline deal score and badge from VariantPriceBaseline
     deal_score: float | None = None
     deal_badge: str | None = None
+    # SC-112: Human-readable explanation of why this coffee ranks here
+    why_text: str = ""
 
 
 @dataclass
@@ -640,6 +642,98 @@ def _build_pros(
     return deduped
 
 
+def _build_why_text(
+    *,
+    merchant_name: str,
+    product: "Product",
+    deal_badge: str | None,
+    deal_fact_price_drop_30d_percent: float | None,
+    deal_fact_compare_at_discount_percent: float | None,
+    deal_fact_historical_low_cents: int | None,
+    deal_fact_baseline_30d_cents: int | None,
+    merchant_score: float,
+    brew_session_count: int,
+    brew_avg_rating: float | None,
+) -> str:
+    """SC-112: Compose a 1–2 sentence template-based explanation for this recommendation.
+
+    Fragments are drawn from: deal_badge, quality/merchant tier, brew feedback,
+    process_family, origin_country. No LLM calls. Computed at response time; not persisted.
+    """
+    fragments: list[str] = []
+
+    # --- Deal fragment ---
+    if deal_badge == "great_deal" and deal_fact_price_drop_30d_percent and deal_fact_price_drop_30d_percent >= 5:
+        fragments.append(
+            f"currently {deal_fact_price_drop_30d_percent:.0f}% below its 30-day average — a great deal"
+        )
+    elif deal_badge == "great_deal" and deal_fact_compare_at_discount_percent and deal_fact_compare_at_discount_percent >= 10:
+        fragments.append(
+            f"marked down {deal_fact_compare_at_discount_percent:.0f}% from compare-at price"
+        )
+    elif deal_badge == "good_deal" and deal_fact_price_drop_30d_percent and deal_fact_price_drop_30d_percent >= 3:
+        fragments.append(
+            f"{deal_fact_price_drop_30d_percent:.0f}% below its 30-day average"
+        )
+    elif deal_badge == "good_deal" and deal_fact_compare_at_discount_percent and deal_fact_compare_at_discount_percent >= 5:
+        fragments.append(
+            f"{deal_fact_compare_at_discount_percent:.0f}% off from compare-at price"
+        )
+    elif (
+        deal_fact_historical_low_cents is not None
+        and deal_fact_baseline_30d_cents is not None
+        and deal_fact_baseline_30d_cents > 0
+    ):
+        pct = ((deal_fact_baseline_30d_cents - deal_fact_historical_low_cents) / deal_fact_baseline_30d_cents) * 100
+        if pct >= 10:
+            fragments.append("priced within range of its historical low")
+
+    # --- Quality / merchant tier fragment ---
+    if merchant_score >= 0.82:
+        fragments.append(f"from {merchant_name}, a highly-rated roaster")
+    elif merchant_score >= 0.70:
+        fragments.append(f"from {merchant_name}, a trusted roaster")
+
+    # --- Brew feedback fragment ---
+    if brew_avg_rating is not None and brew_session_count >= 1:
+        session_label = "session" if brew_session_count == 1 else "sessions"
+        if brew_avg_rating >= 8.5:
+            fragments.append(
+                f"rated {brew_avg_rating:.1f}/10 across {brew_session_count} brew {session_label}"
+            )
+        elif brew_avg_rating >= 7.0:
+            fragments.append(
+                f"proven performer over {brew_session_count} brew {session_label}"
+            )
+
+    # --- Origin fragment ---
+    origin = (product.origin_country or product.origin_text or "").strip()
+    if origin:
+        fragments.append(f"from {origin}")
+
+    # --- Process fragment ---
+    process = (product.process_family or product.process_text or "").strip().lower()
+    if process and process not in {"", "unknown"}:
+        fragments.append(f"{process} process")
+
+    # Compose sentence(s) from collected fragments
+    if not fragments:
+        return "Quality-cleared and available for your buying window."
+
+    # First sentence: primary signal (deal or merchant quality)
+    primary = fragments[0]
+    sentence1 = primary[:1].upper() + primary[1:] + "."
+
+    # Second clause: pick origin/process/brew if available
+    secondary_fragments = [f for f in fragments[1:] if f not in [primary]]
+    if secondary_fragments:
+        clause = " ".join(secondary_fragments[:2])
+        sentence2 = clause[:1].upper() + clause[1:] + "."
+        return f"{sentence1} {sentence2}"
+
+    return sentence1
+
+
 def build_biggest_sales(session: Session, limit: int = 10) -> list[BiggestSaleCandidate]:
     fact_by_variant = materialize_variant_deal_facts(session)
     category_baseline = _catalog_price_per_oz_baseline_cents(session)
@@ -909,6 +1003,19 @@ def build_recommendations(
                     },
                 }
 
+            why_text = _build_why_text(
+                merchant_name=merchant.name,
+                product=product,
+                deal_badge=baseline_deal_badge,
+                deal_fact_price_drop_30d_percent=fact.price_drop_30d_percent,
+                deal_fact_compare_at_discount_percent=fact.compare_at_discount_percent,
+                deal_fact_historical_low_cents=fact.historical_low_cents,
+                deal_fact_baseline_30d_cents=fact.baseline_30d_cents,
+                merchant_score=merchant_score,
+                brew_session_count=brew_session_count,
+                brew_avg_rating=brew_rating_by_product.get(product.id),
+            )
+
             candidates.append(
                 RecommendationCandidate(
                     merchant_name=merchant.name,
@@ -933,6 +1040,8 @@ def build_recommendations(
                     # SC-109: baseline deal score and badge
                     deal_score=baseline_deal_score,
                     deal_badge=baseline_deal_badge,
+                    # SC-112: human-readable explanation
+                    why_text=why_text,
                 )
             )
 

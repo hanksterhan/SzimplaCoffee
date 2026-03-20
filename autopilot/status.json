@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-20T11:34:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": "2026-03-20T12:06:00Z",
-  "last_delivered_task": "SC-110",
-  "completed_since_reflect": 1,
+  "last_delivered_task": "SC-111",
+  "completed_since_reflect": 2,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-20T12:22:00Z",
+  "last_run_at": "2026-03-20T13:20:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "Refilled backlog with SC-110 through SC-116, then delivered SC-110 by adding the backfill-descriptions CLI command and regression tests. Live run reclassified 48 non-coffee products, upgraded 21 process-family values, and backend verification passed (345 tests + ruff).",
-  "next_task_hint": "Select SC-111 next: merchant expansion batch 3 is ready, unblocked, and highest priority. Run imports serially to avoid CPU spikes."
+  "last_run_summary": "Delivered SC-111 by importing 10 merchant records serially, getting 8 successful crawls with products, increasing active merchants to 48, and passing backend verification (345 tests + ruff).",
+  "next_task_hint": "Select SC-112 next unless seed-list cleanup becomes higher leverage; SC-111 is closed and SC-116 is now unblocked."
 }

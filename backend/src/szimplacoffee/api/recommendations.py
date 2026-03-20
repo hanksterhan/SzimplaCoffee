@@ -67,6 +67,8 @@ class RecommendationCandidateOut(BaseModel):
     # SC-109: Baseline deal intelligence
     deal_score: Optional[float] = None
     deal_badge: Optional[str] = None
+    # SC-112: Template-based explanation of ranking
+    why_text: str = ""
 
 
 class FilteredCandidateOut(BaseModel):  # SC-67
