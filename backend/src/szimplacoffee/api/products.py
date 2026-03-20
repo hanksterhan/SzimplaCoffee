@@ -8,7 +8,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from ..db import get_session
-from ..models import Merchant, OfferSnapshot, Product, ProductVariant, VariantDealFact
+from ..models import Merchant, OfferSnapshot, Product, ProductVariant
 from ..schemas.common import CursorPage
 from pydantic import BaseModel
 
@@ -592,6 +592,7 @@ def get_product(product_id: int, db: Session = Depends(get_session)) -> ProductD
         .options(
             selectinload(Product.variants).selectinload(ProductVariant.offers),
             selectinload(Product.variants).selectinload(ProductVariant.deal_fact),
+            selectinload(Product.variants).selectinload(ProductVariant.price_baseline),
         )
         .where(Product.id == product_id)
     )
@@ -609,6 +610,18 @@ def get_product(product_id: int, db: Session = Depends(get_session)) -> ProductD
         v.is_available and v.latest_offer is not None and v.latest_offer.is_available
         for v in p.variants
     )
+    # SC-107: attach baseline from the primary (cheapest available) variant's baseline
+    # Use the variant with a baseline that has the most samples, prefer available variants
+    best_baseline = None
+    for v in p.variants:
+        if v.price_baseline is not None:
+            if best_baseline is None or v.price_baseline.sample_count > best_baseline.sample_count:
+                best_baseline = v.price_baseline
+    if best_baseline is not None:
+        detail.baseline_price = best_baseline.median_price_cents / 100
+        detail.baseline_min_price = best_baseline.min_price_cents / 100
+        detail.baseline_max_price = best_baseline.max_price_cents / 100
+        detail.baseline_sample_count = best_baseline.sample_count
     return detail
 
 

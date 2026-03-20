@@ -42,6 +42,8 @@ class ScoreBreakdown(BaseModel):
     history_score: float
     promo_bonus: float
     brew_avg_rating: Optional[float] = None
+    brew_session_count: int = 0
+    brew_boost: float = 0.0
     brew_penalty: float
     total: float
     weights: dict[str, float]
@@ -60,6 +62,7 @@ class RecommendationCandidateOut(BaseModel):
     discounted_landed_price_cents: Optional[int]
     score: float
     pros: list[str]
+    brew_session_count: int = 0
     score_breakdown: Optional[ScoreBreakdown] = None  # SC-67: populated when explain_scores=True
 
 

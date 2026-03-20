@@ -1,6 +1,6 @@
 # Now / Next / Later
 
-_Updated: 2026-03-18 after SC-80 delivery_
+_Updated: 2026-03-20 after SC-102 delivery_
 
 ## Top-500 Merchant Registry — Rollout Policy (SC-53)
 
@@ -32,16 +32,17 @@ _Updated: 2026-03-18 after SC-80 delivery_
 
 ## Now
 
-- Deliver SC-83 to add a recommendation-linked purchase filter on the Purchases page
-- Deliver SC-84 to preserve recommendation context across purchase success and revisit flows
-- Import real purchase history from Notion instead of relying on seed data
+- Improve origin fill rate on active coffee products; process and roast are now materially healthier after SC-102
+- Keep Phase 2 focused on trustworthy data semantics before broader feature expansion
 
 ## Next
 
-- Regenerate frontend API types after the recent purchase/recommendation schema additions
-- Exercise recommendation history linkage end-to-end from recommendation result → purchase form → purchases UI
-- Add richer merchant filtering and sorting in the dashboard and discovery queue
-- Raise buying quality floor to 0.5 once 3+ months of crawl data exist
+- Create the next origin-coverage ticket using richer crawl text / stored descriptions rather than more parser-only guesses
+- Revisit frontend filter semantics so `unknown` and non-coffee rows never pollute catalog filter UX
+- Deliver SC-104 to persist description text and unlock origin/process extraction beyond title-only parsing
+- Deliver SC-105 to import the next 10 merchants from the seed list using `--crawl-now` serially
+- Observe recommendation ordering after SC-103 brew-feedback boost and adjust weights only if ranking drift is observed
+- Raise buying quality floor to 0.5 once crawl/data confidence supports it
 
 ## Later
 

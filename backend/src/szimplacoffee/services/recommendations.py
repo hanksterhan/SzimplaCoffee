@@ -35,6 +35,10 @@ WAIT_SCORE_THRESHOLD = 0.30
 # SC-72: Down-rank products that have repeatedly brewed poorly.
 BREW_PENALTY_THRESHOLD = 3.0
 BREW_PENALTY_WEIGHT = 0.15
+# SC-103: Up-rank products that have brewed especially well.
+BREW_BOOST_THRESHOLD = 8.0
+BREW_BOOST_WEIGHT = 0.08
+BREW_BOOST_MULTI_SESSION_WEIGHT = 0.12
 
 
 @dataclass
@@ -63,6 +67,7 @@ class RecommendationCandidate:
     discounted_landed_price_cents: int | None
     score: float
     pros: list[str]
+    brew_session_count: int = 0
     # SC-67: populated when explain_scores=True
     score_breakdown: dict | None = None
     # SC-100: deal fact signals threaded from VariantDealFact — null when no history
@@ -540,10 +545,15 @@ def _build_pros(
     deal_reasons: list[str],
     history_reasons: list[str],
     promo_label: str | None,
+    *,
+    brew_session_count: int = 0,
 ) -> list[str]:
     pros: list[str] = []
     if merchant_score >= 0.8:
         pros.append("Trusted merchant with a strong quality signal")
+    if brew_session_count >= 1:
+        session_label = "session" if brew_session_count == 1 else "sessions"
+        pros.append(f"Proven performer ({brew_session_count} brew {session_label})")
     if quantity_score >= 0.95:
         pros.append("Bag size matches your current buying window")
     if espresso_reasons:
@@ -655,13 +665,18 @@ def build_recommendations(
     prefs = _preference_profile(session)
     fact_by_variant = materialize_variant_deal_facts(session)
     category_baseline = _catalog_price_per_oz_baseline_cents(session)
+    brew_feedback_stats = session.execute(
+        select(BrewFeedback.product_id, func.avg(BrewFeedback.rating), func.count(BrewFeedback.id))
+        .where(BrewFeedback.product_id.is_not(None))
+        .group_by(BrewFeedback.product_id)
+    ).all()
     brew_rating_by_product = {
         product_id: float(avg_rating)
-        for product_id, avg_rating in session.execute(
-            select(BrewFeedback.product_id, func.avg(BrewFeedback.rating))
-            .where(BrewFeedback.product_id.is_not(None))
-            .group_by(BrewFeedback.product_id)
-        ).all()
+        for product_id, avg_rating, _count in brew_feedback_stats
+    }
+    brew_feedback_count_by_product = {
+        product_id: int(count)
+        for product_id, _avg_rating, count in brew_feedback_stats
     }
     products = session.scalars(select(Product).where(Product.is_active.is_(True)).order_by(Product.name.asc())).all()
 
@@ -756,11 +771,19 @@ def build_recommendations(
             freshness_score = merchant.quality_profile.freshness_transparency_score if merchant.quality_profile else 0.5
 
             brew_avg_rating = brew_rating_by_product.get(product.id)
+            brew_session_count = brew_feedback_count_by_product.get(product.id, 0)
             brew_penalty = (
                 BREW_PENALTY_WEIGHT
                 if brew_avg_rating is not None and brew_avg_rating < BREW_PENALTY_THRESHOLD
                 else 0.0
             )
+            brew_boost = 0.0
+            if brew_avg_rating is not None and brew_avg_rating >= BREW_BOOST_THRESHOLD and brew_session_count >= 1:
+                brew_boost = (
+                    BREW_BOOST_MULTI_SESSION_WEIGHT
+                    if brew_session_count >= 2
+                    else BREW_BOOST_WEIGHT
+                )
 
             total = (
                 merchant_score * 0.24
@@ -770,6 +793,7 @@ def build_recommendations(
                 + freshness_score * 0.08
                 + history_score * 0.18
                 + promo_bonus
+                + brew_boost
                 - brew_penalty
             )
 
@@ -781,6 +805,7 @@ def build_recommendations(
                 deal_reasons,
                 history_reasons,
                 best_promo_label,
+                brew_session_count=brew_session_count if brew_boost > 0 else 0,
             )
 
             # SC-67: Build score breakdown when explain_scores=True
@@ -795,6 +820,8 @@ def build_recommendations(
                     "history_score": round(history_score, 4),
                     "promo_bonus": round(promo_bonus, 4),
                     "brew_avg_rating": round(brew_avg_rating, 4) if brew_avg_rating is not None else None,
+                    "brew_session_count": brew_session_count,
+                    "brew_boost": round(brew_boost, 4),
                     "brew_penalty": round(brew_penalty, 4),
                     "total": round(total, 4),
                     "weights": {
@@ -821,6 +848,7 @@ def build_recommendations(
                     discounted_landed_price_cents=discounted_landed_price_cents,
                     score=round(total, 4),
                     pros=pros,
+                    brew_session_count=brew_session_count,
                     score_breakdown=score_breakdown,
                     # SC-100: thread deal_fact signals into candidate for Today view badges
                     deal_fact_baseline_30d_cents=fact.baseline_30d_cents,

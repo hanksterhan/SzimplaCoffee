@@ -24,6 +24,8 @@ from szimplacoffee.models import (
     VariantDealFact,
 )
 from szimplacoffee.services.recommendations import (
+    BREW_BOOST_MULTI_SESSION_WEIGHT,
+    BREW_BOOST_WEIGHT,
     BREW_PENALTY_WEIGHT,
     RecommendationRequest,
     _build_pros,
@@ -162,6 +164,21 @@ def test_build_pros_emits_buyer_facing_summary() -> None:
     assert "Bag size matches your current buying window" in pros
     assert "Strong delivered value for the amount of coffee" in pros
     assert len(pros) == 4
+
+
+def test_build_pros_includes_proven_performer_for_boosted_products() -> None:
+    pros = _build_pros(
+        merchant_score=0.5,
+        quantity_score=0.7,
+        deal_score=0.6,
+        espresso_reasons=[],
+        deal_reasons=[],
+        history_reasons=[],
+        promo_label=None,
+        brew_session_count=2,
+    )
+
+    assert "Proven performer (2 brew sessions)" in pros
 
 
 def _seed_offer(session: Session, variant: ProductVariant, *, observed_at: datetime, price_cents: int, compare_at_price_cents: int | None = None) -> None:
@@ -535,6 +552,58 @@ def test_brew_feedback_penalty_downranks_products_below_threshold(deal_test_clie
     )
 
 
+def test_brew_feedback_boost_upranks_high_rated_products(deal_test_client) -> None:
+    _client, engine, seeded = deal_test_client
+    baseline_scores = _scores_by_product_name(engine)
+
+    with Session(engine) as session:
+        session.add(
+            BrewFeedback(
+                product_id=seeded["product_id"],
+                shot_style="modern_58mm",
+                rating=9.0,
+                would_rebuy=True,
+            )
+        )
+        session.commit()
+
+    updated_scores = _scores_by_product_name(engine)
+
+    assert updated_scores[seeded["product_name"]] == pytest.approx(
+        baseline_scores[seeded["product_name"]] + BREW_BOOST_WEIGHT
+    )
+
+
+def test_brew_feedback_boost_is_stronger_with_multiple_sessions(deal_test_client) -> None:
+    _client, engine, seeded = deal_test_client
+    baseline_scores = _scores_by_product_name(engine)
+
+    with Session(engine) as session:
+        session.add_all(
+            [
+                BrewFeedback(
+                    product_id=seeded["product_id"],
+                    shot_style="modern_58mm",
+                    rating=9.0,
+                    would_rebuy=True,
+                ),
+                BrewFeedback(
+                    product_id=seeded["product_id"],
+                    shot_style="modern_58mm",
+                    rating=9.0,
+                    would_rebuy=True,
+                ),
+            ]
+        )
+        session.commit()
+
+    updated_scores = _scores_by_product_name(engine)
+
+    assert updated_scores[seeded["product_name"]] == pytest.approx(
+        baseline_scores[seeded["product_name"]] + BREW_BOOST_MULTI_SESSION_WEIGHT
+    )
+
+
 # SC-67: explain_scores tests
 def test_explain_scores_true_returns_score_breakdown(deal_test_client) -> None:
     """SC-67 AC-1: explain_scores=True must return score_breakdown per candidate."""
@@ -556,7 +625,18 @@ def test_explain_scores_true_returns_score_breakdown(deal_test_client) -> None:
             f"Expected score_breakdown on {candidate.product_name} but got None"
         )
         breakdown = candidate.score_breakdown
-        for field in ("merchant_score", "quantity_score", "espresso_score", "deal_score", "freshness_score", "history_score", "promo_bonus", "total"):
+        for field in (
+            "merchant_score",
+            "quantity_score",
+            "espresso_score",
+            "deal_score",
+            "freshness_score",
+            "history_score",
+            "promo_bonus",
+            "brew_session_count",
+            "brew_boost",
+            "total",
+        ):
             assert field in breakdown, f"Missing field '{field}' in score_breakdown"
         assert breakdown["total"] == candidate.score, (
             f"score_breakdown.total={breakdown['total']} must match candidate.score={candidate.score}"
@@ -603,7 +683,45 @@ def test_explain_scores_api_endpoint(deal_test_client) -> None:
     assert top_result is not None, "Expected top_result with explain_scores=True and seeded data"
     assert "score_breakdown" in top_result, "top_result must include score_breakdown when explain_scores=True"
     assert top_result["score_breakdown"] is not None
+    assert "brew_session_count" in top_result["score_breakdown"]
+    assert "brew_boost" in top_result["score_breakdown"]
 
     assert "filtered_candidates" in payload, "Response must include filtered_candidates key"
     assert payload["filtered_candidates"] is not None
     assert isinstance(payload["filtered_candidates"], list)
+
+
+def test_recommendations_api_exposes_brew_session_count_and_proven_performer(deal_test_client) -> None:
+    client, engine, seeded = deal_test_client
+
+    with Session(engine) as session:
+        session.add_all(
+            [
+                BrewFeedback(
+                    product_id=seeded["product_id"],
+                    shot_style="modern_58mm",
+                    rating=9.0,
+                    would_rebuy=True,
+                ),
+                BrewFeedback(
+                    product_id=seeded["product_id"],
+                    shot_style="modern_58mm",
+                    rating=9.0,
+                    would_rebuy=True,
+                ),
+            ]
+        )
+        session.commit()
+
+    response = client.post(
+        "/api/v1/recommendations",
+        json={"current_inventory_grams": 0, "explain_scores": True},
+    )
+
+    assert response.status_code in (200, 201)
+    payload = response.json()
+    top_result = payload.get("top_result")
+    assert top_result is not None
+    assert top_result["brew_session_count"] >= 2
+    assert any("Proven performer" in pro for pro in top_result["pros"])
+    assert top_result["score_breakdown"]["brew_boost"] == pytest.approx(BREW_BOOST_MULTI_SESSION_WEIGHT)

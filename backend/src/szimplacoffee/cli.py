@@ -66,6 +66,26 @@ def main() -> None:
         help="Promote Coava to Tier A/trusted and deactivate known junk Tier-D merchant rows.",
     )
 
+    # SC-107: compute-baselines
+    compute_baselines_parser = subparsers.add_parser(
+        "compute-baselines",
+        help="Compute historical price baselines (median/min/max) for all variants from OfferSnapshot history.",
+    )
+    compute_baselines_parser.add_argument(
+        "--merchant-id",
+        type=int,
+        default=None,
+        metavar="ID",
+        help="If set, only compute baselines for variants of this merchant.",
+    )
+    compute_baselines_parser.add_argument(
+        "--window-days",
+        type=int,
+        default=90,
+        metavar="DAYS",
+        help="Rolling history window in days (default: 90).",
+    )
+
     # SC-33: crawl-schedule + run-scheduled-crawls
     subparsers.add_parser(
         "crawl-schedule",
@@ -546,6 +566,22 @@ def main() -> None:
                 print(f"  {item['name']:<40} {item['crawl_tier']:<6} {interval:>10} {last:<22} {next_due:<22} {status}")
             due_count = sum(1 for item in schedule if item["merchant_id"] in due_ids)
             print(f"\n{due_count} merchant(s) currently due for crawl.")
+            return
+
+        if args.command == "compute-baselines":
+            # SC-107: compute historical price baselines for all variants
+            from .services.baseline_service import compute_variant_baselines
+
+            merchant_id = getattr(args, "merchant_id", None)
+            window_days = getattr(args, "window_days", 90)
+            print(f"Computing price baselines (window={window_days}d{', merchant_id=' + str(merchant_id) if merchant_id else ''})...")
+            result = compute_variant_baselines(session, merchant_id=merchant_id, window_days=window_days)
+            session.commit()
+            print(
+                f"Done: {result['computed']} baselines computed, "
+                f"{result['skipped']} variants skipped (no history), "
+                f"{result['total_variants']} total variants."
+            )
             return
 
         if args.command == "run-scheduled-crawls":

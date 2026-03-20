@@ -1,0 +1,145 @@
+id: SC-102
+title: "Improve metadata fill rate: reduce unknown roast, process, and missing origin on active products"
+type: feature
+priority: p2
+status: done
+owner: h6nk-bot
+created_at: "2026-03-20T03:11:00Z"
+updated_at: "2026-03-20T04:02:00Z"
+labels: ["metadata", "catalog", "data-quality", "phase-2-extended"]
+
+problem: >
+  Despite SC-94 adding canonical normalized fields (origin_country, roast_level,
+  process_family) with confidence/provenance, current active product coverage is poor:
+  - 30% unknown roast_level (283/919 products)
+  - 49% unknown process_family (451/919 products)
+  - 37% missing origin_country (343/919 products)
+
+  These gaps degrade filter UX (unknown options appear in dropdowns), weaken
+  recommendation ranking, and undermine the Phase 2 goal of trustworthy catalog
+  semantics. The coffee parser extracts metadata from product names, but many
+  products are non-coffee (subscriptions, gear, gift cards) or have names that lack
+  roast/process cues. The parser needs stronger pattern coverage and the backfill
+  command needs to be smarter about what it skips vs. what it tries harder on.
+
+desired_outcome: >
+  After re-running backfill-metadata with improved patterns:
+  - Unknown roast_level drops from 30% to ≤ 20% of active products
+  - Unknown process_family drops from 49% to ≤ 35% of active products
+  - Non-coffee products (gear, subscriptions, gift cards) are excluded from the
+    denominator or explicitly tagged as is_coffee=False so they don't inflate
+    unknown counts
+
+scope_in:
+  - "Audit the current coffee parser patterns in services/parser.py (or equivalent)"
+  - "Identify the most common product name patterns that are failing: gear, subscriptions, syrups, etc."
+  - "Add a lightweight is_coffee classifier to tag obviously non-coffee products (e.g. 'grinder', 'tamper', 'syrup', 'subscription', 'bundle', 'gift card' → is_coffee=False)"
+  - "Improve roast_level patterns to catch common cues missed: 'blonde', 'city+', 'full city', 'northern Italian', 'Scandinavian'"
+  - "Improve process_family patterns for common missed terms: 'carbonic maceration', 'extended fermentation', 'anaerobic natural', 'honey washed'"
+  - "Run szimpla backfill-metadata after parser improvements"
+  - "Verify fill rate improvement by re-counting unknowns before and after"
+  - "Ensure non-coffee exclusion or is_coffee flag does not break existing catalog API responses"
+
+scope_out:
+  - "Adding description_html scraping (requires crawler changes — out of scope)"
+  - "ML-based metadata inference"
+  - "Changing Product schema migrations for is_coffee unless needed (prefer runtime logic)"
+  - "Backfilling more than roast/process/origin from existing fields"
+  - "Changing filter dropdowns in the frontend (separate ticket)"
+
+dependencies:
+  blockers: []
+  unblocks: ["SC-103"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Unknown roast_level for active products drops from 30% to ≤ 20% after backfill-metadata re-run"
+    verify: "python3 -c \"from szimplacoffee.db import engine; from sqlalchemy import text; ...\""
+    status: done
+  - id: AC-2
+    text: "Unknown process_family for active products drops from 49% to ≤ 35% after backfill-metadata re-run"
+    verify: "DB count query: SELECT COUNT(*) FROM products WHERE is_active=1 AND process_family='unknown'"
+    status: done
+  - id: AC-3
+    text: "Backend test suite passes after parser changes"
+    verify: "cd backend && pytest tests/ -q"
+    status: done
+  - id: AC-4
+    text: "The catalog API still returns correct results for filtered origin/roast queries"
+    verify: "cd backend && pytest tests/test_api_products.py -v -q"
+    status: done
+
+verification_required:
+  - "cd backend && pytest tests/ -q"
+  - "cd frontend && npm run build && npx tsc -b"
+
+context_refs:
+  - ".plans/brainstorm-current.md"
+  - "autopilot/goal.yaml"
+  - "backend/src/szimplacoffee/services/"
+
+slices:
+  - id: S1
+    title: "Audit parser and identify top missed patterns"
+    status: done
+    depends_on: []
+    files_create: []
+    files_modify: []
+    files_read_only:
+      - "backend/src/szimplacoffee/services/"
+    checks:
+      - "List top product name patterns that result in unknown roast/process"
+      - "List obvious non-coffee product name tokens"
+    evidence: []
+    notes: "Read parser.py, run a quick query to find the most common products with unknown fields."
+
+  - id: S2
+    title: "Improve parser patterns and add non-coffee classifier"
+    status: done
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/parser.py"
+    files_read_only: []
+    checks:
+      - "New roast patterns for: blonde, city+, full city, northern Italian, Scandinavian"
+      - "New process patterns for: carbonic maceration, extended fermentation, anaerobic natural, honey washed"
+      - "Non-coffee classifier based on keyword list (grinder, tamper, subscription, gift card, etc.)"
+    evidence: []
+    notes: "Keep changes minimal and pattern-additive. Don't restructure the parser."
+
+  - id: S3
+    title: "Run backfill-metadata and verify improvement"
+    status: done
+    depends_on: ["S2"]
+    files_create: []
+    files_modify: []
+    files_read_only: []
+    checks:
+      - "szimpla backfill-metadata completes without error"
+      - "Unknown roast ≤ 20% (≤ 184/919)"
+      - "Unknown process ≤ 35% (≤ 322/919)"
+    evidence: []
+    notes: "Run backfill-metadata, then count unknowns again. Write before/after numbers to delivery memory."
+
+delivery:
+  branch: "feat/SC-102-metadata-fill-rate"
+  commits: []
+  pr_url: ""
+  started_at: "2026-03-20T04:02:00Z"
+  completed_at: "2026-03-20T04:02:00Z"
+  verification:
+    required_passed: true
+    commands_run:
+      - "cd backend && . .venv/bin/activate && pytest tests/test_coffee_parser.py -q"
+      - "cd backend && . .venv/bin/activate && python -m szimplacoffee.cli backfill-metadata"
+      - "cd backend && . .venv/bin/activate && pytest tests/ -q"
+      - "cd frontend && npm run build"
+      - "cd backend && ~/.local/bin/ruff check src/ tests/"
+    evidence_refs:
+      - ".memory/sprint-10/SC-102-metadata-fill-rate.md"
+
+notes:
+  - "Before counts (2026-03-20): roast_unknown=283/919 (30%), process_unknown=451/919 (49%), origin_null=343/919 (37%)"
+  - "Parser is the main lever — description_html not stored yet, so only name-based patterns are available."
+  - "Non-coffee product exclusion is important for denominator honesty."
