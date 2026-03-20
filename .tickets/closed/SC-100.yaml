@@ -1,0 +1,97 @@
+id: SC-100
+title: "Add metadata fill-rate widget to dashboard"
+type: feature
+priority: p2
+status: done
+owner: h6nk-bot
+created_at: "2026-03-19T21:54:00Z"
+updated_at: "2026-03-19T21:54:00Z"
+labels: ["dashboard", "metadata", "frontend", "observability"]
+
+problem: >
+  The dashboard API already computes metadata fill rates (origin_pct, process_pct,
+  roast_pct, variety_pct) via MetadataFillRates but the React SPA dashboard page
+  does not display them. Operators have no at-a-glance visibility into parser
+  coverage progress. After SC-97 improves parser patterns, there's no UI to verify
+  that fill rates actually improved.
+
+desired_outcome: >
+  The SPA dashboard shows a compact fill-rate widget with colored progress bars or
+  percentage badges for origin, process, roast, and variety coverage. The widget
+  uses existing /api/v1/dashboard/metrics data; no new API changes needed.
+
+scope_in:
+  - "Add MetadataFillRateWidget component (or equivalent inline section) to the dashboard route"
+  - "Display origin_pct, process_pct, roast_pct, variety_pct with visual progress indicators"
+  - "Use existing useDashboard hook / query; no new API endpoints"
+  - "Show a 'Goal: 70%' marker or baseline annotation for origin_pct (matches goal.yaml criterion)"
+scope_out:
+  - "Historical fill-rate chart over time"
+  - "New backend API changes"
+  - "Alerts or automated notifications on fill-rate drop"
+  - "Per-merchant fill-rate breakdown"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Dashboard page displays fill rates for origin, process, roast, and variety"
+    verify: "cd frontend && npm run build && npx tsc -b"
+    status: pending
+  - id: AC-2
+    text: "Fill rates sourced from existing DashboardMetrics.metadata_fill_rates; no new API calls added"
+    verify: "grep -rn 'metadata_fill_rates' frontend/src/routes/ frontend/src/components/"
+    status: pending
+  - id: AC-3
+    text: "Frontend build and type-check pass"
+    verify: "cd frontend && npm run build && npx tsc -b"
+    status: pending
+
+verification_required:
+  - "cd frontend && npm run build"
+  - "cd frontend && npx tsc -b"
+
+context_refs:
+  - ".plans/SC-100-execution-plan.md"
+  - "autopilot/goal.yaml"
+
+slices:
+  - id: S1
+    title: "Add fill-rate widget to dashboard route"
+    status: pending
+    depends_on: []
+    files_create:
+      - "frontend/src/components/MetadataFillRateWidget.tsx"
+    files_modify:
+      - "frontend/src/routes/index.lazy.tsx"
+    files_read_only:
+      - "frontend/src/hooks/useDashboard.ts"
+      - "frontend/src/api/schema.d.ts"
+      - "frontend/src/components/"
+    checks:
+      - "MetadataFillRateWidget renders 4 fill-rate rows (origin, process, roast, variety)"
+      - "Each row shows percentage value and a progress bar or badge"
+      - "Widget handles zero/undefined fill rates without rendering NaN or crashing"
+      - "No new API hooks added; reuses existing useDashboard result"
+    evidence: []
+    notes: >
+      Keep the widget compact and consistent with existing dashboard card styles.
+      Origin row should show a 70% goal marker (matches goal.yaml success criterion).
+      Use Tailwind utility classes; no new dependencies.
+
+delivery:
+  branch: "feat/SC-100-fill-rate-widget"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "DashboardMetrics schema already includes metadata_fill_rates: {origin_pct, process_pct, roast_pct, variety_pct, coffee_product_count}"
+  - "Check frontend/src/api/schema.d.ts to confirm MetadataFillRates type is already generated"

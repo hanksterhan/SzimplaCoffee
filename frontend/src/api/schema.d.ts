@@ -2537,7 +2537,7 @@ export interface operations {
                 roast_level?: string | null;
                 price_per_oz_min?: number | null;
                 price_per_oz_max?: number | null;
-                sort?: "featured" | "merchant" | "price_low" | "price_high" | "price_per_oz_low" | "price_per_oz_high" | "discount";
+                sort?: "featured" | "quality" | "merchant" | "price_low" | "price_high" | "price_per_oz_low" | "price_per_oz_high" | "discount";
                 limit?: number;
                 /** @description Zero-based offset into the sorted result set. */
                 cursor?: number | null;
@@ -2593,7 +2593,7 @@ export interface operations {
                 roast_level?: string | null;
                 price_per_oz_min?: number | null;
                 price_per_oz_max?: number | null;
-                sort?: "featured" | "merchant" | "price_low" | "price_high" | "price_per_oz_low" | "price_per_oz_high" | "discount";
+                sort?: "featured" | "quality" | "merchant" | "price_low" | "price_high" | "price_per_oz_low" | "price_per_oz_high" | "discount";
                 limit?: number;
                 /** @description Zero-based offset into the sorted result set. */
                 cursor?: number | null;

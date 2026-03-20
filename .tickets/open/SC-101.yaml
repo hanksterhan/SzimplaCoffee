@@ -1,0 +1,127 @@
+id: SC-101
+title: "Merchant expansion: verify and import 10 top-priority merchants from seed list"
+type: feature
+priority: p2
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-20T01:40:00Z"
+updated_at: "2026-03-20T01:40:00Z"
+labels: ["merchants", "catalog", "data", "expansion"]
+
+problem: >
+  The current merchant set covers 16 active merchants with good crawl quality. The
+  60-merchant seed list at SzimplaCoffee/brain/merchants/top-500-seed.md contains
+  verified top-tier specialty roasters that would meaningfully expand catalog depth,
+  origin diversity, and recommendation quality. Now that crawl execution is serialized
+  (1 merchant per 15-min tick via APScheduler), adding 10 more merchants is safe —
+  they will not cause CPU spikes or parallel crawl load. Without expansion, the
+  recommendation engine is limited to a small set of origins and roasters.
+
+desired_outcome: >
+  10 new merchants are added to the DB via `szimpla add-merchant <url>` for the
+  highest-priority candidates from the seed list. Each merchant gets an initial crawl,
+  basic product catalog seeded, and a quality profile scored. The total merchant count
+  moves from 16 to ~26 active merchants. No code changes required — this is a data
+  operation using the existing CLI.
+
+scope_in:
+  - "Read SzimplaCoffee/brain/merchants/top-500-seed.md and select 10 highest-priority candidates"
+  - "Verify each URL is reachable before importing"
+  - "Run szimpla add-merchant <url> for each verified merchant (serialized, not parallel)"
+  - "After all adds, run szimpla score-merchants to refresh quality profiles"
+  - "Update brain/merchant-intel/ notes for any merchants with notable crawl quality or coverage"
+  - "Confirm total active merchant count increased and at least 8 of 10 crawled successfully"
+scope_out:
+  - "Bulk import scripts or automation (use CLI)"
+  - "Custom adapters for merchants that fail initial crawl"
+  - "Shopify/WooCommerce adapter changes"
+  - "Importing more than 10 merchants in this ticket"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "At least 8 of the 10 targeted merchants have products in the DB after initial crawl"
+    verify: "szimpla crawl-all then check merchant list in DB or dashboard"
+    status: pending
+  - id: AC-2
+    text: "Active merchant count is >= 24 (up from 16)"
+    verify: "curl http://localhost:8000/api/v1/dashboard/metrics | jq .merchant_count"
+    status: pending
+  - id: AC-3
+    text: "szimpla score-merchants runs without error after all adds"
+    verify: "cd backend && . .venv/bin/activate && szimpla score-merchants"
+    status: pending
+  - id: AC-4
+    text: "No new merchants are in tier D (if any fail to crawl, document and skip)"
+    verify: "DB check: SELECT name, crawl_tier FROM merchants WHERE is_active = 1"
+    status: pending
+
+verification_required:
+  - "cd backend && .venv/bin/activate && szimpla score-merchants"
+  - "cd backend && .venv/bin/pytest tests/ -q"
+
+context_refs:
+  - "SzimplaCoffee/brain/merchants/top-500-seed.md"
+  - ".plans/brainstorm-current.md"
+  - "autopilot/goal.yaml"
+
+slices:
+  - id: S1
+    title: "Select and verify 10 merchant URLs from seed list"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify: []
+    files_read_only:
+      - "SzimplaCoffee/brain/merchants/top-500-seed.md"
+    checks:
+      - "10 URLs selected based on reputation, origin diversity, and Shopify/WooCommerce platform (highest crawl success rate)"
+      - "Each URL returns HTTP 200 before import"
+    evidence: []
+    notes: "Prioritize merchants not already in the DB. Prefer Shopify merchants for crawl reliability."
+
+  - id: S2
+    title: "Add merchants via CLI (serialized)"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify: []
+    files_read_only: []
+    checks:
+      - "szimpla add-merchant run for each URL"
+      - "At least 8/10 result in product catalog rows"
+      - "szimpla score-merchants completes without error"
+    evidence: []
+    notes: "Run adds one at a time. Wait for each to complete before running the next. Record any failures."
+
+  - id: S3
+    title: "Update brain merchant intel notes"
+    status: pending
+    depends_on: ["S2"]
+    files_create: []
+    files_modify:
+      - "SzimplaCoffee/brain/merchant-intel/"
+    files_read_only: []
+    checks:
+      - "Notes created for any merchants with notable crawl quality or failures"
+    evidence: []
+    notes: "Lightweight — just capture surprises for future reference."
+
+delivery:
+  branch: "feat/SC-101-merchant-expansion"
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Seed list at SzimplaCoffee/brain/merchants/top-500-seed.md has ~60 candidates."
+  - "Shopify merchants (shopify.com or storefrontapi.json) have the highest crawl success rate."
+  - "Resource guardrail: run adds serially, not in parallel."

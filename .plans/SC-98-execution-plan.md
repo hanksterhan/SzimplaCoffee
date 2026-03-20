@@ -54,7 +54,12 @@ deal signal is present (price_drop_30d_percent > 5%).
 
 ### S2 — Frontend badge
 
-1. Run `cd frontend && npm run gen:api` after backend is updated (backend must be running).
+1. Start the backend before running `gen:api` (it hits localhost:8000/openapi.json at runtime):
+   ```bash
+   cd backend && uvicorn szimplacoffee.main:app --port 8000 &
+   sleep 3   # wait for startup
+   ```
+2. Run `cd frontend && npm run gen:api` after backend is updated (backend must be running).
 2. In `ProductCard.tsx`, read the deal_fact field from the product summary.
 3. Add a badge: if `deal_fact.price_drop_30d_percent > 5`, show
    "↓{n}% vs 30d avg" (round to integer).

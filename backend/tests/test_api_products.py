@@ -19,7 +19,7 @@ from szimplacoffee.api.products import (
     router as products_router,
 )
 from szimplacoffee.db import Base, get_session
-from szimplacoffee.models import Merchant, OfferSnapshot, Product, ProductVariant, VariantDealFact
+from szimplacoffee.models import Merchant, MerchantQualityProfile, OfferSnapshot, Product, ProductVariant, VariantDealFact
 
 
 def test_normalize_query_default_unwraps_fastapi_query_objects():
@@ -467,6 +467,130 @@ def test_catalog_search_returns_deal_fact_fields_when_variant_deal_fact_exists(d
     deal = payload["items"][0].get("deal_fact")
     assert deal is not None
     assert deal["baseline_30d_cents"] == 2100
+
+
+@pytest.fixture()
+def quality_sort_client():
+    """Two merchants with different overall_quality_score; products in each to verify ordering."""
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        high_quality = Merchant(
+            name="High Quality Roasters",
+            canonical_domain="highq.example",
+            homepage_url="https://highq.example",
+            platform_type="shopify",
+        )
+        low_quality = Merchant(
+            name="Low Quality Roasters",
+            canonical_domain="lowq.example",
+            homepage_url="https://lowq.example",
+            platform_type="shopify",
+        )
+        session.add_all([high_quality, low_quality])
+        session.flush()
+
+        session.add(MerchantQualityProfile(merchant_id=high_quality.id, overall_quality_score=0.9))
+        session.add(MerchantQualityProfile(merchant_id=low_quality.id, overall_quality_score=0.3))
+        session.flush()
+
+        # One in-stock product from each merchant, same metadata_confidence (0.9)
+        hq_product = _seed_product(
+            session,
+            high_quality,
+            external_id="hq-colombian",
+            name="HQ Colombian",
+            origin_country="Colombia",
+            process_family="washed",
+            roast_level="medium",
+            price_cents=2000,
+            compare_at_price_cents=None,
+            is_available=True,
+            is_whole_bean=True,
+            weight_grams=340,
+        )
+        lq_product = _seed_product(
+            session,
+            low_quality,
+            external_id="lq-brazil",
+            name="LQ Brazil",
+            origin_country="Brazil",
+            process_family="natural",
+            roast_level="medium-dark",
+            price_cents=1500,
+            compare_at_price_cents=None,
+            is_available=True,
+            is_whole_bean=True,
+            weight_grams=340,
+        )
+        # Sold-out product from high_quality merchant — should rank below in-stock
+        hq_soldout = _seed_product(
+            session,
+            high_quality,
+            external_id="hq-soldout",
+            name="HQ Sold Out",
+            origin_country="Guatemala",
+            process_family="honey",
+            roast_level="light",
+            price_cents=2200,
+            compare_at_price_cents=None,
+            is_available=False,
+            is_whole_bean=True,
+            weight_grams=340,
+        )
+
+        ids = {
+            "hq": high_quality.id,
+            "lq": low_quality.id,
+            "hq_product": hq_product.id,
+            "lq_product": lq_product.id,
+            "hq_soldout": hq_soldout.id,
+        }
+        session.commit()
+
+    app = FastAPI()
+    app.include_router(products_router, prefix="/api/v1")
+
+    def override_get_session():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+
+    with TestClient(app) as client:
+        yield client, ids
+
+    app.dependency_overrides.clear()
+
+
+def test_quality_sort_orders_by_stock_then_merchant_quality_then_confidence(quality_sort_client) -> None:
+    """
+    quality sort must rank:
+    1. In-stock products before sold-out.
+    2. Among in-stock, high-quality merchant (score=0.9) before low-quality (score=0.3).
+    3. Sold-out products last (after all in-stock, regardless of merchant quality).
+    """
+    client, ids = quality_sort_client
+
+    response = client.get(
+        "/api/v1/products/search",
+        params={"category": "coffee", "sort": "quality"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    names = [item["name"] for item in payload["items"]]
+
+    # In-stock HQ product must come first
+    assert names[0] == "HQ Colombian", f"Expected HQ Colombian first, got: {names}"
+    # In-stock LQ product second (same stock level, lower merchant quality)
+    assert names[1] == "LQ Brazil", f"Expected LQ Brazil second, got: {names}"
+    # Sold-out HQ product last despite high merchant quality
+    assert names[2] == "HQ Sold Out", f"Expected HQ Sold Out last, got: {names}"
 
 
 def test_catalog_returns_null_deal_fact_when_no_variant_deal_fact(catalog_client) -> None:

@@ -27,6 +27,7 @@ class ProductResultRow:
     has_whole_bean: bool
     is_on_sale: bool
     price_per_oz: float | None
+    merchant_quality_score: float = 0.5
 
 router = APIRouter(tags=["products"])
 
@@ -163,7 +164,7 @@ def _select_primary_variant(product: Product) -> tuple[ProductVariant, Any] | No
     return min(pool, key=lambda item: item[1].price_cents)
 
 
-def _build_product_result(product: Product, merchant_name: str) -> ProductResultRow:
+def _build_product_result(product: Product, merchant_name: str, merchant_quality_score: float = 0.5) -> ProductResultRow:
     summary = _product_summary_with_merchant(product, merchant_name)
     has_stock = False
     has_whole_bean = False
@@ -185,6 +186,7 @@ def _build_product_result(product: Product, merchant_name: str) -> ProductResult
         has_whole_bean=has_whole_bean,
         is_on_sale=is_on_sale,
         price_per_oz=_price_per_oz(summary.latest_price_cents, summary.primary_weight_grams),
+        merchant_quality_score=merchant_quality_score,
     )
 
 
@@ -213,6 +215,19 @@ def _matches_result_filters(
 
 
 def _sort_results(rows: list[ProductResultRow], sort: ProductSort) -> list[ProductResultRow]:
+    if sort == "quality":
+        return sorted(
+            rows,
+            key=lambda row: (
+                -int(row.has_stock),
+                -(row.merchant_quality_score or 0.0),
+                -row.summary.metadata_confidence,
+                -row.summary.last_seen_at.timestamp(),
+                row.summary.merchant_name.lower(),
+                row.summary.name.lower(),
+                row.summary.id,
+            ),
+        )
     if sort == "merchant":
         return sorted(
             rows,
@@ -417,8 +432,13 @@ def list_products_for_merchant(
     sort = _normalize_query_default(sort)
     limit = _normalize_query_default(limit)
     cursor = _normalize_query_default(cursor)
-    merchant = db.get(Merchant, merchant_id)
+    merchant = db.scalars(
+        select(Merchant)
+        .options(selectinload(Merchant.quality_profile))
+        .where(Merchant.id == merchant_id)
+    ).first()
     merchant_name = merchant.name if merchant else ""
+    merchant_quality = (merchant.quality_profile.overall_quality_score if merchant and merchant.quality_profile else 0.5)
     stmt = (
         select(Product)
         .options(
@@ -442,7 +462,7 @@ def list_products_for_merchant(
     rows = [
         row
         for row in (
-            _build_product_result(product, merchant_name)
+            _build_product_result(product, merchant_name, merchant_quality)
             for product in db.scalars(stmt).all()
         )
         if _matches_result_filters(
@@ -520,16 +540,27 @@ def search_products(
         roast_level=roast_level,
     )
     products = db.scalars(stmt).all()
-    merchant_names = {
-        merchant.id: merchant.name
+    merchants_by_id = {
+        merchant.id: merchant
         for merchant in db.scalars(
-            select(Merchant).where(Merchant.id.in_({product.merchant_id for product in products}))
+            select(Merchant)
+            .options(selectinload(Merchant.quality_profile))
+            .where(Merchant.id.in_({product.merchant_id for product in products}))
         ).all()
+    }
+    merchant_names = {mid: m.name for mid, m in merchants_by_id.items()}
+    merchant_quality_scores = {
+        mid: (m.quality_profile.overall_quality_score if m.quality_profile else 0.5)
+        for mid, m in merchants_by_id.items()
     }
     rows = [
         row
         for row in (
-            _build_product_result(product, merchant_names.get(product.merchant_id, ""))
+            _build_product_result(
+                product,
+                merchant_names.get(product.merchant_id, ""),
+                merchant_quality_scores.get(product.merchant_id, 0.5),
+            )
             for product in products
         )
         if _matches_result_filters(

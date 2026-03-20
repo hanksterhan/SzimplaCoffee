@@ -519,6 +519,7 @@ function ProductsPage() {
                 <DropdownMenuSeparator />
                 {[
                   ["featured", "Featured"],
+                  ["quality", "Quality: best first"],
                   ["merchant", "Merchant"],
                   ["price_low", "Price: low to high"],
                   ["price_high", "Price: high to low"],
