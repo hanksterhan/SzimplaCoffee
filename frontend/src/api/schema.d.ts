@@ -249,6 +249,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/products/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Catalog Products
+         * @description Corpus-wide catalog endpoint with quality-first default sort.
+         *
+         *     Default sort (quality): products ranked by merchant quality score descending,
+         *     then by crawl freshness. Also supports freshness, price, and discount sorts.
+         */
+        get: operations["catalog_products_api_v1_products_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/products/search": {
         parameters: {
             query?: never;
@@ -589,6 +612,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/history/purchase-stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Buying Pattern Stats
+         * @description Behavioural buying intelligence: days since last order, top roasters, avg grams/week.
+         */
+        get: operations["buying_pattern_stats_api_v1_history_purchase_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/purchases/{purchase_id}": {
         parameters: {
             query?: never;
@@ -918,6 +961,18 @@ export interface components {
             difficulty_score?: number | null;
             /** Notes */
             notes?: string | null;
+        };
+        /**
+         * BuyingPatternStats
+         * @description Behavioural buying intelligence derived from purchase history.
+         */
+        BuyingPatternStats: {
+            /** Days Since Last Order */
+            days_since_last_order: number | null;
+            /** Top Roasters */
+            top_roasters: components["schemas"]["TopRoaster"][];
+            /** Avg Grams Per Week */
+            avg_grams_per_week: number | null;
         };
         /** CanonicalMetadataField */
         CanonicalMetadataField: {
@@ -1582,6 +1637,14 @@ export interface components {
              * @default []
              */
             variants: components["schemas"]["ProductVariantSchema"][];
+            /** Baseline Price */
+            baseline_price?: number | null;
+            /** Baseline Min Price */
+            baseline_min_price?: number | null;
+            /** Baseline Max Price */
+            baseline_max_price?: number | null;
+            /** Baseline Sample Count */
+            baseline_sample_count?: number | null;
             readonly canonical_metadata: components["schemas"]["CanonicalMetadataSchema"];
         };
         /** ProductMerchantOption */
@@ -1897,7 +1960,21 @@ export interface components {
             score: number;
             /** Pros */
             pros: string[];
+            /**
+             * Brew Session Count
+             * @default 0
+             */
+            brew_session_count: number;
             score_breakdown?: components["schemas"]["ScoreBreakdown"] | null;
+            /** Deal Score */
+            deal_score?: number | null;
+            /** Deal Badge */
+            deal_badge?: string | null;
+            /**
+             * Why Text
+             * @default
+             */
+            why_text: string;
         };
         /** RecommendationRequestPayload */
         RecommendationRequestPayload: {
@@ -1994,6 +2071,16 @@ export interface components {
             promo_bonus: number;
             /** Brew Avg Rating */
             brew_avg_rating?: number | null;
+            /**
+             * Brew Session Count
+             * @default 0
+             */
+            brew_session_count: number;
+            /**
+             * Brew Boost
+             * @default 0
+             */
+            brew_boost: number;
             /** Brew Penalty */
             brew_penalty: number;
             /** Total */
@@ -2027,6 +2114,13 @@ export interface components {
         ToggleRequest: {
             /** Auto Match */
             auto_match: boolean;
+        };
+        /** TopRoaster */
+        TopRoaster: {
+            /** Merchant Name */
+            merchant_name: string;
+            /** Count */
+            count: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -2537,7 +2631,7 @@ export interface operations {
                 roast_level?: string | null;
                 price_per_oz_min?: number | null;
                 price_per_oz_max?: number | null;
-                sort?: "featured" | "quality" | "merchant" | "price_low" | "price_high" | "price_per_oz_low" | "price_per_oz_high" | "discount";
+                sort?: "featured" | "quality" | "freshness" | "merchant" | "price_low" | "price_high" | "price_per_oz_low" | "price_per_oz_high" | "discount";
                 limit?: number;
                 /** @description Zero-based offset into the sorted result set. */
                 cursor?: number | null;
@@ -2546,6 +2640,61 @@ export interface operations {
             path: {
                 merchant_id: number;
             };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CursorPage_ProductSummary_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    catalog_products_api_v1_products_catalog_get: {
+        parameters: {
+            query?: {
+                /** @description Search term for product name */
+                q?: string | null;
+                /** @description Comma-separated merchant IDs. */
+                merchant_id?: string | null;
+                is_espresso_recommended?: boolean | null;
+                is_active?: boolean | null;
+                is_single_origin?: boolean | null;
+                in_stock?: boolean | null;
+                whole_bean_only?: boolean | null;
+                on_sale?: boolean | null;
+                /** @description Filter by product category. Use 'all' for no filter. */
+                category?: string | null;
+                /** @description Comma-separated normalized origin countries. */
+                origin_country?: string | null;
+                /** @description Comma-separated normalized process families. */
+                process_family?: string | null;
+                /** @description Comma-separated normalized roast levels. */
+                roast_level?: string | null;
+                price_per_oz_min?: number | null;
+                price_per_oz_max?: number | null;
+                /** @description Sort order. Default is quality-first (merchant quality score descending). */
+                sort?: "featured" | "quality" | "freshness" | "merchant" | "price_low" | "price_high" | "price_per_oz_low" | "price_per_oz_high" | "discount";
+                limit?: number;
+                /** @description Zero-based offset into the sorted result set. */
+                cursor?: number | null;
+            };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -2593,7 +2742,7 @@ export interface operations {
                 roast_level?: string | null;
                 price_per_oz_min?: number | null;
                 price_per_oz_max?: number | null;
-                sort?: "featured" | "quality" | "merchant" | "price_low" | "price_high" | "price_per_oz_low" | "price_per_oz_high" | "discount";
+                sort?: "featured" | "quality" | "freshness" | "merchant" | "price_low" | "price_high" | "price_per_oz_low" | "price_per_oz_high" | "discount";
                 limit?: number;
                 /** @description Zero-based offset into the sorted result set. */
                 cursor?: number | null;
@@ -3208,6 +3357,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PurchaseStats"];
+                };
+            };
+        };
+    };
+    buying_pattern_stats_api_v1_history_purchase_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuyingPatternStats"];
                 };
             };
         };

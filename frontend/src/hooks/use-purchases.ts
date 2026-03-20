@@ -16,6 +16,8 @@ export type PurchaseUpdate = components["schemas"]["PurchaseUpdate"] & {
   recommendation_run_id?: number | null;
 };
 export type PurchaseStats = components["schemas"]["PurchaseStats"];
+export type BuyingPatternStats = components["schemas"]["BuyingPatternStats"];
+export type TopRoaster = components["schemas"]["TopRoaster"];
 
 interface PurchasesFilter {
   merchant_id?: number;
@@ -124,5 +126,17 @@ export function useDeletePurchase() {
     onError: (err: Error) => {
       toast.error(`Something went wrong: ${err.message}`);
     },
+  });
+}
+
+export function useBuyingPatterns() {
+  return useQuery({
+    queryKey: ["purchases", "buying-patterns"],
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/v1/history/purchase-stats");
+      if (error) throw error;
+      return data as BuyingPatternStats;
+    },
+    staleTime: 60_000,
   });
 }

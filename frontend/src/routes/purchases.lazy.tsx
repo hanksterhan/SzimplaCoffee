@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PurchaseForm } from "@/components/purchases/PurchaseForm";
 import { PurchaseDetailDrawer } from "@/components/purchases/PurchaseDetailDrawer";
 import { BrewFeedbackForm } from "@/components/purchases/BrewFeedbackForm";
+import { PurchaseStatsCard } from "@/components/PurchaseStatsCard";
 import { usePurchases, usePurchaseStats, useDeletePurchase } from "@/hooks/use-purchases";
 import { usePurchaseFeedback } from "@/hooks/use-feedback";
 import { useMerchants } from "@/hooks/use-merchants";
@@ -265,6 +266,9 @@ function PurchasesPage() {
 
       {/* Stats */}
       <StatsBar />
+
+      {/* Buying pattern intelligence */}
+      <PurchaseStatsCard />
 
       {search.recommendationRunId !== undefined && (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">

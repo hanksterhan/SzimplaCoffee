@@ -291,6 +291,52 @@ class TestBrewFeedback:
             assert item["notes"] is not None and item["notes"] != ""
 
 
+# ── SC-113: Buying Pattern Stats ─────────────────────────────────────────────
+
+class TestBuyingPatternStats:
+    """Tests for GET /api/v1/history/purchase-stats."""
+
+    def test_stats_returns_200_with_valid_shape(self, client):
+        """Returns 200 with expected keys present regardless of data volume."""
+        resp = client.get("/api/v1/history/purchase-stats")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "days_since_last_order" in data
+        assert "top_roasters" in data
+        assert "avg_grams_per_week" in data
+        assert isinstance(data["top_roasters"], list)
+
+    def test_stats_returns_days_since_last_order(self, client, merchant_id):
+        _make_purchase(client, merchant_id, "Pattern Test Coffee")
+        resp = client.get("/api/v1/history/purchase-stats")
+        assert resp.status_code == 200
+        data = resp.json()
+        # Just purchased today — should be 0 days
+        assert data["days_since_last_order"] is not None
+        assert data["days_since_last_order"] >= 0
+
+    def test_stats_returns_top_roasters(self, client, merchant_id):
+        _make_purchase(client, merchant_id, "Roaster Test A")
+        _make_purchase(client, merchant_id, "Roaster Test B")
+        resp = client.get("/api/v1/history/purchase-stats")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["top_roasters"]) >= 1
+        roaster = data["top_roasters"][0]
+        assert "merchant_name" in roaster
+        assert "count" in roaster
+        assert roaster["count"] >= 2
+
+    def test_stats_shape(self, client, merchant_id):
+        _make_purchase(client, merchant_id, "Shape Test Coffee")
+        resp = client.get("/api/v1/history/purchase-stats")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "days_since_last_order" in data
+        assert "top_roasters" in data
+        assert "avg_grams_per_week" in data
+
+
 # ── SC-70: recommendation_run_id linkage ──────────────────────────────────────
 
 class TestPurchaseRecommendationLink:
