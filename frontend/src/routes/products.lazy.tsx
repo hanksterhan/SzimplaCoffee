@@ -359,7 +359,7 @@ function ProductsPage() {
   const [inputValue, setInputValue] = useState("");
   const [categories, setCategories] = useState<string[]>(["coffee"]);
   const [selectedMerchants, setSelectedMerchants] = useState<number[]>([]);
-  const [sortBy, setSortBy] = useState<ProductSort>("featured");
+  const [sortBy, setSortBy] = useState<ProductSort>("quality");
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [merchantsOpen, setMerchantsOpen] = useState(false);
@@ -491,7 +491,17 @@ function ProductsPage() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="gap-2" onPointerDown={(e) => e.preventDefault()} onClick={() => setSortOpen((v) => !v)}>
                   Sort
-                  <span className="text-muted-foreground">{sortBy.replaceAll("_", " ")}</span>
+                  <span className="text-muted-foreground">{{
+                    quality: "Quality",
+                    freshness: "Freshness",
+                    featured: "Featured",
+                    merchant: "Merchant",
+                    price_low: "Price ↑",
+                    price_high: "Price ↓",
+                    price_per_oz_low: "Price/oz ↑",
+                    price_per_oz_high: "Price/oz ↓",
+                    discount: "Discount",
+                  }[sortBy] ?? sortBy.replaceAll("_", " ")}</span>
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -499,8 +509,9 @@ function ProductsPage() {
                 <DropdownMenuLabel>Sort products</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {[
-                  ["featured", "Featured"],
                   ["quality", "Quality: best first"],
+                  ["freshness", "Freshness: newest first"],
+                  ["featured", "Featured"],
                   ["merchant", "Merchant"],
                   ["price_low", "Price: low to high"],
                   ["price_high", "Price: high to low"],

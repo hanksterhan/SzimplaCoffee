@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, computed_field
 RoastLevel = Literal["light", "light-medium", "medium", "medium-dark", "dark", "unknown"]
 ProcessFamily = Literal["washed", "natural", "honey", "anaerobic", "wet-hulled", "blend", "unknown"]
 MetadataSource = Literal["unknown", "structured", "parser", "agentic", "override"]
-ProductSort = Literal["featured", "quality", "merchant", "price_low", "price_high", "price_per_oz_low", "price_per_oz_high", "discount"]
+ProductSort = Literal["featured", "quality", "freshness", "merchant", "price_low", "price_high", "price_per_oz_low", "price_per_oz_high", "discount"]
 
 
 class DealFactSchema(BaseModel):
