@@ -13,11 +13,13 @@ from ..schemas.history import (
     BrewFeedbackCreate,
     BrewFeedbackOut,
     BrewFeedbackUpdate,
+    BuyingPatternStats,
     PurchaseCreate,
     PurchaseDetail,
     PurchaseStats,
     PurchaseSummary,
     PurchaseUpdate,
+    TopRoaster,
 )
 
 router = APIRouter(tags=["purchases"])
@@ -133,6 +135,56 @@ def purchase_stats(db: Session = Depends(get_session)) -> PurchaseStats:
         avg_price_per_lb_cents=avg_price_per_lb_cents,
         favorite_merchant_id=fav_merchant_id,
         favorite_merchant_name=fav_merchant_name,
+    )
+
+
+@router.get("/history/purchase-stats", response_model=BuyingPatternStats)
+def buying_pattern_stats(db: Session = Depends(get_session)) -> BuyingPatternStats:
+    """Behavioural buying intelligence: days since last order, top roasters, avg grams/week."""
+    rows = db.scalars(select(PurchaseHistory)).all()
+    if not rows:
+        return BuyingPatternStats(
+            days_since_last_order=None,
+            top_roasters=[],
+            avg_grams_per_week=None,
+        )
+
+    now = datetime.now(UTC)
+
+    # days since last order
+    last_purchased_at = max(
+        (r.purchased_at for r in rows),
+        key=lambda dt: dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt,
+    )
+    last_dt = last_purchased_at.replace(tzinfo=UTC) if last_purchased_at.tzinfo is None else last_purchased_at
+    days_since = (now - last_dt).days
+
+    # top roasters by purchase count
+    from collections import Counter
+
+    merchant_counts: Counter[int] = Counter(r.merchant_id for r in rows)
+    top_roasters: list[TopRoaster] = []
+    for merchant_id, count in merchant_counts.most_common(3):
+        m = db.get(Merchant, merchant_id)
+        name = m.name if m else f"#{merchant_id}"
+        top_roasters.append(TopRoaster(merchant_name=name, count=count))
+
+    # avg grams per week from purchase history span
+    avg_grams_per_week: Optional[float] = None
+    if len(rows) >= 2:
+        dates = sorted(
+            r.purchased_at.replace(tzinfo=UTC) if r.purchased_at.tzinfo is None else r.purchased_at
+            for r in rows
+        )
+        span_days = (dates[-1] - dates[0]).days
+        total_grams = sum(r.weight_grams for r in rows if r.weight_grams)
+        if span_days > 0:
+            avg_grams_per_week = round(total_grams / (span_days / 7), 1)
+
+    return BuyingPatternStats(
+        days_since_last_order=days_since,
+        top_roasters=top_roasters,
+        avg_grams_per_week=avg_grams_per_week,
     )
 
 

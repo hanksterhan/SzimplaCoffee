@@ -114,6 +114,21 @@ class PurchaseStats(BaseModel):
     favorite_merchant_name: Optional[str]
 
 
+# ── Buying Pattern Intelligence ──────────────────────────────────────────────
+
+class TopRoaster(BaseModel):
+    merchant_name: str
+    count: int
+
+
+class BuyingPatternStats(BaseModel):
+    """Behavioural buying intelligence derived from purchase history."""
+
+    days_since_last_order: Optional[int]
+    top_roasters: list[TopRoaster]
+    avg_grams_per_week: Optional[float]
+
+
 # ── Backward-compat aliases (used by schemas/__init__.py) ─────────────────────
 PurchaseHistorySchema = PurchaseSummary
 BrewFeedbackSchema = BrewFeedbackOut
