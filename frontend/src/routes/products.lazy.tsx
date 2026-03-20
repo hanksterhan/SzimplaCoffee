@@ -24,10 +24,10 @@ import {
   useProduct,
   useProductMerchantOptions,
   useProductSearch,
-  type ProductDetail,
   type ProductSort,
   type ProductSummary,
 } from "@/hooks/use-products";
+import { buildTags, normalizedOrNull } from "@/lib/product-tags";
 import type { components } from "@/api/schema";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
 
@@ -87,25 +87,6 @@ function formatPricePerOz(cents: number | null | undefined, grams: number | null
   return `$${((cents / 100) / ounces).toFixed(2)}/oz`;
 }
 
-function normalizedOrNull(value: string | null | undefined): string | null {
-  if (!value || value === "unknown") return null;
-  return value;
-}
-
-function buildTags(product: Pick<ProductDetail, "product_category" | "origin_text" | "origin_country" | "process_text" | "process_family" | "variety_text" | "roast_cues" | "roast_level" | "tasting_notes_text" | "is_single_origin" | "is_espresso_recommended">) {
-  const tags = [
-    product.product_category,
-    product.is_single_origin ? "single origin" : null,
-    product.is_espresso_recommended ? "espresso" : null,
-    // Prefer normalized canonical fields; fall back to raw text; suppress "unknown"
-    normalizedOrNull(product.origin_country) ?? (product.origin_text || null),
-    normalizedOrNull(product.process_family) ?? (product.process_text || null),
-    product.variety_text || null,
-    normalizedOrNull(product.roast_level) ?? (product.roast_cues || null),
-  ].filter(Boolean) as string[];
-
-  return Array.from(new Set(tags));
-}
 
 function DealBadge({ dealFact }: { dealFact?: DealFact | null }) {
   if (!dealFact) return null;

@@ -1,0 +1,160 @@
+id: SC-107
+title: "Historical deal baseline per variant (VariantDealFact price history)"
+type: feature
+priority: p1
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-20T08:06:00Z"
+updated_at: "2026-03-20T08:06:00Z"
+labels: ["backend", "data", "deals", "phase-3"]
+
+problem: >
+  SzimplaCoffee tracks current offer snapshots and variant deal facts but does not yet
+  compute per-variant price baselines. Without a historical baseline (e.g., median price
+  over last 90 days), the app cannot tell users whether a current price is a deal, normal,
+  or elevated. The Today view and recommendation engine both need a trustworthy "is this
+  a good price right now?" signal to produce actionable buying intelligence.
+
+desired_outcome: >
+  Each ProductVariant can be annotated with a computed price baseline (median, min, max)
+  derived from its OfferSnapshot and VariantDealFact history. A backend service and
+  endpoint expose these baselines. The recommendation engine and Today view can use
+  baseline_price to compute a deal_score for ranking. Baselines are refreshed
+  incrementally after each crawl.
+
+scope_in:
+  - "Add a VariantPriceBaseline model (or computed field on ProductVariant) storing median_price, min_price, max_price, sample_count, baseline_window_days, computed_at"
+  - "Add a Alembic migration for any new table or column"
+  - "Add a backend service method: compute_variant_baselines(merchant_id=None) that aggregates OfferSnapshot history per variant"
+  - "Add CLI command: szimpla compute-baselines"
+  - "Expose baselines via /api/v1/products/{id} response (add baseline fields to ProductDetail schema)"
+  - "Add backend tests covering baseline computation logic"
+scope_out:
+  - "No frontend changes in this ticket — Today view deal-score integration is SC-109"
+  - "No changes to recommendation ranking weights in this ticket"
+  - "No ML model — simple percentile statistics only"
+
+dependencies:
+  blockers: []
+  unblocks: ["SC-109"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "VariantPriceBaseline model (or equivalent) exists and Alembic migration applies cleanly"
+    verify: "cd backend && alembic upgrade head && python -c \"from szimplacoffee.models import VariantPriceBaseline; print('ok')\""
+    status: pending
+  - id: AC-2
+    text: "compute_variant_baselines() runs without error on the live DB and produces rows"
+    verify: "cd backend && . .venv/bin/activate && szimpla compute-baselines && python -c \"from szimplacoffee.db import SessionLocal; from szimplacoffee.models import VariantPriceBaseline; s=SessionLocal(); print(s.query(VariantPriceBaseline).count(), 'baselines'); s.close()\""
+    status: pending
+  - id: AC-3
+    text: "GET /api/v1/products/{id} response includes baseline_price fields when available"
+    verify: "curl -s http://localhost:8000/api/v1/products/1 | python3 -m json.tool | grep baseline"
+    status: pending
+  - id: AC-4
+    text: "Backend tests cover baseline computation: empty history, single snapshot, multi-snapshot median"
+    verify: "cd backend && pytest tests/ -k baseline -v"
+    status: pending
+  - id: AC-5
+    text: "300+ backend tests still pass"
+    verify: "cd backend && pytest tests/ -q"
+    status: pending
+
+verification_required:
+  - "cd backend && pytest tests/ -q"
+  - "cd backend && alembic upgrade head"
+  - "cd backend && ~/.local/bin/ruff check src/ tests/"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-107-execution-plan.md"
+  - "/home/h6nk/SzimplaCoffee/backend/src/szimplacoffee/models.py"
+  - "/home/h6nk/SzimplaCoffee/backend/src/szimplacoffee/services/"
+  - "/home/h6nk/SzimplaCoffee/backend/src/szimplacoffee/cli.py"
+
+slices:
+  - id: S1
+    title: "Model + migration: VariantPriceBaseline"
+    status: pending
+    depends_on: []
+    files_create:
+      - "backend/migrations/versions/<hash>_add_variant_price_baseline.py"
+    files_modify:
+      - "backend/src/szimplacoffee/models.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/db.py"
+    checks:
+      - "cd backend && alembic upgrade head"
+    evidence: []
+    notes: >
+      Add VariantPriceBaseline table: variant_id (FK), median_price, min_price,
+      max_price, sample_count, baseline_window_days (default 90), computed_at.
+      One row per variant. Upsert on recompute.
+
+  - id: S2
+    title: "Service: compute_variant_baselines()"
+    status: pending
+    depends_on: ["S1"]
+    files_create:
+      - "backend/src/szimplacoffee/services/baseline_service.py"
+    files_modify:
+      - "backend/src/szimplacoffee/cli.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/services/crawl_service.py"
+    checks:
+      - "cd backend && pytest tests/ -k baseline -v"
+    evidence: []
+    notes: >
+      Aggregate OfferSnapshot.price per variant over last 90 days.
+      Compute median, min, max, count. Upsert VariantPriceBaseline.
+      CLI command: szimpla compute-baselines [--merchant-id N].
+
+  - id: S3
+    title: "API: expose baseline fields in ProductDetail response"
+    status: pending
+    depends_on: ["S2"]
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/schemas/products.py"
+      - "backend/src/szimplacoffee/api/products.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && pytest tests/ -q"
+    evidence: []
+    notes: >
+      Add optional baseline_price, baseline_min_price, baseline_max_price,
+      baseline_sample_count fields to ProductDetailResponse (nullable).
+      Join VariantPriceBaseline when fetching product detail.
+
+  - id: S4
+    title: "Tests: baseline computation unit tests"
+    status: pending
+    depends_on: ["S2"]
+    files_create:
+      - "backend/tests/test_baseline_service.py"
+    files_modify: []
+    files_read_only:
+      - "backend/src/szimplacoffee/services/baseline_service.py"
+    checks:
+      - "cd backend && pytest tests/test_baseline_service.py -v"
+    evidence: []
+    notes: >
+      Test cases: no history → no baseline, single snapshot → median=min=max=price,
+      multiple snapshots → correct median, 90-day window excludes old data.
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "This is the data foundation for Phase 3 deal-scoring in the Today view"
+  - "Keep computation simple: no ML, just percentile stats over offer history"
+  - "Consider running compute-baselines as a post-crawl hook once SC-107 ships"

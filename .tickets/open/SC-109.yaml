@@ -1,0 +1,153 @@
+id: SC-109
+title: "Today view deal-score: rank quality-clearing deals using historical price baseline"
+type: feature
+priority: p1
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-20T08:06:00Z"
+updated_at: "2026-03-20T08:06:00Z"
+labels: ["backend", "frontend", "today", "deals", "phase-3"]
+
+problem: >
+  The Today view shows recommended coffees but cannot distinguish a great deal from a
+  normal price. Without historical price baselines, the recommendation engine ranks
+  primarily on quality score and freshness — there is no signal for "this coffee is
+  currently 20% below its median price." The Phase 3 core promise is daily buying
+  intelligence: knowing not just what coffee is good but whether now is a good time
+  to buy it. This requires integrating SC-107's VariantPriceBaseline into deal scoring.
+
+desired_outcome: >
+  The recommendation engine computes a deal_score for each variant based on current
+  price vs. historical baseline (e.g., % below median baseline). The Today view surfaces
+  deal badges ("Good deal", "At baseline", "Above baseline") on recommendation cards.
+  The final ranking blends quality_score and deal_score with a configurable weight.
+  "Wait" recommendations are emitted when no variant clears the quality threshold AND
+  current prices are above baseline.
+
+scope_in:
+  - "Add deal_score computation to recommendation service: (baseline_price - current_price) / baseline_price, clamped [-1, 1]"
+  - "Blend deal_score into recommendation ranking: final_score = quality_weight * quality_score + deal_weight * deal_score (configurable weights, defaults quality_weight=0.7, deal_weight=0.3)"
+  - "Add deal_score, deal_badge ('great_deal' | 'good_deal' | 'at_baseline' | 'above_baseline' | 'no_baseline') to RecommendationItem response schema"
+  - "Frontend Today view: render deal badge on recommendation cards when present"
+  - "Emit 'wait' recommendation when best available deal_score < -0.05 and quality_score < threshold"
+  - "Backend tests: deal_score computation, blended ranking, badge assignment"
+scope_out:
+  - "No changes to the baseline computation itself (SC-107)"
+  - "No changes to the catalog browse sort (SC-108)"
+  - "No subscription deal integration in this ticket"
+  - "No historical chart view of price trends"
+
+dependencies:
+  blockers: ["SC-107"]
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "RecommendationItem schema includes deal_score (float, nullable) and deal_badge (string, nullable)"
+    verify: "curl -s http://localhost:8000/api/v1/recommendations/ -X POST -H 'Content-Type: application/json' -d '{}' | python3 -m json.tool | grep deal_score"
+    status: pending
+  - id: AC-2
+    text: "deal_badge is 'great_deal' when current_price < 0.85 * baseline_price"
+    verify: "cd backend && pytest tests/ -k deal_score -v"
+    status: pending
+  - id: AC-3
+    text: "Today view renders deal badge chip on recommendation cards that have a deal_badge"
+    verify: "Manual: run a recommendation, open Today view, confirm deal badges appear on at least one card (if baselines exist)"
+    status: pending
+  - id: AC-4
+    text: "Blended ranking: product with higher deal_score ranks above equal-quality product with lower deal_score"
+    verify: "cd backend && pytest tests/ -k blended_ranking -v"
+    status: pending
+  - id: AC-5
+    text: "300+ backend tests still pass"
+    verify: "cd backend && pytest tests/ -q"
+    status: pending
+  - id: AC-6
+    text: "Frontend build and TypeScript check pass"
+    verify: "cd frontend && npm run build && npx tsc -b"
+    status: pending
+
+verification_required:
+  - "cd backend && pytest tests/ -q"
+  - "cd frontend && npm run build && npx tsc -b"
+  - "cd backend && ~/.local/bin/ruff check src/ tests/"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-109-execution-plan.md"
+  - "/home/h6nk/SzimplaCoffee/backend/src/szimplacoffee/services/"
+  - "/home/h6nk/SzimplaCoffee/frontend/src/routes/today.lazy.tsx"
+  - "/home/h6nk/SzimplaCoffee/.tickets/open/SC-107.yaml"
+
+slices:
+  - id: S1
+    title: "Backend: deal_score computation and blended ranking"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/recommendation_service.py"
+      - "backend/src/szimplacoffee/schemas/recommendations.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/services/baseline_service.py"
+    checks:
+      - "cd backend && pytest tests/ -k recommendation -v"
+    evidence: []
+    notes: >
+      Join VariantPriceBaseline when scoring recommendations. Compute
+      deal_score = (baseline_price - current_price) / baseline_price.
+      Assign deal_badge thresholds: great_deal < -0.15, good_deal < -0.05,
+      at_baseline ±0.05, above_baseline > 0.05, no_baseline when null.
+      Blend: final_score = 0.7 * quality_score + 0.3 * max(0, deal_score).
+
+  - id: S2
+    title: "Backend tests: deal scoring and blended ranking"
+    status: pending
+    depends_on: ["S1"]
+    files_create:
+      - "backend/tests/test_deal_score.py"
+    files_modify: []
+    files_read_only:
+      - "backend/src/szimplacoffee/services/recommendation_service.py"
+    checks:
+      - "cd backend && pytest tests/test_deal_score.py -v"
+    evidence: []
+    notes: >
+      Test cases: no baseline → deal_score null, badge no_baseline;
+      current_price 20% below baseline → great_deal; blended rank orders
+      deal correctly vs equal-quality competitor.
+
+  - id: S3
+    title: "Frontend: deal badge on Today recommendation cards"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "frontend/src/routes/today.lazy.tsx"
+    files_read_only:
+      - "frontend/src/api/schema.d.ts"
+      - "frontend/src/hooks/use-today.ts"
+    checks:
+      - "cd frontend && npm run build && npx tsc -b"
+    evidence: []
+    notes: >
+      Render a small badge chip on recommendation cards: "🔥 Great deal",
+      "✓ Good deal", "— At baseline", "↑ Above baseline". Only render when
+      deal_badge is present and not 'no_baseline'. Keep it visually subtle.
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Blocked on SC-107 (VariantPriceBaseline must exist first)"
+  - "This is the Phase 3 core feature: trustworthy daily buying intelligence"
+  - "Keep deal weight configurable so it can be tuned once we observe real deal frequency"
+  - "The 'wait' recommendation logic already exists — enhance it with deal_score awareness"

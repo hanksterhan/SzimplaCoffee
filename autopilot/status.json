@@ -2,13 +2,13 @@
   "goal_status": "active",
   "last_brainstorm_at": "2026-03-19T21:11:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
-  "last_refill_at": "2026-03-20T01:40:00Z",
-  "last_delivered_task": "SC-99",
-  "completed_since_reflect": 2,
+  "last_refill_at": "2026-03-20T08:06:00Z",
+  "last_delivered_task": "SC-106",
+  "completed_since_reflect": 4,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-20T01:52:00Z",
+  "last_run_at": "2026-03-20T08:35:11Z",
   "last_run_result": "delivered",
-  "last_run_summary": "SC-99 done: quality sort mode added to catalog API and frontend sort selector. 275 backend tests pass, frontend build + tsc clean. Merged to stage.",
-  "next_task_hint": "SC-100 (Today view deal badges) is ready — frontend-only, inspect use-today hook for deal_fact availability, then wire into TopPickCard/RunnerUpCard."
+  "last_run_summary": "Refilled backlog with SC-107/108/109, then delivered SC-106: centralized unknown-metadata suppression for product tags/display, added Vitest coverage (13 tests), frontend build/tsc clean, 298 backend tests pass.",
+  "next_task_hint": "SC-107 ready: add historical variant price baselines to unlock SC-109 Today-view deal scoring."
 }
