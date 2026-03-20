@@ -127,3 +127,8 @@ class ProductDetail(ProductSummary):
     roast_cues: str
     variety_text: str
     variants: list[ProductVariantSchema] = []
+    # SC-107: historical price baseline fields (nullable — only present when baselines computed)
+    baseline_price: Optional[float] = None         # median price in dollars
+    baseline_min_price: Optional[float] = None     # min price in dollars
+    baseline_max_price: Optional[float] = None     # max price in dollars
+    baseline_sample_count: Optional[int] = None    # number of offer snapshots used

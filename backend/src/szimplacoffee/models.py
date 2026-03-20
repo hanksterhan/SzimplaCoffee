@@ -221,6 +221,7 @@ class ProductVariant(Base):
     product: Mapped[Product] = relationship(back_populates="variants")
     offers: Mapped[list["OfferSnapshot"]] = relationship(back_populates="variant", cascade="all, delete-orphan")
     deal_fact: Mapped[Optional["VariantDealFact"]] = relationship(back_populates="variant", uselist=False, cascade="all, delete-orphan")
+    price_baseline: Mapped[Optional["VariantPriceBaseline"]] = relationship(back_populates="variant", uselist=False, cascade="all, delete-orphan")
 
 
 class OfferSnapshot(Base):
@@ -388,3 +389,20 @@ class VariantDealFact(Base):
     price_drop_30d_percent: Mapped[float] = mapped_column(Float, default=0.0)
 
     variant: Mapped[ProductVariant] = relationship(back_populates="deal_fact")
+
+
+class VariantPriceBaseline(Base):
+    """SC-107: Historical price baseline per variant, computed from OfferSnapshot history."""
+
+    __tablename__ = "variant_price_baselines"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    variant_id: Mapped[int] = mapped_column(ForeignKey("product_variants.id"), unique=True, index=True)
+    median_price_cents: Mapped[int] = mapped_column(Integer)
+    min_price_cents: Mapped[int] = mapped_column(Integer)
+    max_price_cents: Mapped[int] = mapped_column(Integer)
+    sample_count: Mapped[int] = mapped_column(Integer, default=0)
+    baseline_window_days: Mapped[int] = mapped_column(Integer, default=90)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+    variant: Mapped[ProductVariant] = relationship(back_populates="price_baseline")

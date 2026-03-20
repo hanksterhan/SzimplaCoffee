@@ -2,7 +2,7 @@ id: SC-104
 title: "Persist product description HTML to unlock origin and process metadata coverage"
 type: feature
 priority: p1
-status: ready
+status: done
 owner: h6nk-bot
 created_at: "2026-03-20T05:31:00Z"
 updated_at: "2026-03-20T05:31:00Z"
@@ -133,11 +133,15 @@ delivery:
   branch: ""
   commits: []
   pr_url: ""
-  started_at: ""
-  completed_at: ""
+  branch: "sc-104-description-text"
+  started_at: "2026-03-20T06:23:00Z"
+  completed_at: "2026-03-20T06:40:00Z"
   verification:
-    required_passed: false
-    commands_run: []
+    required_passed: true
+    commands_run:
+      - "cd backend && pytest tests/ -q  → 298 passed"
+      - "cd backend && ruff check src/ tests/ → All checks passed"
+      - "cd backend && szimpla backfill-metadata → 91 products updated"
     evidence_refs: []
 
 notes:

@@ -1,0 +1,107 @@
+id: SC-103
+title: "Brew feedback: boost well-rated products in recommendation scoring"
+type: feature
+priority: p2
+status: done
+owner: h6nk-bot
+created_at: "2026-03-20T05:31:00Z"
+updated_at: "2026-03-20T05:31:00Z"
+labels: ["recommendation", "learning-loop", "brew-feedback"]
+
+problem: >
+  The recommendation engine currently uses brew feedback only as a penalty: products
+  with avg_rating < BREW_PENALTY_THRESHOLD get a score deduction. There is no positive
+  signal — a product with an avg rating of 9.5 across 3 sessions scores exactly the same
+  as an unrated product. With 3+ brew feedback sessions logged (SC-87), we now have
+  enough personal signal to meaningfully boost products that have proven consistently
+  excellent in the espresso workflow.
+
+desired_outcome: >
+  Highly-rated products (avg_rating ≥ 8.0 across ≥1 feedback sessions) receive a score
+  boost in recommendations, with a stronger boost for products with ≥2 sessions.
+  The existing penalty for poorly-rated products is preserved. Both boost and penalty
+  are reflected in score_breakdown when explain_scores=True. The recommendation UI
+  surfaces a "Proven performer" label for boosted products.
+
+scope_in:
+  - "Add BREW_BOOST_WEIGHT constant (recommended 0.08) to recommendations.py"
+  - "Apply brew boost when avg_rating >= 8.0 and brew_session_count >= 1"
+  - "Apply larger boost (1.5x) when brew_session_count >= 2"
+  - "Include brew_boost in score_breakdown dict when explain_scores=True"
+  - "Add brew_session_count to RecommendationCandidate so the frontend can display signal strength"
+  - "Add 'Proven performer (N sessions)' to pros list when boost applied"
+  - "Add tests: boost applied for high-rated product; no boost for unrated; penalty for low-rated preserved"
+scope_out:
+  - "No changes to the penalty behavior or thresholds"
+  - "No UI changes beyond adding 'Proven performer' label where pros are already displayed"
+  - "No changes to brew feedback data model or API"
+  - "No ML or collaborative filtering"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "A product with avg_rating=9.0 and brew_session_count=1 scores higher than an identical unrated product in recommendation output"
+    verify: "Unit test with controlled brew_rating_by_product fixture"
+    status: pending
+  - id: AC-2
+    text: "A product with avg_rating=9.0 and brew_session_count=2 scores higher than the same product with session_count=1"
+    verify: "Unit test comparing boosted vs single-session boost"
+    status: pending
+  - id: AC-3
+    text: "Low-rated product (avg_rating=5.0) still receives a penalty (existing behavior preserved)"
+    verify: "pytest tests/test_recommendations.py -k brew"
+    status: pending
+  - id: AC-4
+    text: "score_breakdown includes 'brew_boost' key when explain_scores=True"
+    verify: "pytest test checking breakdown keys"
+    status: pending
+  - id: AC-5
+    text: "290+ backend tests pass"
+    verify: "cd backend && pytest tests/ -q"
+    status: pending
+
+verification_required:
+  - "cd backend && pytest tests/ -q"
+  - "cd backend && ~/.local/bin/ruff check src/ tests/"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-103-execution-plan.md"
+  - "/home/h6nk/SzimplaCoffee/backend/src/szimplacoffee/services/recommendations.py"
+
+slices:
+  - id: S1
+    title: "Add brew boost logic and update score_breakdown"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/recommendations.py"
+      - "backend/src/szimplacoffee/schemas/recommendations.py"
+    files_read_only:
+      - "backend/tests/test_recommendations.py"
+    checks:
+      - "cd backend && pytest tests/ -q"
+      - "cd backend && ~/.local/bin/ruff check src/ tests/"
+    evidence: []
+    notes: >
+      BREW_BOOST_WEIGHT = 0.08 (1x), 0.12 (2+ sessions). Add brew_session_count field to
+      RecommendationCandidate. Update score_breakdown dict. Add 'Proven performer' to pros.
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "brew_rating_by_product already built in build_recommendations(); brew_session_count needs a parallel count query"
+  - "Total score formula: add brew_boost where brew_avg_rating >= 8.0, scaling by session count"
+  - "Keep the weight sum balanced: current weights total ~1.00 before promo_bonus/penalties"

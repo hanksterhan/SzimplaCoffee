@@ -37,6 +37,7 @@ class ParsedCoffeeMetadata:
     is_single_origin: bool
     is_espresso_recommended: bool
     confidence: float
+    is_coffee_product: bool = field(default=True)
 
     # Internal: field-level matched counts used by callers who want details
     _matched_fields: int = field(default=0, repr=False, compare=False)
@@ -50,12 +51,44 @@ _COUNTRIES: list[str] = [
     "Ethiopia", "Kenya", "Colombia", "Guatemala", "Honduras", "Peru",
     "Brazil", "Costa Rica", "Panama", "Bolivia", "Mexico", "Indonesia",
     "Rwanda", "Burundi", "El Salvador", "Yemen", "PNG", "Hawaii",
-    "Sumatra", "Java",
+    "Sumatra",
     # Additional producing countries
     "Ecuador", "Nicaragua", "Tanzania", "Uganda", "China", "Nepal",
     "Vietnam", "Myanmar", "Laos", "Thailand", "India", "Papua New Guinea",
-    "Malawi", "Zambia", "Zimbabwe", "Cameroon", "Congo", "Madagascar",
+    "Malawi", "Zambia", "Zimbabwe", "Cameroon", "Madagascar",
     "Cuba", "Dominican Republic", "Haiti", "Jamaica",
+]
+
+# "Java" is both an Indonesian island (coffee origin) and a common coffee variety name.
+# It's only treated as a country indicator when no other primary producing country
+# is already found in the text — prevents double-country detection for products like
+# "Colombia Jhoan Vergara Java" where Java is clearly the variety, not the origin.
+_AMBIGUOUS_COUNTRY_TOKENS: dict[str, str] = {
+    "Java": "Indonesia",
+    "Congo": "Congo",
+}
+
+# Non-coffee product keyword classifier.
+# Products whose name contains any of these tokens are unlikely to be roastable coffee
+# and should not inflate "unknown" metadata counts.
+_NON_COFFEE_NAME_TOKENS: list[str] = [
+    # Brewing equipment
+    "aeropress", "chemex", "hario", "v60", "dripper", "gooseneck", "kettle",
+    "portafilter", "basket", "knock box", "tamper", "scale", "barometer",
+    "kalita", "wave", "frother", "nanofoamer",
+    # Merchandise
+    "mug", "cup", "tee", "tote", "koozie", "magnet", "candle", "towel", "hat",
+    "beanie", "pin", "enamel",
+    # Non-coffee consumables / accessories
+    "syrup", "sauce", "honey", "chocolate", "spice", "straw",
+    "cascara", "tea", "latte", "concentrate",
+    # Subscriptions and gift products
+    "gift card", "gift subscription", "gift box", "gift set",
+    "subscription box", "advent calendar",
+    # Generic non-coffee product signals
+    "grinder", "info card", "scoop clip", "cascade", "bundle", "jar",
+    # Specific product names seen in the catalog
+    "bee house", "april plastic", "bunn flat", "bonded filter", "brewrite",
 ]
 
 # Demonyms → canonical country name
@@ -165,6 +198,29 @@ _REGION_TO_COUNTRY: dict[str, str] = {
     # Nicaragua
     "Matagalpa": "Nicaragua",
     "Jinotega": "Nicaragua",
+}
+
+# Conservative country defaults used only when no explicit process text is available.
+# These are intentionally biased toward high-frequency specialty export profiles and
+# should be persisted with low confidence / explicit provenance, not treated as parser-certainty.
+_PROCESS_FAMILY_COUNTRY_DEFAULTS: dict[str, str] = {
+    "Colombia": "washed",
+    "Kenya": "washed",
+    "Guatemala": "washed",
+    "Honduras": "washed",
+    "Peru": "washed",
+    "Rwanda": "washed",
+    "Burundi": "washed",
+    "Costa Rica": "washed",
+    "Ecuador": "washed",
+    "Bolivia": "washed",
+    "Mexico": "washed",
+    "El Salvador": "washed",
+    "Nicaragua": "washed",
+    "Panama": "washed",
+    "Congo": "washed",
+    "India": "washed",
+    "Brazil": "natural",
 }
 
 _PROCESS_KEYWORDS: list[tuple[str, str]] = [
@@ -296,6 +352,13 @@ def _extract_origin(text: str) -> str | None:
         if m:
             country_matches.append((m.start(), "Hawaii"))
 
+    # 2b. Ambiguous tokens (e.g. "Java") — only use as country when no other match found
+    if not country_matches:
+        for token, canonical in _AMBIGUOUS_COUNTRY_TOKENS.items():
+            m = re.search(rf"\b{re.escape(token)}\b", text, re.IGNORECASE)
+            if m:
+                country_matches.append((m.start(), canonical))
+
     # 3. Demonym resolution (e.g. "Ethiopian" → "Ethiopia")
     for demonym, canonical in _DEMONYMS.items():
         m = re.search(rf"\b{re.escape(demonym)}\b", text, re.IGNORECASE)
@@ -372,6 +435,12 @@ def _count_countries(text: str) -> int:
     for demonym, canonical in _DEMONYMS.items():
         if re.search(rf"\b{re.escape(demonym)}\b", text, re.IGNORECASE):
             found.add(canonical)
+    # Ambiguous tokens (e.g. "Java") only count as a country when no other
+    # primary country is already found — prevents "Colombia Java" being counted as 2 origins.
+    if not found:
+        for token, canonical in _AMBIGUOUS_COUNTRY_TOKENS.items():
+            if re.search(rf"\b{re.escape(token)}\b", text, re.IGNORECASE):
+                found.add(canonical)
     return len(found)
 
 
@@ -380,6 +449,12 @@ def _extract_process(text: str) -> str | None:
         if re.search(pattern, text, re.IGNORECASE):
             return normalized
     return None
+
+
+def default_process_family_for_country(origin_country: str | None) -> str | None:
+    if not origin_country:
+        return None
+    return _PROCESS_FAMILY_COUNTRY_DEFAULTS.get(origin_country)
 
 
 def _normalize_process_family(process_text: str | None, text: str, is_blend: bool) -> str:
@@ -498,7 +573,7 @@ def _infer_roast_from_context(
     Rules (ordered by confidence):
     1. Dark/espresso implicit signals in text → medium-dark
     2. Blend (not single origin) → medium-dark
-    3. Single origin specialty → light (specialty roasters default)
+    3. Single-origin specialty cues (explicit single origin, farm/estate naming, or process-led lot naming) → light
     4. Otherwise → unknown
     """
     haystack = text.lower()
@@ -507,6 +582,13 @@ def _infer_roast_from_context(
     if is_blend:
         return "medium-dark"
     if is_single_origin:
+        return "light"
+    specialty_single_origin_cues = [
+        " washed process", " wet process", " honey process", " natural process",
+        " dry process", " anaerobic", " honey ", " finca ", " hacienda ", " estate", " microlot",
+        "single-origin", "single origin",
+    ]
+    if any(cue in f" {haystack} " for cue in specialty_single_origin_cues):
         return "light"
     return "unknown"
 
@@ -663,6 +745,33 @@ def _field_confidence(value: str | None, *, from_name_only: bool) -> float:
     return 0.7 if from_name_only else 0.9
 
 
+def _is_non_coffee_product(name: str) -> bool:
+    """Return True if the product name strongly suggests it is not a coffee product.
+
+    Conservative check — only returns True for obvious gear, merchandise, and
+    non-roasted-coffee items. False positives here are worse than false negatives.
+    """
+    name_lower = name.lower()
+    # Multi-word tokens checked first (more specific)
+    for token in _NON_COFFEE_NAME_TOKENS:
+        if token in name_lower:
+            # Extra guard: "honey process" / "honey washed" are coffee processes
+            if token == "honey" and any(
+                guard in name_lower for guard in ["honey process", "honey washed", "honey natural", "honey ferment"]
+            ):
+                continue
+            return True
+    # Standalone "filter" in names like "Aeropress Filters", "BrewRite Filters", "CHEMEX Filters"
+    # but not "filter roast" or "filter coffee" (which are coffee descriptors)
+    if re.search(r"\bfilters?\b", name_lower) and not re.search(
+        r"\bfilter\s+(roast|coffee|blend|method|brewed)\b", name_lower
+    ):
+        # Only classify as non-coffee if it looks like a standalone filter product
+        if re.search(r"(filters?|micro[- ]filters?)\s*(\(|\d|$)", name_lower):
+            return True
+    return False
+
+
 def parse_coffee_metadata(name: str, description: str) -> ParsedCoffeeMetadata:
     """Extract structured coffee metadata from product name + description.
 
@@ -675,6 +784,9 @@ def parse_coffee_metadata(name: str, description: str) -> ParsedCoffeeMetadata:
     -------
     ParsedCoffeeMetadata dataclass.
     """
+    # Check for non-coffee product early — return minimal result
+    is_coffee_product = not _is_non_coffee_product(name)
+
     # Prefer description for parsing, fall back to name only
     clean_desc = _strip_html(description)
     full_text = _haystack(name, description)
@@ -765,5 +877,6 @@ def parse_coffee_metadata(name: str, description: str) -> ParsedCoffeeMetadata:
         is_single_origin=is_single_origin,
         is_espresso_recommended=espresso_rec,
         confidence=confidence,
+        is_coffee_product=is_coffee_product,
         _matched_fields=filled_count,
     )
