@@ -11,6 +11,7 @@ export type ProductMerchantOption = { merchant_id: number; merchant_name: string
 export type ProductSort =
   | "featured"
   | "quality"
+  | "freshness"
   | "merchant"
   | "price_low"
   | "price_high"

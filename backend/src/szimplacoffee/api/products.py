@@ -228,6 +228,17 @@ def _sort_results(rows: list[ProductResultRow], sort: ProductSort) -> list[Produ
                 row.summary.id,
             ),
         )
+    if sort == "freshness":
+        return sorted(
+            rows,
+            key=lambda row: (
+                -int(row.has_stock),
+                -row.summary.last_seen_at.timestamp(),
+                row.summary.merchant_name.lower(),
+                row.summary.name.lower(),
+                row.summary.id,
+            ),
+        )
     if sort == "merchant":
         return sorted(
             rows,
@@ -464,6 +475,109 @@ def list_products_for_merchant(
         for row in (
             _build_product_result(product, merchant_name, merchant_quality)
             for product in db.scalars(stmt).all()
+        )
+        if _matches_result_filters(
+            row,
+            in_stock=in_stock,
+            whole_bean_only=whole_bean_only,
+            on_sale=on_sale,
+            price_per_oz_min=price_per_oz_min,
+            price_per_oz_max=price_per_oz_max,
+        )
+    ]
+    return _paginate_results(_sort_results(rows, sort), cursor, limit)
+
+
+@router.get("/products/catalog", response_model=CursorPage[ProductSummary])
+def catalog_products(
+    db: Session = Depends(get_session),
+    q: str | None = Query(None, description="Search term for product name"),
+    merchant_id: str | None = Query(None, description="Comma-separated merchant IDs."),
+    is_espresso_recommended: bool | None = Query(None),
+    is_active: bool | None = Query(None),
+    is_single_origin: bool | None = Query(None),
+    in_stock: bool | None = Query(None),
+    whole_bean_only: bool | None = Query(None),
+    on_sale: bool | None = Query(None),
+    category: str | None = Query("coffee", description="Filter by product category. Use 'all' for no filter."),
+    origin_country: str | None = Query(None, description="Comma-separated normalized origin countries."),
+    process_family: str | None = Query(None, description="Comma-separated normalized process families."),
+    roast_level: str | None = Query(None, description="Comma-separated normalized roast levels."),
+    price_per_oz_min: float | None = Query(None, ge=0),
+    price_per_oz_max: float | None = Query(None, ge=0),
+    sort: ProductSort = Query("quality", description="Sort order. Default is quality-first (merchant quality score descending)."),
+    limit: int = Query(24, ge=1, le=200),
+    cursor: int | None = Query(None, ge=0, description="Zero-based offset into the sorted result set."),
+) -> CursorPage[ProductSummary]:
+    """Corpus-wide catalog endpoint with quality-first default sort.
+
+    Default sort (quality): products ranked by merchant quality score descending,
+    then by crawl freshness. Also supports freshness, price, and discount sorts.
+    """
+    q = _normalize_query_default(q)
+    merchant_id = _normalize_query_default(merchant_id)
+    is_espresso_recommended = _normalize_query_default(is_espresso_recommended)
+    is_active = _normalize_query_default(is_active)
+    is_single_origin = _normalize_query_default(is_single_origin)
+    in_stock = _normalize_query_default(in_stock)
+    whole_bean_only = _normalize_query_default(whole_bean_only)
+    on_sale = _normalize_query_default(on_sale)
+    category = _normalize_query_default(category)
+    origin_country = _normalize_query_default(origin_country)
+    process_family = _normalize_query_default(process_family)
+    roast_level = _normalize_query_default(roast_level)
+    price_per_oz_min = _normalize_query_default(price_per_oz_min)
+    price_per_oz_max = _normalize_query_default(price_per_oz_max)
+    sort = _normalize_query_default(sort)
+    limit = _normalize_query_default(limit)
+    cursor = _normalize_query_default(cursor)
+    merchant_ids = _parse_csv_ints(merchant_id)
+    stmt = (
+        select(Product)
+        .options(
+            selectinload(Product.variants)
+            .selectinload(ProductVariant.offers),
+            selectinload(Product.variants)
+            .selectinload(ProductVariant.deal_fact),
+        )
+        .join(Merchant, Product.merchant_id == Merchant.id)
+        .where(Merchant.is_active.is_(True))
+    )
+    stmt = _apply_catalog_filters(
+        stmt,
+        q=q,
+        merchant_ids=merchant_ids,
+        is_active=is_active if is_active is not None else True,
+        is_espresso_recommended=is_espresso_recommended,
+        is_single_origin=is_single_origin,
+        category=category,
+        origin_country=origin_country,
+        process_family=process_family,
+        roast_level=roast_level,
+    )
+    products = db.scalars(stmt).all()
+    merchants_by_id: dict[int, Merchant] = {
+        merchant.id: merchant
+        for merchant in db.scalars(
+            select(Merchant)
+            .options(selectinload(Merchant.quality_profile))
+            .where(Merchant.id.in_({product.merchant_id for product in products}))
+        ).all()
+    }
+    merchant_names = {mid: m.name for mid, m in merchants_by_id.items()}
+    merchant_quality_scores = {
+        mid: (m.quality_profile.overall_quality_score if m.quality_profile else 0.5)
+        for mid, m in merchants_by_id.items()
+    }
+    rows = [
+        row
+        for row in (
+            _build_product_result(
+                product,
+                merchant_names.get(product.merchant_id, ""),
+                merchant_quality_scores.get(product.merchant_id, 0.5),
+            )
+            for product in products
         )
         if _matches_result_filters(
             row,
