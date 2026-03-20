@@ -65,6 +65,11 @@ class RecommendationCandidate:
     pros: list[str]
     # SC-67: populated when explain_scores=True
     score_breakdown: dict | None = None
+    # SC-100: deal fact signals threaded from VariantDealFact — null when no history
+    deal_fact_baseline_30d_cents: int | None = None
+    deal_fact_price_drop_30d_percent: float | None = None
+    deal_fact_historical_low_cents: int | None = None
+    deal_fact_compare_at_discount_percent: float | None = None
 
 
 @dataclass
@@ -817,6 +822,11 @@ def build_recommendations(
                     score=round(total, 4),
                     pros=pros,
                     score_breakdown=score_breakdown,
+                    # SC-100: thread deal_fact signals into candidate for Today view badges
+                    deal_fact_baseline_30d_cents=fact.baseline_30d_cents,
+                    deal_fact_price_drop_30d_percent=fact.price_drop_30d_percent,
+                    deal_fact_historical_low_cents=fact.historical_low_cents,
+                    deal_fact_compare_at_discount_percent=fact.compare_at_discount_percent,
                 )
             )
 
