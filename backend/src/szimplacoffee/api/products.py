@@ -8,11 +8,11 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from ..db import get_session
-from ..models import Merchant, OfferSnapshot, Product, ProductVariant
+from ..models import Merchant, OfferSnapshot, Product, ProductVariant, VariantDealFact
 from ..schemas.common import CursorPage
 from pydantic import BaseModel
 
-from ..schemas.products import OfferSnapshotSchema, ProductDetail, ProductSort, ProductSummary
+from ..schemas.products import DealFactSchema, OfferSnapshotSchema, ProductDetail, ProductSort, ProductSummary
 
 
 class ProductMerchantOption(BaseModel):
@@ -349,6 +349,21 @@ def _merchant_options_query(db: Session, category: str | None = None, q: str | N
     return stmt
 
 
+def _deal_fact_schema_from_variant(variant: ProductVariant | None) -> DealFactSchema | None:
+    """Extract a DealFactSchema from the primary variant's VariantDealFact relationship."""
+    if variant is None:
+        return None
+    deal_fact = getattr(variant, "deal_fact", None)
+    if deal_fact is None:
+        return None
+    return DealFactSchema(
+        baseline_30d_cents=deal_fact.baseline_30d_cents,
+        price_drop_30d_percent=deal_fact.price_drop_30d_percent if deal_fact.price_drop_30d_percent else None,
+        compare_at_discount_percent=deal_fact.compare_at_discount_percent if deal_fact.compare_at_discount_percent else None,
+        historical_low_cents=deal_fact.historical_low_cents if deal_fact.historical_low_cents else None,
+    )
+
+
 def _product_summary_with_merchant(product: Product, merchant_name: str) -> ProductSummary:
     """Build a ProductSummary and inject merchant_name + derived card metadata."""
     summary = ProductSummary.model_validate(product)
@@ -363,6 +378,7 @@ def _product_summary_with_merchant(product: Product, merchant_name: str) -> Prod
             summary.latest_discount_percent = int(round(savings_ratio * 100))
         summary.primary_weight_grams = variant.weight_grams
         summary.primary_is_whole_bean = variant.is_whole_bean
+        summary.deal_fact = _deal_fact_schema_from_variant(variant)
     return summary
 
 
@@ -405,7 +421,12 @@ def list_products_for_merchant(
     merchant_name = merchant.name if merchant else ""
     stmt = (
         select(Product)
-        .options(selectinload(Product.variants).selectinload(ProductVariant.offers))
+        .options(
+            selectinload(Product.variants)
+            .selectinload(ProductVariant.offers),
+            selectinload(Product.variants)
+            .selectinload(ProductVariant.deal_fact),
+        )
         .where(Product.merchant_id == merchant_id)
     )
     stmt = _apply_catalog_filters(
@@ -477,7 +498,12 @@ def search_products(
     merchant_ids = _parse_csv_ints(merchant_id)
     stmt = (
         select(Product)
-        .options(selectinload(Product.variants).selectinload(ProductVariant.offers))
+        .options(
+            selectinload(Product.variants)
+            .selectinload(ProductVariant.offers),
+            selectinload(Product.variants)
+            .selectinload(ProductVariant.deal_fact),
+        )
         .join(Merchant, Product.merchant_id == Merchant.id)
         .where(Merchant.is_active.is_(True))
     )
@@ -533,7 +559,8 @@ def get_product(product_id: int, db: Session = Depends(get_session)) -> ProductD
     p = db.scalar(
         select(Product)
         .options(
-            selectinload(Product.variants).selectinload(ProductVariant.offers)
+            selectinload(Product.variants).selectinload(ProductVariant.offers),
+            selectinload(Product.variants).selectinload(ProductVariant.deal_fact),
         )
         .where(Product.id == product_id)
     )

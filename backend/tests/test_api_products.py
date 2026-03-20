@@ -19,7 +19,7 @@ from szimplacoffee.api.products import (
     router as products_router,
 )
 from szimplacoffee.db import Base, get_session
-from szimplacoffee.models import Merchant, OfferSnapshot, Product, ProductVariant
+from szimplacoffee.models import Merchant, OfferSnapshot, Product, ProductVariant, VariantDealFact
 
 
 def test_normalize_query_default_unwraps_fastapi_query_objects():
@@ -354,3 +354,132 @@ def test_list_products_for_merchant_uses_server_side_sorting(catalog_client) -> 
     assert response.status_code == 200
     payload = response.json()
     assert [item["name"] for item in payload["items"]] == ["Bourbon Sunset", "Kenya Nightjar"]
+
+
+@pytest.fixture()
+def deal_fact_client():
+    """Catalog client with a VariantDealFact row seeded for the primary variant."""
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        merchant = Merchant(
+            name="Deal Roasters",
+            canonical_domain="deal.example",
+            homepage_url="https://deal.example",
+            platform_type="shopify",
+        )
+        session.add(merchant)
+        session.flush()
+
+        product = _seed_product(
+            session,
+            merchant,
+            external_id="deal-coffee",
+            name="Deal Coffee",
+            origin_country="Colombia",
+            process_family="washed",
+            roast_level="medium",
+            price_cents=1800,
+            compare_at_price_cents=None,
+            is_available=True,
+            is_whole_bean=True,
+            weight_grams=340,
+        )
+        # Fetch the variant that was created by _seed_product
+        variant = session.scalars(
+            __import__("sqlalchemy", fromlist=["select"]).select(ProductVariant).where(
+                ProductVariant.product_id == product.id
+            )
+        ).first()
+        assert variant is not None
+
+        now = datetime.now(UTC)
+        deal_fact = VariantDealFact(
+            variant_id=variant.id,
+            computed_at=now,
+            offer_count=10,
+            distinct_offer_days=30,
+            current_price_cents=1800,
+            baseline_7d_cents=2000,
+            baseline_30d_cents=2100,
+            historical_low_cents=1700,
+            historical_high_cents=2400,
+            compare_at_discount_percent=0.0,
+            price_drop_7d_percent=10.0,
+            price_drop_30d_percent=14.3,
+        )
+        session.add(deal_fact)
+        session.commit()
+
+        merchant_id = merchant.id
+        product_id = product.id
+
+    app = FastAPI()
+    app.include_router(products_router, prefix="/api/v1")
+
+    def override_get_session():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+
+    with TestClient(app) as client:
+        yield client, merchant_id, product_id
+
+    app.dependency_overrides.clear()
+
+
+def test_catalog_returns_deal_fact_fields_when_variant_deal_fact_exists(deal_fact_client) -> None:
+    client, merchant_id, product_id = deal_fact_client
+
+    # Test via merchant products endpoint
+    response = client.get(
+        f"/api/v1/merchants/{merchant_id}/products",
+        params={"category": "coffee"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["items"]) == 1
+    item = payload["items"][0]
+
+    deal = item.get("deal_fact")
+    assert deal is not None, "deal_fact should be present when VariantDealFact row exists"
+    assert deal["baseline_30d_cents"] == 2100
+    assert deal["price_drop_30d_percent"] == pytest.approx(14.3, abs=0.1)
+    assert deal["historical_low_cents"] == 1700
+
+
+def test_catalog_search_returns_deal_fact_fields_when_variant_deal_fact_exists(deal_fact_client) -> None:
+    client, merchant_id, _product_id = deal_fact_client
+
+    response = client.get(
+        "/api/v1/products/search",
+        params={"merchant_id": str(merchant_id), "category": "coffee"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["items"]) == 1
+    deal = payload["items"][0].get("deal_fact")
+    assert deal is not None
+    assert deal["baseline_30d_cents"] == 2100
+
+
+def test_catalog_returns_null_deal_fact_when_no_variant_deal_fact(catalog_client) -> None:
+    client, ids = catalog_client
+
+    # bourbon_sunset has no VariantDealFact seeded → deal_fact should be null
+    response = client.get(
+        "/api/v1/products/search",
+        params={"category": "coffee", "origin_country": "Colombia"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["items"]) == 1
+    item = payload["items"][0]
+    # deal_fact absent or null — no badge should be needed
+    assert item.get("deal_fact") is None

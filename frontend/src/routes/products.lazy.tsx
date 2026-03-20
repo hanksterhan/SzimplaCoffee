@@ -28,6 +28,7 @@ import {
   type ProductSort,
   type ProductSummary,
 } from "@/hooks/use-products";
+import type { components } from "@/api/schema";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
 
 export const Route = createLazyFileRoute("/products")({
@@ -43,6 +44,8 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
+type DealFact = components["schemas"]["DealFactSchema"];
+
 type ProductCardSummary = ProductSummary & {
   latest_price_cents?: number | null;
   latest_compare_at_price_cents?: number | null;
@@ -50,6 +53,7 @@ type ProductCardSummary = ProductSummary & {
   primary_weight_grams?: number | null;
   primary_is_whole_bean?: boolean;
   has_stock?: boolean;
+  deal_fact?: DealFact | null;
 };
 
 const CATEGORY_OPTIONS = [
@@ -103,6 +107,27 @@ function buildTags(product: Pick<ProductDetail, "product_category" | "origin_tex
   return Array.from(new Set(tags));
 }
 
+function DealBadge({ dealFact }: { dealFact?: DealFact | null }) {
+  if (!dealFact) return null;
+  const drop = dealFact.price_drop_30d_percent ?? 0;
+  const compare = dealFact.compare_at_discount_percent ?? 0;
+  if (drop > 5) {
+    return (
+      <Badge className="bg-emerald-700 text-emerald-50 text-[10px] px-1.5 py-0 h-5">
+        ↓{Math.round(drop)}% vs 30d avg
+      </Badge>
+    );
+  }
+  if (compare > 0) {
+    return (
+      <Badge className="bg-emerald-700 text-emerald-50 text-[10px] px-1.5 py-0 h-5">
+        Save {Math.round(compare)}%
+      </Badge>
+    );
+  }
+  return null;
+}
+
 function toggleCategory(current: string[], value: string) {
   if (value === "all") return ["all"];
   const withoutAll = current.filter((item) => item !== "all");
@@ -144,6 +169,16 @@ function ProductCard({ product, onClick }: { product: ProductCardSummary; onClic
         {product.is_espresso_recommended && (
           <div className="absolute top-2 right-2">
             <Badge className="bg-amber-900 text-amber-100 text-xs px-1.5 py-0 h-5">☕ Espresso</Badge>
+          </div>
+        )}
+        {!product.is_espresso_recommended && (
+          <div className="absolute top-2 right-2">
+            <DealBadge dealFact={product.deal_fact} />
+          </div>
+        )}
+        {product.is_espresso_recommended && (
+          <div className="absolute top-8 right-2">
+            <DealBadge dealFact={product.deal_fact} />
           </div>
         )}
       </div>
@@ -267,6 +302,7 @@ function ProductQuickView({ productId }: { productId: number | null }) {
             <span className={product.has_stock ? "text-green-600" : "text-muted-foreground"}>
               {product.has_stock ? "● In stock" : "● Unavailable"}
             </span>
+            <DealBadge dealFact={(product as ProductCardSummary).deal_fact} />
           </div>
         </div>
       </div>

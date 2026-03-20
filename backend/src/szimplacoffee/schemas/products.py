@@ -11,6 +11,15 @@ MetadataSource = Literal["unknown", "structured", "parser", "agentic", "override
 ProductSort = Literal["featured", "merchant", "price_low", "price_high", "price_per_oz_low", "price_per_oz_high", "discount"]
 
 
+class DealFactSchema(BaseModel):
+    """Computed deal signals from VariantDealFact — null-safe, populated when history exists."""
+
+    baseline_30d_cents: Optional[int] = None
+    price_drop_30d_percent: Optional[float] = None
+    compare_at_discount_percent: Optional[float] = None
+    historical_low_cents: Optional[int] = None
+
+
 class CanonicalMetadataField(BaseModel):
     value: str | None = None
     confidence: float = 0.0
@@ -90,6 +99,7 @@ class ProductSummary(BaseModel):
     primary_is_whole_bean: bool = False
     first_seen_at: datetime
     last_seen_at: datetime
+    deal_fact: Optional[DealFactSchema] = None
 
     @computed_field
     @property

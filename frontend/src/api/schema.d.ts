@@ -919,6 +919,28 @@ export interface components {
             /** Notes */
             notes?: string | null;
         };
+        /** CanonicalMetadataField */
+        CanonicalMetadataField: {
+            /** Value */
+            value?: string | null;
+            /**
+             * Confidence
+             * @default 0
+             */
+            confidence: number;
+            /**
+             * Source
+             * @default unknown
+             * @enum {string}
+             */
+            source: "unknown" | "structured" | "parser" | "agentic" | "override";
+        };
+        /** CanonicalMetadataSchema */
+        CanonicalMetadataSchema: {
+            origin_country: components["schemas"]["CanonicalMetadataField"];
+            process_family: components["schemas"]["CanonicalMetadataField"];
+            roast_level: components["schemas"]["CanonicalMetadataField"];
+        };
         /** CrawlRunSchema */
         CrawlRunSchema: {
             /** Id */
@@ -990,6 +1012,18 @@ export interface components {
             is_due: boolean;
             /** Status */
             status: string;
+            /** Recent Run Count */
+            recent_run_count: number;
+            /** Recent Success Rate */
+            recent_success_rate: number | null;
+            /** Recent Failure Count */
+            recent_failure_count: number;
+            /** Last Completed Crawl Quality Score */
+            last_completed_crawl_quality_score: number | null;
+            /** Latest Run Status */
+            latest_run_status: string | null;
+            /** Latest Error Summary */
+            latest_error_summary: string | null;
         };
         /** CursorPage[ProductSummary] */
         CursorPage_ProductSummary_: {
@@ -1083,6 +1117,20 @@ export interface components {
             shots_imported: number;
             /** Visualizer Username */
             visualizer_username: string;
+        };
+        /**
+         * DealFactSchema
+         * @description Computed deal signals from VariantDealFact — null-safe, populated when history exists.
+         */
+        DealFactSchema: {
+            /** Baseline 30D Cents */
+            baseline_30d_cents?: number | null;
+            /** Price Drop 30D Percent */
+            price_drop_30d_percent?: number | null;
+            /** Compare At Discount Percent */
+            compare_at_discount_percent?: number | null;
+            /** Historical Low Cents */
+            historical_low_cents?: number | null;
         };
         /** FilteredCandidateOut */
         FilteredCandidateOut: {
@@ -1426,6 +1474,17 @@ export interface components {
             origin_text: string;
             /** Origin Country */
             origin_country?: string | null;
+            /**
+             * Origin Country Confidence
+             * @default 0
+             */
+            origin_country_confidence: number;
+            /**
+             * Origin Country Source
+             * @default unknown
+             * @enum {string}
+             */
+            origin_country_source: "unknown" | "structured" | "parser" | "agentic" | "override";
             /** Origin Region */
             origin_region?: string | null;
             /** Process Text */
@@ -1436,6 +1495,17 @@ export interface components {
              * @enum {string}
              */
             process_family: "washed" | "natural" | "honey" | "anaerobic" | "wet-hulled" | "blend" | "unknown";
+            /**
+             * Process Family Confidence
+             * @default 0
+             */
+            process_family_confidence: number;
+            /**
+             * Process Family Source
+             * @default unknown
+             * @enum {string}
+             */
+            process_family_source: "unknown" | "structured" | "parser" | "agentic" | "override";
             /** Tasting Notes Text */
             tasting_notes_text: string;
             /**
@@ -1444,6 +1514,17 @@ export interface components {
              * @enum {string}
              */
             roast_level: "light" | "light-medium" | "medium" | "medium-dark" | "dark" | "unknown";
+            /**
+             * Roast Level Confidence
+             * @default 0
+             */
+            roast_level_confidence: number;
+            /**
+             * Roast Level Source
+             * @default unknown
+             * @enum {string}
+             */
+            roast_level_source: "unknown" | "structured" | "parser" | "agentic" | "override";
             /**
              * Metadata Confidence
              * @default 0
@@ -1465,7 +1546,6 @@ export interface components {
             is_active: boolean;
             /**
              * Has Stock
-             * True when ≥1 variant is_available=True with a current offer
              * @default false
              */
             has_stock: boolean;
@@ -1492,6 +1572,7 @@ export interface components {
              * Format: date-time
              */
             last_seen_at: string;
+            deal_fact?: components["schemas"]["DealFactSchema"] | null;
             /** Roast Cues */
             roast_cues: string;
             /** Variety Text */
@@ -1501,6 +1582,7 @@ export interface components {
              * @default []
              */
             variants: components["schemas"]["ProductVariantSchema"][];
+            readonly canonical_metadata: components["schemas"]["CanonicalMetadataSchema"];
         };
         /** ProductMerchantOption */
         ProductMerchantOption: {
@@ -1530,6 +1612,17 @@ export interface components {
             origin_text: string;
             /** Origin Country */
             origin_country?: string | null;
+            /**
+             * Origin Country Confidence
+             * @default 0
+             */
+            origin_country_confidence: number;
+            /**
+             * Origin Country Source
+             * @default unknown
+             * @enum {string}
+             */
+            origin_country_source: "unknown" | "structured" | "parser" | "agentic" | "override";
             /** Origin Region */
             origin_region?: string | null;
             /** Process Text */
@@ -1540,6 +1633,17 @@ export interface components {
              * @enum {string}
              */
             process_family: "washed" | "natural" | "honey" | "anaerobic" | "wet-hulled" | "blend" | "unknown";
+            /**
+             * Process Family Confidence
+             * @default 0
+             */
+            process_family_confidence: number;
+            /**
+             * Process Family Source
+             * @default unknown
+             * @enum {string}
+             */
+            process_family_source: "unknown" | "structured" | "parser" | "agentic" | "override";
             /** Tasting Notes Text */
             tasting_notes_text: string;
             /**
@@ -1548,6 +1652,17 @@ export interface components {
              * @enum {string}
              */
             roast_level: "light" | "light-medium" | "medium" | "medium-dark" | "dark" | "unknown";
+            /**
+             * Roast Level Confidence
+             * @default 0
+             */
+            roast_level_confidence: number;
+            /**
+             * Roast Level Source
+             * @default unknown
+             * @enum {string}
+             */
+            roast_level_source: "unknown" | "structured" | "parser" | "agentic" | "override";
             /**
              * Metadata Confidence
              * @default 0
@@ -1569,7 +1684,6 @@ export interface components {
             is_active: boolean;
             /**
              * Has Stock
-             * True when ≥1 variant is_available=True with a current offer
              * @default false
              */
             has_stock: boolean;
@@ -1596,6 +1710,8 @@ export interface components {
              * Format: date-time
              */
             last_seen_at: string;
+            deal_fact?: components["schemas"]["DealFactSchema"] | null;
+            readonly canonical_metadata: components["schemas"]["CanonicalMetadataSchema"];
         };
         /** ProductVariantSchema */
         ProductVariantSchema: {
