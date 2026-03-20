@@ -199,6 +199,7 @@ def main() -> None:
             # SC-31: re-run coffee metadata parser over all products
             from .services.coffee_parser import (
                 parse_coffee_metadata, _normalize_origin_parts, _COUNTRY_VARIETY_DEFAULTS,
+                default_process_family_for_country,
             )
             import re as _re
 
@@ -216,6 +217,7 @@ def main() -> None:
                 "origin_country_semantics": 0,
                 "process_family_semantics": 0,
                 "roast_level_semantics": 0,
+                "product_category": 0,
             }
             for product in products:
                 if not product.is_active:
@@ -232,8 +234,21 @@ def main() -> None:
                         product.origin_region = derived_region
                         field_counts["origin_region"] += 1
 
-                parsed = parse_coffee_metadata(product.name, getattr(product, "description_html", "") or "")
+                parsed = parse_coffee_metadata(product.name, product.description_text or "")
                 changed = False
+
+                # SC-102: classify non-coffee products so they don't inflate unknown counts
+                if not parsed.is_coffee_product and getattr(product, "product_category", "coffee") == "coffee":
+                    product.product_category = "non-coffee"
+                    field_counts["product_category"] += 1
+                    changed = True
+
+                # Skip metadata normalization for confirmed non-coffee products
+                if not parsed.is_coffee_product:
+                    if changed:
+                        updated += 1
+                    continue
+
                 if not product.origin_text and parsed.origin_text:
                     product.origin_text = parsed.origin_text
                     field_counts["origin_text"] += 1
@@ -279,6 +294,15 @@ def main() -> None:
                     product.process_family = parsed.process_family
                     field_counts["process_family"] += 1
                     changed = True
+                if product.process_family in (None, "", "unknown"):
+                    default_process = default_process_family_for_country(product.origin_country or parsed.origin_country)
+                    if default_process:
+                        product.process_family = default_process
+                        product.process_family_confidence = max(float(product.process_family_confidence or 0.0), 0.35)
+                        product.process_family_source = "country-default"
+                        field_counts["process_family"] += 1
+                        field_counts["process_family_semantics"] += 1
+                        changed = True
                 if product.process_family not in (None, "", "unknown") and (
                     product.process_family_confidence == 0 or product.process_family_source in (None, "", "unknown")
                 ):

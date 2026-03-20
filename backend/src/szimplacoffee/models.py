@@ -124,6 +124,7 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(255), index=True)
     product_url: Mapped[str] = mapped_column(String(500))
     image_url: Mapped[str] = mapped_column(String(1000), default="")
+    description_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # SC-104: plain text stripped from body_html
     origin_text: Mapped[str] = mapped_column(Text, default="")
     origin_country: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, index=True)
     origin_country_confidence: Mapped[float] = mapped_column(Float, default=0.0)

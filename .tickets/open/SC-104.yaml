@@ -1,0 +1,148 @@
+id: SC-104
+title: "Persist product description HTML to unlock origin and process metadata coverage"
+type: feature
+priority: p1
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-20T05:31:00Z"
+updated_at: "2026-03-20T05:31:00Z"
+labels: ["metadata", "crawler", "schema", "phase-3"]
+
+problem: >
+  Coffee metadata coverage (origin_country: ~65% fill for coffee products) is capped by
+  the absence of stored product descriptions. The coffee parser only sees the product
+  title, which often contains no geographic signal. Product detail pages and Shopify
+  JSON responses contain rich description HTML with origin, process, and variety info.
+  This data is fetched during crawls but currently discarded. Persisting description_html
+  (or a stripped text version) on the Product model would allow the parser backfill to
+  dramatically improve origin and process fill rates on the next pass.
+
+desired_outcome: >
+  Products have a `description_text` field (plain text, stripped from description HTML)
+  persisted by crawlers. The backfill-metadata command uses description_text as a
+  secondary signal source for origin, process, and variety extraction. Origin fill rate
+  for coffee-only products improves measurably (target: from ~65% to ≥75%).
+
+scope_in:
+  - "Add description_text TEXT column (nullable) to products table via Alembic migration"
+  - "Update Shopify adapter to extract and store body_html → strip to plain text → description_text"
+  - "Update WooCommerce adapter similarly if description is available"
+  - "Update coffee parser to accept optional description_text parameter and use it as secondary extraction source"
+  - "Update backfill-metadata CLI command to pass product.description_text to the parser"
+  - "Add regression tests: parser uses description_text when title has no origin signal"
+  - "Run backfill-metadata on the live DB and report before/after fill rates"
+scope_out:
+  - "No storage of raw HTML (only plain text strip)"
+  - "No changes to the recommendation scoring logic"
+  - "No frontend changes for this ticket"
+  - "No WooCommerce changes if WooCommerce product response does not include a description field (mark as skip if absent)"
+
+dependencies:
+  blockers: []
+  unblocks: ["SC-105 (richer metadata for newly imported merchants)"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "description_text column exists on products table (Alembic migration applied cleanly)"
+    verify: "cd backend && python -c \"from szimplacoffee.models import Product; print(hasattr(Product, 'description_text'))\""
+    status: pending
+  - id: AC-2
+    text: "Shopify adapter populates description_text on crawl for at least one test merchant"
+    verify: "pytest test for Shopify adapter checking description_text is populated"
+    status: pending
+  - id: AC-3
+    text: "Coffee parser extracts origin from description_text when title has no origin signal"
+    verify: "pytest test: parser(title='Mystery Coffee', description_text='A washed Ethiopian from Yirgacheffe') extracts origin_country='Ethiopia'"
+    status: pending
+  - id: AC-4
+    text: "backfill-metadata runs without error after migration"
+    verify: "cd backend && . .venv/bin/activate && szimpla backfill-metadata"
+    status: pending
+  - id: AC-5
+    text: "Origin fill rate for coffee-only active products improves from ~65% toward ≥70% after backfill"
+    verify: "SQL query on live DB comparing origin_country null count before/after"
+    status: pending
+  - id: AC-6
+    text: "290+ backend tests pass"
+    verify: "cd backend && pytest tests/ -q"
+    status: pending
+
+verification_required:
+  - "cd backend && pytest tests/ -q"
+  - "cd backend && ~/.local/bin/ruff check src/ tests/"
+  - "cd backend && . .venv/bin/activate && szimpla backfill-metadata"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-104-execution-plan.md"
+  - "/home/h6nk/SzimplaCoffee/backend/src/szimplacoffee/models.py"
+  - "/home/h6nk/SzimplaCoffee/backend/src/szimplacoffee/services/crawlers.py"
+  - "/home/h6nk/SzimplaCoffee/backend/src/szimplacoffee/services/coffee_parser.py"
+
+slices:
+  - id: S1
+    title: "Schema migration: add description_text to Product"
+    status: pending
+    depends_on: []
+    files_create:
+      - "backend/migrations/versions/<hash>_add_description_text_to_products.py"
+    files_modify:
+      - "backend/src/szimplacoffee/models.py"
+    files_read_only: []
+    checks:
+      - "cd backend && alembic upgrade head"
+      - "cd backend && python -c \"from szimplacoffee.models import Product; print(hasattr(Product, 'description_text'))\""
+    evidence: []
+    notes: "Nullable TEXT column. No default needed."
+
+  - id: S2
+    title: "Shopify adapter: extract and store description_text"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/crawlers.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && pytest tests/test_crawlers.py -q"
+    evidence: []
+    notes: >
+      Strip HTML from body_html field in Shopify product JSON. Use html.parser or
+      BeautifulSoup (already a dependency). Limit to first 2000 chars to avoid giant
+      descriptions bloating the DB. Store as UTF-8 text.
+
+  - id: S3
+    title: "Coffee parser: use description_text as secondary extraction source"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/services/coffee_parser.py"
+      - "backend/src/szimplacoffee/cli.py"
+    files_read_only: []
+    checks:
+      - "cd backend && pytest tests/test_coffee_parser.py -q"
+    evidence: []
+    notes: >
+      Add optional description_text parameter to parse_coffee_product(). When title
+      extraction yields no origin/process/variety, try description_text as secondary
+      source. Provenance should be set to 'description-extract' to distinguish from
+      title-extract. In backfill-metadata, pass product.description_text.
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Alembic migration: use alembic revision --autogenerate -m 'add description_text to products'"
+  - "Check if alembic.ini and env.py are already configured in backend/"
+  - "WooCommerce: Novo Coffee products likely have descriptions; attempt to read product.description from WC API response"
+  - "HTML stripping: prefer html.parser over bs4 for minimal overhead; strip tags, decode entities, collapse whitespace"
+  - "Do not store raw HTML to avoid schema bloat; plain text only"
