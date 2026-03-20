@@ -1,12 +1,59 @@
 {
   "entries": [
     {
+      "id": "SC-106-unknown-metadata-suppression",
+      "path": ".memory/sprint-11/SC-106-unknown-metadata-suppression.md",
+      "ticket": "SC-106",
+      "sprint": "11",
+      "created_at": "2026-03-20T08:35:11Z",
+      "summary": "Centralized product metadata tag helpers, suppressed visible unknown metadata values, added Vitest coverage (13 tests), and fixed ProductSort typing for the quality sort option. Frontend build/tsc and 298 backend tests passed."
+    },
+    {
+      "id": "SC-105-merchant-expansion",
+      "path": ".memory/sprint-04/SC-105-merchant-expansion.md",
+      "ticket": "SC-105",
+      "sprint": "04",
+      "created_at": "2026-03-20T07:15:00Z",
+      "summary": "10 new merchants imported serially (9/10 with products). Active count: 26\u219236. ~275 new catalog entries. Dark Matter has top espresso score (0.58) of new batch. Tandem has 103 products (review for non-coffee). Toby's Estate custom platform \u2192 0 products as expected. 298 backend tests pass."
+    },
+    {
+      "id": "SC-103-brew-feedback-boost",
+      "path": ".memory/sprint-10/SC-103-brew-feedback-boost.md",
+      "ticket": "SC-103",
+      "sprint": "10",
+      "created_at": "2026-03-20T05:31:00Z",
+      "summary": "Added positive brew-feedback weighting to recommendations, including multi-session boosts, explainable score_breakdown fields, Proven performer pros, and regression coverage. 294 backend tests and ruff green."
+    },
+    {
+      "id": "SC-101-merchant-expansion",
+      "path": ".memory/sprint-10/SC-101-merchant-expansion.md",
+      "ticket": "SC-101",
+      "sprint": "10",
+      "created_at": "2026-03-20T04:42:00Z",
+      "summary": "Added 10 new merchants (9/10 with products). Active count: 16\u219226. 418+ new products. Key finding: crawl_merchant does not commit \u2014 callers must. Bot-protection titles can corrupt merchant names. 290 tests passing."
+    },
+    {
+      "id": "SC-102-metadata-fill-rate",
+      "path": ".memory/sprint-10/SC-102-metadata-fill-rate.md",
+      "ticket": "SC-102",
+      "sprint": "10",
+      "created_at": "2026-03-20T04:02:00Z",
+      "summary": "Expanded non-coffee classification, fixed ambiguous Java/Congo origin handling, added low-confidence country-default process fallback in backfill, and improved active fill rates to roast 19.0% unknown / process 25.4% unknown with 290 backend tests, frontend build, and ruff green."
+    },
+    {
+      "id": "SC-100-today-deal-badges",
+      "path": ".memory/sprint-04/SC-100-today-deal-badges.md",
+      "task": "SC-100",
+      "summary": "Today view deal badges: DealBadge + RunnerUpCard wired from VariantDealFact signals",
+      "date": "2026-03-20"
+    },
+    {
       "id": "SC-99-quality-sort",
       "path": ".memory/sprint-10/SC-99-quality-sort.md",
       "ticket": "SC-99",
       "sprint": "10",
       "created_at": "2026-03-20T01:52:00Z",
-      "summary": "Added 'quality' sort mode to catalog API (has_stock → merchant quality score → metadata_confidence → recency). MerchantQualityProfile.overall_quality_score threaded via selectinload. Frontend sort selector updated. 275 backend tests pass."
+      "summary": "Added 'quality' sort mode to catalog API (has_stock \u2192 merchant quality score \u2192 metadata_confidence \u2192 recency). MerchantQualityProfile.overall_quality_score threaded via selectinload. Frontend sort selector updated. 275 backend tests pass."
     },
     {
       "id": "SC-98-deal-baselines-catalog-api",

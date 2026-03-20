@@ -10,6 +10,7 @@ export type CursorPageProductSummary = components["schemas"]["CursorPage_Product
 export type ProductMerchantOption = { merchant_id: number; merchant_name: string };
 export type ProductSort =
   | "featured"
+  | "quality"
   | "merchant"
   | "price_low"
   | "price_high"

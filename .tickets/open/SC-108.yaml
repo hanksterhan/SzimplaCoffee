@@ -1,0 +1,148 @@
+id: SC-108
+title: "Server-side product sort: quality-first, freshness-aware corpus sort"
+type: feature
+priority: p2
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-20T08:06:00Z"
+updated_at: "2026-03-20T08:06:00Z"
+labels: ["backend", "frontend", "catalog", "sort", "phase-3"]
+
+problem: >
+  The product catalog currently sorts results by merchant or insertion order, limited to
+  the client-side window. With 36 active merchants and 290+ products, there is no
+  corpus-wide quality-first sort. Users browsing /products see no coherent ranking —
+  a mediocre product from a recently crawled merchant appears before a high-quality
+  product from another. Recommendations and the Today view exist for structured buying
+  decisions, but the general catalog browse experience needs a trustworthy default order.
+
+desired_outcome: >
+  The /api/v1/products/catalog endpoint supports a `sort` parameter (e.g.,
+  sort=quality_score, sort=freshness, sort=price_asc, sort=price_desc, sort=default).
+  The default sort is quality-first: products ordered by descending quality_score
+  (MerchantQualityProfile.overall_score × product-level signals), then by crawl
+  freshness (most recently crawled merchant first). The frontend catalog uses this
+  sort by default and exposes a sort selector to the user.
+
+scope_in:
+  - "Add `sort` query parameter to GET /api/v1/products/catalog (values: quality, freshness, price_asc, price_desc, default)"
+  - "Implement quality-first sort: join MerchantQualityProfile.overall_score into catalog query, order by descending score then by last_crawled_at"
+  - "Frontend: add sort selector UI to /products catalog page (select or button group)"
+  - "Frontend: pass sort param through useProducts hook to API"
+  - "Update ProductSummaryResponse or catalog schema if needed for sort param"
+  - "Backend test: catalog endpoint returns products in quality-descending order when sort=quality"
+scope_out:
+  - "No changes to recommendation scoring engine"
+  - "No new ML models or learned ranking"
+  - "No changes to search endpoint (separate concern)"
+  - "No changes to Today view (uses recommendation engine)"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "GET /api/v1/products/catalog?sort=quality returns products ordered by descending merchant quality score"
+    verify: "curl -s 'http://localhost:8000/api/v1/products/catalog?sort=quality&limit=5' | python3 -m json.tool | grep merchant_name"
+    status: pending
+  - id: AC-2
+    text: "Frontend catalog page shows a sort selector with at least quality, freshness, price_asc, price_desc options"
+    verify: "Manual: open /products, confirm sort selector is visible and functional"
+    status: pending
+  - id: AC-3
+    text: "Changing sort in the UI updates the product list without a page reload"
+    verify: "Manual: change sort option, confirm list updates via TanStack Query refetch"
+    status: pending
+  - id: AC-4
+    text: "Backend test verifies sort=quality returns results ordered by merchant quality score descending"
+    verify: "cd backend && pytest tests/ -k catalog_sort -v"
+    status: pending
+  - id: AC-5
+    text: "300+ backend tests still pass"
+    verify: "cd backend && pytest tests/ -q"
+    status: pending
+  - id: AC-6
+    text: "Frontend build and TypeScript check pass"
+    verify: "cd frontend && npm run build && npx tsc -b"
+    status: pending
+
+verification_required:
+  - "cd backend && pytest tests/ -q"
+  - "cd frontend && npm run build && npx tsc -b"
+  - "cd backend && ~/.local/bin/ruff check src/ tests/"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-108-execution-plan.md"
+  - "/home/h6nk/SzimplaCoffee/backend/src/szimplacoffee/api/products.py"
+  - "/home/h6nk/SzimplaCoffee/frontend/src/routes/products.lazy.tsx"
+  - "/home/h6nk/SzimplaCoffee/frontend/src/hooks/use-products.ts"
+
+slices:
+  - id: S1
+    title: "Backend: add sort param to catalog endpoint"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/api/products.py"
+      - "backend/src/szimplacoffee/schemas/products.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && pytest tests/ -q"
+    evidence: []
+    notes: >
+      Add `sort: str = "quality"` query param. Implement quality sort by joining
+      MerchantQualityProfile.overall_score. Freshness sort by Merchant.last_crawled_at.
+      Price sorts by VariantDealFact.current_price ascending/descending.
+
+  - id: S2
+    title: "Backend test: catalog sort"
+    status: pending
+    depends_on: ["S1"]
+    files_create:
+      - "backend/tests/test_catalog_sort.py"
+    files_modify: []
+    files_read_only:
+      - "backend/src/szimplacoffee/api/products.py"
+    checks:
+      - "cd backend && pytest tests/test_catalog_sort.py -v"
+    evidence: []
+    notes: >
+      Test: sort=quality returns items where merchant quality scores are
+      non-increasing (allow ties). Test: sort=price_asc returns cheapest first.
+
+  - id: S3
+    title: "Frontend: sort selector UI and hook integration"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "frontend/src/routes/products.lazy.tsx"
+      - "frontend/src/hooks/use-products.ts"
+    files_read_only:
+      - "frontend/src/api/schema.d.ts"
+    checks:
+      - "cd frontend && npm run build && npx tsc -b"
+    evidence: []
+    notes: >
+      Add sortBy state to catalog page. Render a <Select> or button group with
+      quality/freshness/price_asc/price_desc labels. Pass sort to useProducts hook
+      which passes it to the API call. Invalidate query on sort change.
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Quality-first sort makes the catalog meaningful for 36-merchant coverage"
+  - "This is a frontend + backend change — keep diff minimal and targeted"
+  - "Default sort should be quality to immediately improve browse UX without user action"
