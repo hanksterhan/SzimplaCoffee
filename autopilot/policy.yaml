@@ -28,7 +28,7 @@ escalation:
     - "prod infra or billing risk"
     - "same task fails twice"
 reflection:
-  every_n_completed: 5
+  every_n_completed: 8
 
 notifications:
   # Set session_key to route run summaries via sessions_send.

@@ -1,0 +1,3 @@
+2026-03-20T12:06:00Z  created → ready  owner=h6nk-bot  reason=autopilot backlog refill
+2026-03-20T12:06:00Z  ready → in_progress  owner=h6nk-bot
+2026-03-20T12:22:00Z  in_progress → done  owner=h6nk-bot  345 backend tests pass, ruff clean, backfill-descriptions CLI verified

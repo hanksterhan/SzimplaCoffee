@@ -1,0 +1,121 @@
+id: SC-110
+title: "Description-based metadata backfill re-pass"
+type: feature
+priority: p1
+status: in_progress
+owner: h6nk-bot
+created_at: "2026-03-20T12:06:00Z"
+updated_at: "2026-03-20T12:06:00Z"
+labels: ["backend", "metadata", "backfill", "origin", "phase-4"]
+
+problem: >
+  Origin coverage is at ~56% on active products. SC-104 stored description_text for all
+  products during crawl, but the subsequent metadata backfill pass ran before those
+  descriptions were populated. Re-running the metadata parser over products that have
+  description_text != NULL but still have weak/missing origin_country, roast_level, or
+  process_family will increase fill rates using richer source text already on disk.
+
+desired_outcome: >
+  A re-pass of the metadata parser runs over all active products with non-null
+  description_text, updating origin_country, roast_level, and process_family where the
+  parser finds higher-confidence signals. Origin coverage increases from ~56% toward 70%+.
+  A CLI command executes the re-pass and prints a before/after fill-rate summary.
+
+scope_in:
+  - "Add `backfill-descriptions` CLI subcommand (or extend `backfill-metadata`) to re-parse products with description_text != NULL"
+  - "Only overwrite metadata fields where new confidence is higher than existing confidence"
+  - "Print before/after fill-rate counts for origin_country, roast_level, process_family"
+  - "Backend test covering the re-pass logic on sample product data"
+
+scope_out:
+  - "No new crawl runs or HTTP fetches"
+  - "No changes to the parser rules themselves (existing extractor logic only)"
+  - "No frontend changes"
+  - "No changes to Product schema"
+
+dependencies:
+  blockers: []
+  unblocks: ["SC-112", "SC-115"]
+
+acceptance_criteria:
+  - id: AC-1
+    text: "CLI command `szimpla backfill-descriptions` runs without error and prints fill-rate summary"
+    verify: "cd backend && . .venv/bin/activate && szimpla backfill-descriptions"
+    status: pending
+  - id: AC-2
+    text: "origin_country fill rate on active products improves (target ≥ 60%, ideally 70%+)"
+    verify: "cd backend && . .venv/bin/activate && python3 -c \"from szimplacoffee.db import get_session; from szimplacoffee.models import Product; s=next(get_session()); total=s.query(Product).filter(Product.is_active==True).count(); filled=s.query(Product).filter(Product.is_active==True, Product.origin_country!=None).count(); print(f'{filled}/{total} = {filled/total*100:.1f}%')\""
+    status: pending
+  - id: AC-3
+    text: "Backend tests pass (333+)"
+    verify: "cd backend && pytest tests/ -q"
+    status: pending
+
+verification_required:
+  - "cd backend && pytest tests/ -q"
+  - "cd backend && ~/.local/bin/ruff check src/ tests/"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-110-execution-plan.md"
+  - "/home/h6nk/SzimplaCoffee/backend/src/szimplacoffee/cli.py"
+  - "/home/h6nk/SzimplaCoffee/backend/src/szimplacoffee/services/"
+  - "/home/h6nk/SzimplaCoffee/backend/src/szimplacoffee/models.py"
+
+slices:
+  - id: S1
+    title: "Implement backfill-descriptions CLI command and re-pass logic"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/cli.py"
+      - "backend/src/szimplacoffee/services/parser.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+      - "backend/src/szimplacoffee/db.py"
+    checks:
+      - "cd backend && ~/.local/bin/ruff check src/ tests/"
+    evidence: []
+    notes: >
+      Add `backfill-descriptions` command to CLI. Query products with description_text != NULL.
+      Re-run metadata extraction. Only update if new confidence > existing confidence.
+      Print before/after counts.
+
+  - id: S2
+    title: "Backend test for description-based re-pass"
+    status: done
+    depends_on: ["S1"]
+    files_create:
+      - "backend/tests/test_backfill_descriptions.py"
+    files_modify: []
+    files_read_only:
+      - "backend/src/szimplacoffee/cli.py"
+    checks:
+      - "cd backend && pytest tests/test_backfill_descriptions.py -v"
+    evidence: []
+    notes: >
+      Test: products with description_text containing clear origin signals get
+      origin_country populated after re-pass. Test: lower-confidence existing
+      values are not downgraded.
+
+delivery:
+  branch: "sc-110-description-backfill"
+  commits: []
+  pr_url: ""
+  started_at: "2026-03-20T12:06:00Z"
+  completed_at: "2026-03-20T12:22:00Z"
+  verification:
+    required_passed: true
+    commands_run:
+      - "cd backend && . .venv/bin/activate && szimpla backfill-descriptions"
+      - "cd backend && . .venv/bin/activate && pytest tests/test_backfill_descriptions.py -q"
+      - "cd backend && . .venv/bin/activate && pytest tests/ -q"
+      - "cd backend && ~/.local/bin/ruff check src/ tests/"
+    evidence_refs:
+      - ".memory/sprint-11/SC-110-description-backfill.md"
+
+notes:
+  - "SC-104 already stored description_text — this ticket just re-runs parsing over it"
+  - "Live run reclassified 48 obvious non-coffee products and upgraded 21 process-family values"
+  - "Origin fill on all active products remained flat; coffee-only origin coverage improved to 62.1%"
+n"

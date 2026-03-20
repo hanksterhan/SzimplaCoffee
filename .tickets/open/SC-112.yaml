@@ -1,0 +1,132 @@
+id: SC-112
+title: "Recommendation explainability: why_text narrative"
+type: feature
+priority: p2
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-20T12:06:00Z"
+updated_at: "2026-03-20T12:06:00Z"
+labels: ["backend", "frontend", "recommendations", "ux", "phase-4"]
+
+problem: >
+  The Today view shows deal_badge and quality score but no human-readable explanation
+  of why a coffee ranks first. The north star asks for an explainable recommendation:
+  "what coffee should I order right now, from which merchant, in what size, and why?"
+  The 'why' is currently missing.
+
+desired_outcome: >
+  The top recommendation and runner-ups in the Today view include a `why_text` field:
+  1–2 sentences explaining why this coffee ranks where it does. Template-based,
+  not LLM-generated. Rendered below the coffee name in TopPickCard on the frontend.
+
+scope_in:
+  - "Add `why_text: str` field to RecommendationItem response schema"
+  - "Implement template-based why_text generation in recommendation scoring service"
+  - "Templates draw from: deal_badge, quality_tier, brew_feedback_count, process_family, origin_country, merchant_tier"
+  - "Frontend: render why_text below coffee name in TopPickCard component"
+  - "Backend test covering why_text generation for representative cases"
+
+scope_out:
+  - "No LLM calls for text generation"
+  - "No changes to recommendation scoring weights"
+  - "No schema migrations (why_text is computed, not persisted)"
+  - "No changes to /recommendations list view (only Today top pick and runners-up)"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "POST /api/v1/recommendations returns items with why_text populated for top pick and runners-up"
+    verify: "cd backend && . .venv/bin/activate && python3 -c \"import requests; r=requests.post('http://localhost:8000/api/v1/recommendations', json={}); [print(i.get('why_text')) for i in r.json().get('recommendations', [])[:3]]\""
+    status: pending
+  - id: AC-2
+    text: "why_text mentions at least one specific signal (deal_badge, origin, process, or brew feedback)"
+    verify: "Manual review of generated why_text strings"
+    status: pending
+  - id: AC-3
+    text: "Today view TopPickCard renders why_text below the coffee name"
+    verify: "Manual: open /today, confirm why_text visible on top pick"
+    status: pending
+  - id: AC-4
+    text: "Backend tests pass"
+    verify: "cd backend && pytest tests/ -q"
+    status: pending
+  - id: AC-5
+    text: "Frontend build and tsc pass"
+    verify: "cd frontend && npm run build && npx tsc -b"
+    status: pending
+
+verification_required:
+  - "cd backend && pytest tests/ -q"
+  - "cd frontend && npm run build && npx tsc -b"
+  - "cd backend && ~/.local/bin/ruff check src/ tests/"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-112-execution-plan.md"
+  - "/home/h6nk/SzimplaCoffee/backend/src/szimplacoffee/services/"
+  - "/home/h6nk/SzimplaCoffee/backend/src/szimplacoffee/schemas/"
+  - "/home/h6nk/SzimplaCoffee/frontend/src/routes/today.lazy.tsx"
+
+slices:
+  - id: S1
+    title: "Backend: why_text schema field and template generation"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/schemas/recommendations.py"
+      - "backend/src/szimplacoffee/services/recommendation_engine.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && ~/.local/bin/ruff check src/ tests/"
+    evidence: []
+    notes: >
+      Add why_text to RecommendationItem. Generate from template fragments:
+      deal fragments (e.g., "15% below 30-day baseline"), quality fragments
+      (e.g., "Tier A roaster"), feedback fragments (e.g., "3 positive brew sessions"),
+      origin/process fragments (e.g., "Ethiopian washed"). Compose 1-2 sentences.
+
+  - id: S2
+    title: "Backend test for why_text generation"
+    status: pending
+    depends_on: ["S1"]
+    files_create:
+      - "backend/tests/test_recommendation_why_text.py"
+    files_modify: []
+    files_read_only: []
+    checks:
+      - "cd backend && pytest tests/test_recommendation_why_text.py -v"
+    evidence: []
+    notes: "Test several representative scoring scenarios produce meaningful why_text strings"
+
+  - id: S3
+    title: "Frontend: render why_text in TopPickCard"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "frontend/src/routes/today.lazy.tsx"
+    files_read_only:
+      - "frontend/src/api/schema.d.ts"
+    checks:
+      - "cd frontend && npm run build && npx tsc -b"
+    evidence: []
+    notes: "Render why_text as a small muted paragraph below coffee name in today view top pick card"
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Template-based only — no LLM calls"
+  - "why_text computed at response time, not persisted"
