@@ -1,6 +1,22 @@
 {
   "entries": [
     {
+      "id": "SC-98-deal-baselines-catalog-api",
+      "path": ".memory/sprint-06/SC-98-deal-baselines-catalog-api.md",
+      "ticket": "SC-98",
+      "sprint": "06",
+      "created_at": "2026-03-20T00:58:00Z",
+      "summary": "Exposed VariantDealFact deal signals in catalog API (DealFactSchema on ProductSummary) and added DealBadge to ProductCard/QuickView. 274 backend tests pass, frontend build + tsc clean."
+    },
+    {
+      "id": "SC-100-fill-rate-widget",
+      "path": ".memory/sprint-06/SC-100-fill-rate-widget.md",
+      "ticket": "SC-100",
+      "sprint": "06",
+      "created_at": "2026-03-19T23:55:00Z",
+      "summary": "Created MetadataFillRateWidget with colored progress bars and 70% goal marker; refactored MetadataFillRate dashboard card to compose it. Frontend build and tsc -b clean."
+    },
+    {
       "id": "SC-94-canonical-metadata-provenance",
       "path": ".memory/sprint-02/SC-94-canonical-metadata-provenance.md",
       "ticket": "SC-94",
