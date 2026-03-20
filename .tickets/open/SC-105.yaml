@@ -1,0 +1,109 @@
+id: SC-105
+title: "Merchant expansion: verify and import next 10 merchants from seed list"
+type: feature
+priority: p2
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-20T05:31:00Z"
+updated_at: "2026-03-20T05:31:00Z"
+labels: ["merchant-expansion", "catalog", "data-ops"]
+
+problem: >
+  The active merchant set grew from 16 to 26 with SC-101. The Phase 3 goal is to build
+  daily buying intelligence from a richer catalog with trustworthy merchant coverage.
+  With 26 Tier A merchants and a stable crawl pipeline, the next 10 merchants from the
+  seed list can be safely added to deepen catalog depth and regional diversity. More
+  merchants = more candidates for deal scoring, quality-based ranking, and Today view
+  recommendations.
+
+desired_outcome: >
+  10 new merchants verified and imported. Active merchant count grows to at least 34
+  (assuming 2 may fail platform detection or have no products). All new Shopify/WooCommerce
+  merchants are Tier A after scoring. score-merchants runs clean. Backend tests pass.
+
+scope_in:
+  - "Read SzimplaCoffee/brain/merchants/top-500-seed.md for remaining unimported candidates"
+  - "Exclude any merchant already in the DB (check by canonical_domain)"
+  - "Target the next 10 by priority: Shopify-first, espresso-relevant, US-based roasters"
+  - "Verify each URL is reachable (HTTP 200/redirect) before importing"
+  - "Run szimpla add-merchant <url> --crawl-now for each merchant serially (one at a time)"
+  - "Run szimpla score-merchants after all imports complete"
+  - "Report: merchants added, products per merchant, any failures"
+scope_out:
+  - "No code changes — this is a pure data import operation"
+  - "No changes to adapters or crawlers"
+  - "Do not import merchants already in the DB"
+  - "Skip any merchant returning HTTP 4xx/5xx on initial check"
+  - "Skip any merchant with platform_type='custom' after add (0-product outcome expected)"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "At least 8 of 10 targeted merchants have products after import and crawl"
+    verify: "SQL: SELECT name, COUNT(p.id) FROM merchants m LEFT JOIN products p ON p.merchant_id = m.id WHERE m.id IN (new_ids) GROUP BY m.name"
+    status: pending
+  - id: AC-2
+    text: "Active merchant count >= 34"
+    verify: "SQL: SELECT COUNT(*) FROM merchants WHERE is_active = 1"
+    status: pending
+  - id: AC-3
+    text: "score-merchants completes without error"
+    verify: "cd backend && . .venv/bin/activate && szimpla score-merchants"
+    status: pending
+  - id: AC-4
+    text: "290+ backend tests still pass"
+    verify: "cd backend && pytest tests/ -q"
+    status: pending
+  - id: AC-5
+    text: "No Tier D merchants added (all new merchants are A, B, or C)"
+    verify: "SQL: SELECT name, crawl_tier FROM merchants WHERE id IN (new_ids)"
+    status: pending
+
+verification_required:
+  - "cd backend && pytest tests/ -q"
+  - "cd backend && . .venv/bin/activate && szimpla score-merchants"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-105-execution-plan.md"
+  - "/home/h6nk/SzimplaCoffee/SzimplaCoffee/brain/merchants/top-500-seed.md"
+
+slices:
+  - id: S1
+    title: "Identify, verify, and import 10 merchants"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify: []
+    files_read_only:
+      - "SzimplaCoffee/brain/merchants/top-500-seed.md"
+    checks:
+      - "cd backend && . .venv/bin/activate && szimpla score-merchants"
+      - "cd backend && pytest tests/ -q"
+    evidence: []
+    notes: >
+      IMPORTANT: Use szimpla add-merchant <url> --crawl-now (not without the flag).
+      Run merchants serially — wait for each to complete before starting next.
+      If a merchant returns 'Something went wrong' as name, fix via direct DB update.
+      If crawl_tier is C after scoring and product count is 0, note for Tier D review.
+      Do NOT run crawl_merchant() manually — --crawl-now handles it.
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "This is a pure data operation: no code changes, no branch creation needed"
+  - "Use --crawl-now flag with szimpla add-merchant (SC-101 lesson: default does NOT crawl)"
+  - "After scoring, check if any Batdorf-like 0-product custom-platform merchants appeared"
+  - "Prefer merchants from seed list that have not been attempted before"
+  - "Check active merchant count before and after to confirm growth"

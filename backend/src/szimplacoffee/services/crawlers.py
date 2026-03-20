@@ -627,6 +627,9 @@ def _upsert_product(session: Session, merchant: Merchant, external_product_id: s
     product.name = payload["name"]
     product.product_url = payload["product_url"]
     product.image_url = payload.get("image_url", "")
+    # SC-104: persist stripped description text when provided
+    if payload.get("description_text") is not None:
+        product.description_text = payload["description_text"] or None
     product.origin_text = payload.get("origin_text", "")
     product.origin_country = payload.get("origin_country")
     product.origin_country_confidence = float(payload.get("origin_country_confidence", 0.0) or 0.0)
@@ -1078,6 +1081,8 @@ def _crawl_shopify(session: Session, merchant: Merchant) -> CrawlSummary:
                 continue
 
             text = _clean_text(raw.get("body_html", ""))
+            # SC-104: persist stripped description text (bounded to 2000 chars)
+            description_text = text[:2000] if text else None
             product_name = _normalize_product_name(raw.get("title", "Unnamed Coffee"))
             shopify_payload = _apply_metadata_overrides(
                 session,
@@ -1088,6 +1093,7 @@ def _crawl_shopify(session: Session, merchant: Merchant) -> CrawlSummary:
                         "name": product_name,
                         "product_url": f"{root_url}/products/{raw.get('handle', '')}",
                         "image_url": _normalize_asset_url((raw.get("image") or {}).get("src") or ((raw.get("images") or [{}])[0].get("src") or "")),
+                        "description_text": description_text,
                         "origin_text": _extract_field(text, "Origin"),
                         "process_text": _extract_field(text, "Process"),
                         "variety_text": _extract_field(text, "Variety"),
@@ -1502,6 +1508,8 @@ def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
                 first_intro_token = intro_tokens[0] if intro_tokens else ""
                 if first_intro_token and "masl" in first_intro_token.lower():
                     first_intro_token = ""
+                # SC-104: persist stripped description text (bounded to 2000 chars)
+                woo_description_text = description[:2000] if description else None
 
                 woo_product_name = _normalize_product_name(raw.get("name", "Unnamed Coffee"))
                 woo_payload = _apply_metadata_overrides(
@@ -1513,6 +1521,7 @@ def _crawl_woocommerce(session: Session, merchant: Merchant) -> CrawlSummary:
                             "name": woo_product_name,
                             "product_url": product_url,
                             "image_url": ((raw.get("images") or [{}])[0].get("src") or ""),
+                            "description_text": woo_description_text,
                             "origin_text": _extract_field(description, "Origin") or _merge_origin_and_site(inferred_origin, first_intro_token),
                             "process_text": _extract_field(description, "Process") or _extract_process_from_text(raw.get("name", ""), combined_context),
                             "variety_text": _extract_field(description, "Variety") or _extract_variety_from_text(raw.get("name", ""), combined_context),

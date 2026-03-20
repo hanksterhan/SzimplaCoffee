@@ -11,7 +11,11 @@ from sqlalchemy.orm import Session
 from szimplacoffee.db import Base
 from szimplacoffee.models import Merchant, MerchantFieldPattern, ProductMetadataOverride
 from szimplacoffee.services.crawlers import _apply_metadata_overrides, _apply_metadata_rule, _enrich_payload_with_parser, _is_coffee_product
-from szimplacoffee.services.coffee_parser import ParsedCoffeeMetadata, parse_coffee_metadata
+from szimplacoffee.services.coffee_parser import (
+    ParsedCoffeeMetadata,
+    default_process_family_for_country,
+    parse_coffee_metadata,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -640,7 +644,7 @@ def test_roast_level_patterns_sc63(name: str, desc: str, expected_level: str) ->
 ])
 def test_region_to_country_derivation_sc85(region_text: str, expected_country: str) -> None:
     """When origin_text is a region name, origin_country should be inferred."""
-    result = parse_coffee_metadata(f"Single Origin Coffee", region_text)
+    result = parse_coffee_metadata("Single Origin Coffee", region_text)
     assert result.origin_country == expected_country, (
         f"Expected origin_country={expected_country!r} for region {region_text!r}, got {result.origin_country!r}"
     )
@@ -793,3 +797,85 @@ def test_process_family_patterns_sc97(name: str, desc: str, expected_family: str
     assert result.process_family == expected_family, (
         f"Expected process_family={expected_family!r} for {name!r}, got {result.process_family!r}"
     )
+
+
+@pytest.mark.parametrize("name", [
+    "Kalita Wave (Stainless)",
+    "NanoFoamer Frother PRO",
+    "Metric Coffee Bag Enamel Pin",
+    "Metric Cuffed Knit Beanie (Black)",
+    "Cold Brew Concentrate",
+    "Cascara Coffee Cherry Tea",
+])
+def test_non_coffee_products_sc102(name: str) -> None:
+    result = parse_coffee_metadata(name, "")
+    assert result.is_coffee_product is False, f"Expected non-coffee classification for {name!r}"
+
+
+@pytest.mark.parametrize("name,desc", [
+    ("Anselmo Caldon Alvira - Washed Process - 2024", ""),
+    ("Fausto Romo Sidra - Honey - 2024", ""),
+    ("Finca Santa Elena", "Single-origin coffee from a family farm."),
+])
+def test_specialty_single_origin_context_defaults_to_light_sc102(name: str, desc: str) -> None:
+    result = parse_coffee_metadata(name, desc)
+    assert result.roast_level == "light", (
+        f"Expected specialty single-origin context to infer light roast for {name!r}, got {result.roast_level!r}"
+    )
+
+
+def test_java_variety_does_not_create_false_multi_origin_sc102() -> None:
+    result = parse_coffee_metadata("Costa Rica El Congo Geisha", "")
+    assert result.origin_country == "Costa Rica"
+    assert result.is_single_origin is True
+    assert result.roast_level == "light"
+
+
+@pytest.mark.parametrize("origin_country,expected", [
+    ("Colombia", "washed"),
+    ("Kenya", "washed"),
+    ("Brazil", "natural"),
+    ("Ethiopia", None),
+    (None, None),
+])
+def test_country_default_process_family_sc102(origin_country: str | None, expected: str | None) -> None:
+    assert default_process_family_for_country(origin_country) == expected
+
+
+# ---------------------------------------------------------------------------
+# SC-104: Tests for description_text as secondary extraction source
+# ---------------------------------------------------------------------------
+
+def test_sc104_parser_uses_description_for_origin() -> None:
+    """When title has no origin signal, parser extracts origin from description."""
+    result = parse_coffee_metadata(
+        "Mystery Coffee",
+        "A washed single-origin coffee from Yirgacheffe, Ethiopia. Notes of jasmine.",
+    )
+    assert result.origin_country == "Ethiopia"
+
+
+def test_sc104_parser_uses_description_for_process() -> None:
+    """When title has no process signal, parser extracts process from description."""
+    result = parse_coffee_metadata(
+        "Guatemala Huehuetenango",
+        "Process: Natural. Roast: Medium. Origin: Guatemala.",
+    )
+    assert result.process_family == "natural"
+
+
+def test_sc104_parser_uses_description_for_roast() -> None:
+    """When title has no roast signal, parser extracts roast from description."""
+    result = parse_coffee_metadata(
+        "Single Origin Guatemala",
+        "Roast level: light. Grown at 1800 masl in Huehuetenango.",
+    )
+    assert result.roast_level == "light"
+
+
+def test_sc104_parser_empty_description_graceful() -> None:
+    """Parser handles empty description_text gracefully (no crash, no garbage)."""
+    result = parse_coffee_metadata("Ethiopia Natural Light", "")
+    assert result.origin_country == "Ethiopia"
+    assert result.process_family == "natural"
+    assert result.roast_level == "light"
