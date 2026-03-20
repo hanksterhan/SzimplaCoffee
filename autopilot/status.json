@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-20T11:34:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": "2026-03-20T12:06:00Z",
-  "last_delivered_task": "SC-111",
-  "completed_since_reflect": 2,
+  "last_delivered_task": "SC-112",
+  "completed_since_reflect": 3,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-20T13:20:00Z",
+  "last_run_at": "2026-03-20T14:17:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "Delivered SC-111 by importing 10 merchant records serially, getting 8 successful crawls with products, increasing active merchants to 48, and passing backend verification (345 tests + ruff).",
-  "next_task_hint": "Select SC-112 next unless seed-list cleanup becomes higher leverage; SC-111 is closed and SC-116 is now unblocked."
+  "last_run_summary": "Delivered SC-112: added why_text template-based recommendation explanation to backend service, API schema, and Today view TopPickCard. 354 tests pass, ruff clean, build + tsc clean.",
+  "next_task_hint": "Select SC-113 (Purchase history intelligence panel) — next highest-priority unblocked ready task."
 }

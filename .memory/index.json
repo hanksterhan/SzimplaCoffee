@@ -1,6 +1,14 @@
 {
   "entries": [
     {
+      "id": "SC-112-recommendation-why-text",
+      "path": ".memory/sprint-11/SC-112-recommendation-why-text.md",
+      "ticket": "SC-112",
+      "sprint": "sprint-11",
+      "date": "2026-03-20",
+      "summary": "Added why_text template-based explanation field to recommendations; rendered in Today TopPickCard"
+    },
+    {
       "id": "SC-111-merchant-expansion-batch-3",
       "path": ".memory/sprint-11/SC-111-merchant-expansion-batch-3.md",
       "ticket": "SC-111",

@@ -2,7 +2,7 @@ id: SC-112
 title: "Recommendation explainability: why_text narrative"
 type: feature
 priority: p2
-status: ready
+status: done
 owner: h6nk-bot
 created_at: "2026-03-20T12:06:00Z"
 updated_at: "2026-03-20T12:06:00Z"
