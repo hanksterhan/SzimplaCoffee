@@ -1,0 +1,77 @@
+id: SC-116
+title: "Merchant expansion batch 4 (remaining Tier B candidates)"
+type: feature
+priority: p3
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-20T12:06:00Z"
+updated_at: "2026-03-20T12:06:00Z"
+labels: ["backend", "merchants", "crawl", "expansion", "phase-4"]
+
+problem: >
+  After batch 3 (SC-111), there are approximately 10 more Tier B seed candidates
+  not yet imported. These broaden deal discovery once batch 3 is stable.
+
+desired_outcome: >
+  The remaining ~10 Tier B candidates from the seed list are imported serially.
+  Active merchant count reaches ~54+. Crawl failures are noted but don't block.
+
+scope_in:
+  - "Import remaining Tier B merchants from seed list not covered in SC-111"
+  - "Serial execution only"
+  - "Report success/failure counts"
+
+scope_out:
+  - "No crawl logic changes"
+  - "No frontend changes"
+  - "No changes ahead of SC-111 stabilization review"
+
+dependencies:
+  blockers: ["SC-111"]
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "At least 8 additional merchants successfully imported beyond SC-111 results"
+    verify: "cd backend && . .venv/bin/activate && python3 -c \"from szimplacoffee.db import get_session; from szimplacoffee.models import Merchant; s=next(get_session()); print(s.query(Merchant).filter(Merchant.is_active==True).count(), 'active merchants')\""
+    status: pending
+  - id: AC-2
+    text: "Backend tests pass"
+    verify: "cd backend && pytest tests/ -q"
+    status: pending
+
+verification_required:
+  - "cd backend && pytest tests/ -q"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-116-execution-plan.md"
+  - "/home/h6nk/SzimplaCoffee/SzimplaCoffee/brain/merchants/top-500-seed.md"
+
+slices:
+  - id: S1
+    title: "Import remaining Tier B seed merchants serially"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify: []
+    files_read_only:
+      - "SzimplaCoffee/brain/merchants/top-500-seed.md"
+    checks:
+      - "cd backend && pytest tests/ -q"
+    evidence: []
+    notes: "Use szimpla add-merchant <url> for each. Serial. Record which succeed."
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Depends on SC-111 completing first"
+  - "Lowest priority of the batch — don't rush it"

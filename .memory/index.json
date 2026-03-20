@@ -1,12 +1,28 @@
 {
   "entries": [
     {
+      "id": "SC-110-description-backfill",
+      "path": ".memory/sprint-11/SC-110-description-backfill.md",
+      "ticket": "SC-110",
+      "sprint": "11",
+      "created_at": "2026-03-20T12:22:00Z",
+      "summary": "Added szimpla backfill-descriptions CLI command plus regression tests. Live run updated 69 active products, reclassified 48 obvious non-coffee rows, upgraded 21 process-family values, and improved coffee-only origin coverage to 62.1%. 345 backend tests and ruff passed."
+    },
+    {
+      "id": "SC-108-catalog-sort",
+      "path": ".memory/sprint-02/SC-108-catalog-sort.md",
+      "ticket": "SC-108",
+      "sprint": "02",
+      "created_at": "2026-03-20T10:45:00Z",
+      "summary": "Added /api/v1/products/catalog endpoint with quality-first default sort. Added freshness sort. Frontend default changed to quality. 6 new tests. 333 backend tests pass."
+    },
+    {
       "id": "SC-109-today-deal-score",
       "path": ".memory/sprint-11/SC-109-today-deal-score.md",
       "ticket": "SC-109",
       "sprint": "11",
       "created_at": "2026-03-20T09:49:00Z",
-      "summary": "Added _baseline_deal_score() using VariantPriceBaseline, blended ranking (0.7 quality + 0.3 deal), deal_badge UI in Today view (🔥/✓/↑). 327 tests pass. Ruff + build + tsc clean."
+      "summary": "Added _baseline_deal_score() using VariantPriceBaseline, blended ranking (0.7 quality + 0.3 deal), deal_badge UI in Today view (\ud83d\udd25/\u2713/\u2191). 327 tests pass. Ruff + build + tsc clean."
     },
     {
       "id": "SC-107-variant-price-baseline",

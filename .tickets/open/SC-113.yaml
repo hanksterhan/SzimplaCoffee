@@ -1,0 +1,110 @@
+id: SC-113
+title: "Purchase history intelligence panel"
+type: feature
+priority: p2
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-20T12:06:00Z"
+updated_at: "2026-03-20T12:06:00Z"
+labels: ["backend", "frontend", "purchases", "analytics", "phase-4"]
+
+problem: >
+  10 purchases are logged in purchase_history but the app has no analysis surface.
+  There is no "time since last order," no "roasters I haven't tried lately," and no
+  value-per-gram tracking. The data exists but is invisible.
+
+desired_outcome: >
+  A small "My buying patterns" stats card appears on the Purchases page (or Today page)
+  showing: days since last order, top 3 roasters by purchase count, and estimated
+  average grams per week based on purchase gaps. Backed by a dedicated API endpoint.
+
+scope_in:
+  - "Add GET /api/v1/history/purchase-stats endpoint returning: days_since_last_order, top_roasters (list of {merchant_name, count}), avg_grams_per_week"
+  - "Compute from existing purchase_history rows (no new data model)"
+  - "Frontend: add PurchaseStatsCard component to Purchases page"
+  - "Backend test for purchase stats computation"
+
+scope_out:
+  - "No Notion import or external sync"
+  - "No wallet or credit tracking"
+  - "No changes to purchase_history schema"
+  - "No changes to recommendation engine"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "GET /api/v1/history/purchase-stats returns days_since_last_order, top_roasters, avg_grams_per_week"
+    verify: "curl -s http://localhost:8000/api/v1/history/purchase-stats | python3 -m json.tool"
+    status: pending
+  - id: AC-2
+    text: "Purchases page shows stats card with at least days_since_last_order and top roasters"
+    verify: "Manual: open /purchases, confirm stats card visible"
+    status: pending
+  - id: AC-3
+    text: "Backend tests pass"
+    verify: "cd backend && pytest tests/ -q"
+    status: pending
+  - id: AC-4
+    text: "Frontend build and tsc pass"
+    verify: "cd frontend && npm run build && npx tsc -b"
+    status: pending
+
+verification_required:
+  - "cd backend && pytest tests/ -q"
+  - "cd frontend && npm run build && npx tsc -b"
+  - "cd backend && ~/.local/bin/ruff check src/ tests/"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-113-execution-plan.md"
+  - "/home/h6nk/SzimplaCoffee/backend/src/szimplacoffee/api/history.py"
+  - "/home/h6nk/SzimplaCoffee/backend/src/szimplacoffee/schemas/"
+  - "/home/h6nk/SzimplaCoffee/frontend/src/routes/purchases.lazy.tsx"
+
+slices:
+  - id: S1
+    title: "Backend: purchase-stats endpoint"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/api/history.py"
+      - "backend/src/szimplacoffee/schemas/history.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && pytest tests/ -q"
+    evidence: []
+    notes: "Compute days_since_last_order from max(purchased_at). top_roasters from GROUP BY merchant_id. avg_grams_per_week from total_grams / weeks_span."
+
+  - id: S2
+    title: "Frontend: PurchaseStatsCard on Purchases page"
+    status: pending
+    depends_on: ["S1"]
+    files_create:
+      - "frontend/src/components/PurchaseStatsCard.tsx"
+    files_modify:
+      - "frontend/src/routes/purchases.lazy.tsx"
+      - "frontend/src/hooks/use-purchase-stats.ts"
+    files_read_only:
+      - "frontend/src/api/schema.d.ts"
+    checks:
+      - "cd frontend && npm run build && npx tsc -b"
+    evidence: []
+    notes: "Simple stats card using shadcn/ui Card. Show 3 metrics. Use useQuery pattern."
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Keep it simple — 3 stats, clean card, no charts needed"

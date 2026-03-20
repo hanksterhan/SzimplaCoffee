@@ -42,6 +42,17 @@ def main() -> None:
         help="Re-run coffee metadata parser over all products and fill empty fields.",
     )
 
+    # SC-110: backfill-descriptions
+    subparsers.add_parser(
+        "backfill-descriptions",
+        help=(
+            "Re-pass the metadata parser over products with description_text, upgrading "
+            "fields where the description yields higher confidence than existing values. "
+            "Also re-classifies products as non-coffee where the parser disagrees with the "
+            "stored product_category. Prints before/after fill-rate summary."
+        ),
+    )
+
     # SC-32: score-merchants
     subparsers.add_parser(
         "score-merchants",
@@ -362,6 +373,129 @@ def main() -> None:
                 if count:
                     pct = count * 100 // total if total else 0
                     print(f"  {field}: {count} ({pct}%)")
+            return
+
+        if args.command == "backfill-descriptions":
+            # SC-110: Re-pass parser over products with description_text, upgrading metadata
+            # where description yields higher confidence than existing values. Also fixes
+            # product_category mis-classifications for recently crawled products.
+            from .services.coffee_parser import parse_coffee_metadata, default_process_family_for_country
+
+            all_active = session.scalars(select(Product).where(Product.is_active == True)).all()  # noqa: E712
+
+            # Before counts
+            total_active = len(all_active)
+            before_origin = sum(1 for p in all_active if p.origin_country)
+            before_roast = sum(1 for p in all_active if p.roast_level not in (None, "", "unknown"))
+            before_process = sum(1 for p in all_active if p.process_family not in (None, "", "unknown"))
+
+            # Target: products with description_text (upgrade pass) + all active (reclassify pass)
+            updated = 0
+            reclassified = 0
+            origin_upgraded = 0
+            roast_upgraded = 0
+            process_upgraded = 0
+
+            for product in all_active:
+                changed = False
+
+                # Pass 1: reclassify non-coffee products regardless of description
+                parsed_name = parse_coffee_metadata(product.name, "")
+                if not parsed_name.is_coffee_product and product.product_category == "coffee":
+                    product.product_category = "non-coffee"
+                    reclassified += 1
+                    changed = True
+
+                # Pass 2: upgrade metadata from description_text when confidence improves
+                if product.description_text and product.product_category != "non-coffee":
+                    parsed = parse_coffee_metadata(product.name, product.description_text)
+
+                    if not parsed.is_coffee_product and product.product_category == "coffee":
+                        product.product_category = "non-coffee"
+                        reclassified += 1
+                        changed = True
+                        continue  # skip metadata upgrade for non-coffee
+
+                    # Upgrade origin_country if description yields higher confidence
+                    if (
+                        parsed.origin_country
+                        and parsed.origin_country_confidence > float(product.origin_country_confidence or 0.0)
+                        and (not product.origin_country or parsed.origin_country_confidence > float(product.origin_country_confidence or 0.0) + 0.05)
+                    ):
+                        if product.origin_country != parsed.origin_country:
+                            product.origin_country = parsed.origin_country
+                            origin_upgraded += 1
+                            changed = True
+                        product.origin_country_confidence = parsed.origin_country_confidence
+                        product.origin_country_source = parsed.origin_country_source
+
+                    # Fill empty origin from description
+                    if not product.origin_country and parsed.origin_country:
+                        product.origin_country = parsed.origin_country
+                        product.origin_country_confidence = parsed.origin_country_confidence
+                        product.origin_country_source = parsed.origin_country_source
+                        origin_upgraded += 1
+                        changed = True
+
+                    # Upgrade roast_level from description
+                    if (
+                        parsed.roast_level not in (None, "", "unknown")
+                        and parsed.roast_level_confidence > float(product.roast_level_confidence or 0.0)
+                    ):
+                        if product.roast_level != parsed.roast_level:
+                            product.roast_level = parsed.roast_level
+                            roast_upgraded += 1
+                            changed = True
+                        product.roast_level_confidence = parsed.roast_level_confidence
+                        product.roast_level_source = parsed.roast_level_source
+
+                    # Upgrade process_family from description
+                    if (
+                        parsed.process_family not in (None, "", "unknown")
+                        and parsed.process_family_confidence > float(product.process_family_confidence or 0.0)
+                    ):
+                        if product.process_family != parsed.process_family:
+                            product.process_family = parsed.process_family
+                            process_upgraded += 1
+                            changed = True
+                        product.process_family_confidence = parsed.process_family_confidence
+                        product.process_family_source = parsed.process_family_source
+
+                    # Apply country-default process if still unknown
+                    if product.process_family in (None, "", "unknown") and product.origin_country:
+                        default_proc = default_process_family_for_country(product.origin_country)
+                        if default_proc:
+                            product.process_family = default_proc
+                            product.process_family_confidence = max(float(product.process_family_confidence or 0.0), 0.35)
+                            product.process_family_source = "country-default"
+                            process_upgraded += 1
+                            changed = True
+
+                if changed:
+                    updated += 1
+
+            session.flush()
+
+            # After counts
+            all_active_post = session.scalars(select(Product).where(Product.is_active == True)).all()  # noqa: E712
+            total_active_post = len(all_active_post)
+            after_origin = sum(1 for p in all_active_post if p.origin_country)
+            after_roast = sum(1 for p in all_active_post if p.roast_level not in (None, "", "unknown"))
+            after_process = sum(1 for p in all_active_post if p.process_family not in (None, "", "unknown"))
+
+            print(f"Description backfill complete. Updated {updated}/{total_active} active products.")
+            print(f"  Reclassified as non-coffee: {reclassified}")
+            print(f"  Origin upgrades:            {origin_upgraded}")
+            print(f"  Roast upgrades:             {roast_upgraded}")
+            print(f"  Process upgrades:           {process_upgraded}")
+            print()
+            print("Fill-rate before → after (active products):")
+            print(f"  origin_country:  {before_origin}/{total_active} ({before_origin*100//total_active if total_active else 0}%)"
+                  f" → {after_origin}/{total_active_post} ({after_origin*100//total_active_post if total_active_post else 0}%)")
+            print(f"  roast_level:     {before_roast}/{total_active} ({before_roast*100//total_active if total_active else 0}%)"
+                  f" → {after_roast}/{total_active_post} ({after_roast*100//total_active_post if total_active_post else 0}%)")
+            print(f"  process_family:  {before_process}/{total_active} ({before_process*100//total_active if total_active else 0}%)"
+                  f" → {after_process}/{total_active_post} ({after_process*100//total_active_post if total_active_post else 0}%)")
             return
 
         if args.command == "score-merchants":

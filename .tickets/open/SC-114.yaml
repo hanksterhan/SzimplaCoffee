@@ -1,0 +1,110 @@
+id: SC-114
+title: "Variant availability freshness signal"
+type: feature
+priority: p2
+status: ready
+owner: h6nk-bot
+created_at: "2026-03-20T12:06:00Z"
+updated_at: "2026-03-20T12:06:00Z"
+labels: ["backend", "frontend", "catalog", "freshness", "trust", "phase-4"]
+
+problem: >
+  Variants marked "available" may not have been seen in weeks. There is no visual signal
+  to distinguish a freshly-crawled variant from one that hasn't been confirmed available
+  in 30+ days. This erodes trust in catalog accuracy.
+
+desired_outcome: >
+  Product detail and catalog show a "last seen" date for variants. Variants not seen
+  in >30 days are marked visually as "stale" rather than "available." No new crawl
+  is triggered — this is a display-layer signal from existing last_seen_at data.
+
+scope_in:
+  - "Expose last_seen_at on ProductVariant in API response (already in model, may need schema update)"
+  - "Frontend: show last_seen date on product detail variant selector"
+  - "Frontend: show 'stale' badge if last_seen_at > 30 days ago"
+  - "Optional: show freshness indicator in catalog product cards (small dot or age text)"
+
+scope_out:
+  - "No new crawl triggers"
+  - "No changes to data model or last_seen_at tracking logic"
+  - "No changes to recommendation engine"
+
+dependencies:
+  blockers: []
+  unblocks: []
+
+acceptance_criteria:
+  - id: AC-1
+    text: "Product detail API response includes last_seen_at on variants"
+    verify: "curl -s 'http://localhost:8000/api/v1/products/1' | python3 -m json.tool | grep last_seen"
+    status: pending
+  - id: AC-2
+    text: "Frontend product detail shows last_seen date per variant"
+    verify: "Manual: open a product detail page, confirm last_seen visible in variant selector"
+    status: pending
+  - id: AC-3
+    text: "Variants with last_seen_at > 30 days ago show 'stale' badge"
+    verify: "Manual: check if any variants are stale, confirm badge displays"
+    status: pending
+  - id: AC-4
+    text: "Backend tests pass"
+    verify: "cd backend && pytest tests/ -q"
+    status: pending
+  - id: AC-5
+    text: "Frontend build and tsc pass"
+    verify: "cd frontend && npm run build && npx tsc -b"
+    status: pending
+
+verification_required:
+  - "cd backend && pytest tests/ -q"
+  - "cd frontend && npm run build && npx tsc -b"
+  - "cd backend && ~/.local/bin/ruff check src/ tests/"
+
+context_refs:
+  - "/home/h6nk/SzimplaCoffee/.plans/SC-114-execution-plan.md"
+  - "/home/h6nk/SzimplaCoffee/backend/src/szimplacoffee/schemas/products.py"
+  - "/home/h6nk/SzimplaCoffee/frontend/src/routes/products.$productId.lazy.tsx"
+
+slices:
+  - id: S1
+    title: "Backend: expose last_seen_at in variant schema"
+    status: pending
+    depends_on: []
+    files_create: []
+    files_modify:
+      - "backend/src/szimplacoffee/schemas/products.py"
+      - "backend/src/szimplacoffee/api/products.py"
+    files_read_only:
+      - "backend/src/szimplacoffee/models.py"
+    checks:
+      - "cd backend && pytest tests/ -q"
+    evidence: []
+    notes: "Add last_seen_at: Optional[datetime] to variant response schema"
+
+  - id: S2
+    title: "Frontend: last_seen display and stale badge"
+    status: pending
+    depends_on: ["S1"]
+    files_create: []
+    files_modify:
+      - "frontend/src/routes/products.$productId.lazy.tsx"
+    files_read_only:
+      - "frontend/src/api/schema.d.ts"
+    checks:
+      - "cd frontend && npm run build && npx tsc -b"
+    evidence: []
+    notes: "Show relative date (e.g. '3 days ago'). Show 'Stale' badge in amber/red if >30 days."
+
+delivery:
+  branch: ""
+  commits: []
+  pr_url: ""
+  started_at: ""
+  completed_at: ""
+  verification:
+    required_passed: false
+    commands_run: []
+    evidence_refs: []
+
+notes:
+  - "Purely a display change — no data collection changes needed"
