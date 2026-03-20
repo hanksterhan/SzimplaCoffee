@@ -3,12 +3,12 @@
   "last_brainstorm_at": "2026-03-20T11:34:00Z",
   "last_brainstorm_packet": ".plans/brainstorm-current.md",
   "last_refill_at": "2026-03-20T12:06:00Z",
-  "last_delivered_task": "SC-112",
-  "completed_since_reflect": 3,
+  "last_delivered_task": "SC-113",
+  "completed_since_reflect": 4,
   "task_failures": {},
   "cooldowns": {},
-  "last_run_at": "2026-03-20T14:17:00Z",
+  "last_run_at": "2026-03-20T15:10:00Z",
   "last_run_result": "delivered",
-  "last_run_summary": "Delivered SC-112: added why_text template-based recommendation explanation to backend service, API schema, and Today view TopPickCard. 354 tests pass, ruff clean, build + tsc clean.",
-  "next_task_hint": "Select SC-113 (Purchase history intelligence panel) — next highest-priority unblocked ready task."
+  "last_run_summary": "Delivered SC-113: added GET /api/v1/history/purchase-stats endpoint, BuyingPatternStats schema, useBuyingPatterns hook, and PurchaseStatsCard on Purchases page. 358 tests pass, ruff clean, build + tsc clean.",
+  "next_task_hint": "Select SC-114 (variant availability freshness signal) or SC-115 (espresso shot-style ranking) — both p2, unblocked, ready."
 }

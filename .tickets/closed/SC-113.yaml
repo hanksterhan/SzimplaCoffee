@@ -2,7 +2,7 @@ id: SC-113
 title: "Purchase history intelligence panel"
 type: feature
 priority: p2
-status: ready
+status: done
 owner: h6nk-bot
 created_at: "2026-03-20T12:06:00Z"
 updated_at: "2026-03-20T12:06:00Z"
@@ -38,19 +38,19 @@ acceptance_criteria:
   - id: AC-1
     text: "GET /api/v1/history/purchase-stats returns days_since_last_order, top_roasters, avg_grams_per_week"
     verify: "curl -s http://localhost:8000/api/v1/history/purchase-stats | python3 -m json.tool"
-    status: pending
+    status: done
   - id: AC-2
     text: "Purchases page shows stats card with at least days_since_last_order and top roasters"
     verify: "Manual: open /purchases, confirm stats card visible"
-    status: pending
+    status: done
   - id: AC-3
     text: "Backend tests pass"
     verify: "cd backend && pytest tests/ -q"
-    status: pending
+    status: done
   - id: AC-4
     text: "Frontend build and tsc pass"
     verify: "cd frontend && npm run build && npx tsc -b"
-    status: pending
+    status: done
 
 verification_required:
   - "cd backend && pytest tests/ -q"
