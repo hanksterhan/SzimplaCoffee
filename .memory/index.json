@@ -1,6 +1,14 @@
 {
   "entries": [
     {
+      "id": "SC-99-quality-sort",
+      "path": ".memory/sprint-10/SC-99-quality-sort.md",
+      "ticket": "SC-99",
+      "sprint": "10",
+      "created_at": "2026-03-20T01:52:00Z",
+      "summary": "Added 'quality' sort mode to catalog API (has_stock → merchant quality score → metadata_confidence → recency). MerchantQualityProfile.overall_quality_score threaded via selectinload. Frontend sort selector updated. 275 backend tests pass."
+    },
+    {
       "id": "SC-98-deal-baselines-catalog-api",
       "path": ".memory/sprint-06/SC-98-deal-baselines-catalog-api.md",
       "ticket": "SC-98",
